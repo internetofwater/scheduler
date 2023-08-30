@@ -2,7 +2,7 @@ import distutils
 import logging
 import time
 
-from dagster import job, op, graph,In, Nothing, get_dagster_logger
+from dagster import job, op, graph, In, Nothing, get_dagster_logger
 import os, json, io
 import urllib
 from urllib import request
@@ -36,7 +36,7 @@ from dagster_docker.docker_run_launcher import DockerRunLauncher
 from dagster_docker.utils import DOCKER_CONFIG_SCHEMA, validate_docker_image
 from docker.types.services import ContainerSpec, TaskTemplate, ConfigReference
 
-DEBUG=(os.getenv('DEBUG', 'False').lower()  == 'true')
+DEBUG = (os.getenv('DEBUG', 'False').lower() == 'true')
 # #
 # path to gleaner config in Dagster-daemon is "/scheduler/gleanerconfig.yaml" (config file mounted)
 #  WHEN RUNNING dagster-dev, this needs to be a path to a local file
@@ -44,54 +44,60 @@ DEBUG=(os.getenv('DEBUG', 'False').lower()  == 'true')
 DAGSTER_GLEANER_CONFIG_PATH = os.environ.get('DAGSTER_GLEANER_CONFIG_PATH', "/scheduler/gleanerconfig.yaml")
 
 # Vars and Envs
-GLEANER_HEADLESS_NETWORK=os.environ.get('GLEANERIO_HEADLESS_NETWORK', "headless_gleanerio")
+GLEANER_HEADLESS_NETWORK = os.environ.get('GLEANERIO_HEADLESS_NETWORK', "headless_gleanerio")
 # env items
 URL = os.environ.get('PORTAINER_URL')
 APIKEY = os.environ.get('PORTAINER_KEY')
-
 
 GLEANER_MINIO_ADDRESS = str(os.environ.get('GLEANERIO_MINIO_ADDRESS'))
 GLEANER_MINIO_PORT = str(os.environ.get('GLEANERIO_MINIO_PORT'))
 GLEANER_MINIO_USE_SSL = bool(distutils.util.strtobool(os.environ.get('GLEANERIO_MINIO_USE_SSL')))
 GLEANER_MINIO_SECRET_KEY = str(os.environ.get('GLEANERIO_MINIO_SECRET_KEY'))
 GLEANER_MINIO_ACCESS_KEY = str(os.environ.get('GLEANERIO_MINIO_ACCESS_KEY'))
-GLEANER_MINIO_BUCKET =str( os.environ.get('GLEANERIO_MINIO_BUCKET'))
+GLEANER_MINIO_BUCKET = str(os.environ.get('GLEANERIO_MINIO_BUCKET'))
 
 # set for the earhtcube utiltiies
-MINIO_OPTIONS={"secure":GLEANER_MINIO_USE_SSL
+MINIO_OPTIONS = {"secure": GLEANER_MINIO_USE_SSL
 
-              ,"access_key": GLEANER_MINIO_ACCESS_KEY
-              ,"secret_key": GLEANER_MINIO_SECRET_KEY
-               }
+    , "access_key": GLEANER_MINIO_ACCESS_KEY
+    , "secret_key": GLEANER_MINIO_SECRET_KEY
+                 }
 
 GLEANER_HEADLESS_ENDPOINT = str(os.environ.get('GLEANERIO_HEADLESS_ENDPOINT', "http://headless:9222"))
 # using GLEANER, even though this is a nabu property... same prefix seems easier
 GLEANER_GRAPH_URL = str(os.environ.get('GLEANERIO_GRAPH_URL'))
 GLEANER_GRAPH_NAMESPACE = str(os.environ.get('GLEANERIO_GRAPH_NAMESPACE'))
-GLEANERIO_GLEANER_CONFIG_PATH= str(os.environ.get('GLEANERIO_GLEANER_CONFIG_PATH', "/gleaner/gleanerconfig.yaml"))
-GLEANERIO_NABU_CONFIG_PATH= str(os.environ.get('GLEANERIO_NABU_CONFIG_PATH', "/nabu/nabuconfig.yaml"))
-GLEANERIO_GLEANER_IMAGE =str( os.environ.get('GLEANERIO_GLEANER_IMAGE', 'nsfearthcube/gleaner:latest'))
+GLEANERIO_GLEANER_CONFIG_PATH = str(os.environ.get('GLEANERIO_GLEANER_CONFIG_PATH', "/gleaner/gleanerconfig.yaml"))
+GLEANERIO_NABU_CONFIG_PATH = str(os.environ.get('GLEANERIO_NABU_CONFIG_PATH', "/nabu/nabuconfig.yaml"))
+GLEANERIO_GLEANER_IMAGE = str(os.environ.get('GLEANERIO_GLEANER_IMAGE', 'nsfearthcube/gleaner:latest'))
 GLEANERIO_NABU_IMAGE = str(os.environ.get('GLEANERIO_NABU_IMAGE', 'nsfearthcube/nabu:latest'))
-GLEANERIO_LOG_PREFIX = str(os.environ.get('GLEANERIO_LOG_PREFIX', 'scheduler/logs/')) # path to logs in nabu/gleaner
-GLEANERIO_GLEANER_ARCHIVE_OBJECT = str(os.environ.get('GLEANERIO_GLEANER_ARCHIVE_OBJECT', 'scheduler/configs/GleanerCfg.tgz'))
+GLEANERIO_LOG_PREFIX = str(os.environ.get('GLEANERIO_LOG_PREFIX', 'scheduler/logs/'))  # path to logs in nabu/gleaner
+GLEANERIO_GLEANER_ARCHIVE_OBJECT = str(
+    os.environ.get('GLEANERIO_GLEANER_ARCHIVE_OBJECT', 'scheduler/configs/GleanerCfg.tgz'))
 GLEANERIO_GLEANER_ARCHIVE_PATH = str(os.environ.get('GLEANERIO_GLEANER_ARCHIVE_PATH', '/gleaner/'))
-GLEANERIO_NABU_ARCHIVE_OBJECT=str(os.environ.get('GLEANERIO_NABU_ARCHIVE_OBJECT', 'scheduler/configs/NabuCfg.tgz'))
-GLEANERIO_NABU_ARCHIVE_PATH=str(os.environ.get('GLEANERIO_NABU_ARCHIVE_PATH', '/nabu/'))
-GLEANERIO_GLEANER_DOCKER_CONFIG=str(os.environ.get('GLEANERIO_GLEANER_DOCKER_CONFIG', 'gleaner'))
-GLEANERIO_NABU_DOCKER_CONFIG=str(os.environ.get('GLEANERIO_NABU_DOCKER_CONFIG', 'nabu'))
-#GLEANERIO_SUMMARY_GRAPH_ENDPOINT = os.environ.get('GLEANERIO_SUMMARY_GRAPH_ENDPOINT')
-GLEANERIO_SUMMARY_GRAPH_NAMESPACE = os.environ.get('GLEANERIO_SUMMARY_GRAPH_NAMESPACE',f"{GLEANER_GRAPH_NAMESPACE}_summary" )
+GLEANERIO_NABU_ARCHIVE_OBJECT = str(os.environ.get('GLEANERIO_NABU_ARCHIVE_OBJECT', 'scheduler/configs/NabuCfg.tgz'))
+GLEANERIO_NABU_ARCHIVE_PATH = str(os.environ.get('GLEANERIO_NABU_ARCHIVE_PATH', '/nabu/'))
+GLEANERIO_GLEANER_DOCKER_CONFIG = str(os.environ.get('GLEANERIO_GLEANER_DOCKER_CONFIG', 'gleaner'))
+GLEANERIO_NABU_DOCKER_CONFIG = str(os.environ.get('GLEANERIO_NABU_DOCKER_CONFIG', 'nabu'))
+# GLEANERIO_SUMMARY_GRAPH_ENDPOINT = os.environ.get('GLEANERIO_SUMMARY_GRAPH_ENDPOINT')
+GLEANERIO_SUMMARY_GRAPH_NAMESPACE = os.environ.get('GLEANERIO_SUMMARY_GRAPH_NAMESPACE',
+                                                   f"{GLEANER_GRAPH_NAMESPACE}_summary")
 
 SUMMARY_PATH = 'graphs/summary'
 RELEASE_PATH = 'graphs/latest'
+
+
 def _graphEndpoint():
     url = f"{GLEANER_GRAPH_URL}/namespace/{GLEANER_GRAPH_NAMESPACE}/sparql"
     return url
+
+
 def _graphSummaryEndpoint():
     url = f"{GLEANER_GRAPH_URL}/namespace/{GLEANERIO_SUMMARY_GRAPH_NAMESPACE}/sparql"
     return url
-def _pythonMinioAddress(url, port = None):
 
+
+def _pythonMinioAddress(url, port=None):
     if (url.endswith(".amazonaws.com")):
         PYTHON_MINIO_URL = "s3.amazonaws.com"
     else:
@@ -99,6 +105,7 @@ def _pythonMinioAddress(url, port = None):
     if port is not None:
         PYTHON_MINIO_URL = f"{PYTHON_MINIO_URL}:{port}"
     return PYTHON_MINIO_URL
+
 
 def read_file_bytestream(image_path):
     data = open(image_path, 'rb').read()
@@ -116,7 +123,7 @@ def load_data(file_or_url):
 
 
 def s3reader(object):
-    server =  _pythonMinioAddress(GLEANER_MINIO_ADDRESS,GLEANER_MINIO_PORT )
+    server = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
     get_dagster_logger().info(f"S3 URL    : {GLEANER_MINIO_ADDRESS}")
     get_dagster_logger().info(f"S3 PYTHON SERVER : {server}")
     get_dagster_logger().info(f"S3 PORT   : {GLEANER_MINIO_PORT}")
@@ -128,7 +135,7 @@ def s3reader(object):
     client = Minio(
         server,
         # secure=True,
-        secure = GLEANER_MINIO_USE_SSL,
+        secure=GLEANER_MINIO_USE_SSL,
         access_key=GLEANER_MINIO_ACCESS_KEY,
         secret_key=GLEANER_MINIO_SECRET_KEY,
     )
@@ -140,12 +147,12 @@ def s3reader(object):
 
 
 def s3loader(data, name):
-    secure= GLEANER_MINIO_USE_SSL
+    secure = GLEANER_MINIO_USE_SSL
     if (GLEANER_MINIO_PORT and GLEANER_MINIO_PORT == "80"
-             and secure == False):
+            and secure == False):
         server = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
     elif (GLEANER_MINIO_PORT and GLEANER_MINIO_PORT == "443"
-                and secure == True):
+          and secure == True):
         server = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
     else:
         # it's not on a normal port
@@ -154,7 +161,7 @@ def s3loader(data, name):
     client = Minio(
         server,
         secure=secure,
-        #secure = bool(distutils.util.strtobool(os.environ.get('GLEANER_MINIO_SSL'))),
+        # secure = bool(distutils.util.strtobool(os.environ.get('GLEANER_MINIO_SSL'))),
         access_key=GLEANER_MINIO_ACCESS_KEY,
         secret_key=GLEANER_MINIO_SECRET_KEY,
     )
@@ -172,19 +179,21 @@ def s3loader(data, name):
     logname = name + '_{}.log'.format(date_string)
     objPrefix = GLEANERIO_LOG_PREFIX + logname
     f = io.BytesIO()
-    #length = f.write(bytes(json_str, 'utf-8'))
+    # length = f.write(bytes(json_str, 'utf-8'))
     length = f.write(data)
     f.seek(0)
     client.put_object(GLEANER_MINIO_BUCKET,
                       objPrefix,
-                      f, #io.BytesIO(data),
-                      length, #len(data),
+                      f,  # io.BytesIO(data),
+                      length,  # len(data),
                       content_type="text/plain"
-                         )
+                      )
     get_dagster_logger().info(f"Log uploaded: {str(objPrefix)}")
+
+
 def post_to_graph(source, path=RELEASE_PATH, extension="nq", graphendpoint=_graphEndpoint()):
     # revision of EC utilities, will have a insertFromURL
-    #instance =  mg.ManageBlazegraph(os.environ.get('GLEANER_GRAPH_URL'),os.environ.get('GLEANER_GRAPH_NAMESPACE') )
+    # instance =  mg.ManageBlazegraph(os.environ.get('GLEANER_GRAPH_URL'),os.environ.get('GLEANER_GRAPH_NAMESPACE') )
     proto = "http"
 
     if GLEANER_MINIO_USE_SSL:
@@ -210,13 +219,13 @@ def post_to_graph(source, path=RELEASE_PATH, extension="nq", graphendpoint=_grap
     #     raise Exception(f' graph: insert failed: status:{r.status_code}')
 
     ### GENERIC LOAD FROM
-    url = f"{graphendpoint}" # f"{os.environ.get('GLEANER_GRAPH_URL')}/namespace/{os.environ.get('GLEANER_GRAPH_NAMESPACE')}/sparql?uri={release_url}"
+    url = f"{graphendpoint}"  # f"{os.environ.get('GLEANER_GRAPH_URL')}/namespace/{os.environ.get('GLEANER_GRAPH_NAMESPACE')}/sparql?uri={release_url}"
     get_dagster_logger().info(f'graph: insert "{source}" to {url} ')
     loadfrom = {'update': f'LOAD <{release_url}>'}
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
-    r = requests.post(url, headers=headers, data=loadfrom )
+    r = requests.post(url, headers=headers, data=loadfrom)
     log.debug(f' status:{r.status_code}')  # status:404
     get_dagster_logger().info(f'graph: LOAD from {release_url}: status:{r.status_code}')
     if r.status_code == 200:
@@ -224,21 +233,22 @@ def post_to_graph(source, path=RELEASE_PATH, extension="nq", graphendpoint=_grap
         # '<?xml version="1.0"?><data modified="0" milliseconds="7"/>'
         if 'mutationCount=0' in r.text:
             get_dagster_logger().info(f'graph: no data inserted ')
-            #raise Exception("No Data Added: " + r.text)
+            # raise Exception("No Data Added: " + r.text)
         return True
     else:
         get_dagster_logger().info(f'graph: error {str(r.text)}')
         raise Exception(f' graph: failed,  LOAD from {release_url}: status:{r.status_code}')
 
+
 def _get_client(docker_container_context: DockerContainerContext):
     headers = {'X-API-Key': APIKEY}
-    client = docker.DockerClient(base_url=URL, version="1.43" )
-    #client = docker.APIClient(base_url=URL, version="1.35")
+    client = docker.DockerClient(base_url=URL, version="1.43")
+    # client = docker.APIClient(base_url=URL, version="1.35")
     get_dagster_logger().info(f"create docker client")
     if (client.api._general_configs):
         client.api._general_configs["HttpHeaders"] = headers
     else:
-        client.api._general_configs={"HttpHeaders":headers}
+        client.api._general_configs = {"HttpHeaders": headers}
     client.api.headers['X-API-Key'] = APIKEY
     get_dagster_logger().info(f" docker version {client.version()}")
     if docker_container_context.registry:
@@ -251,12 +261,12 @@ def _get_client(docker_container_context: DockerContainerContext):
 
 
 def _create_service(
-    op_context: OpExecutionContext,
-    client,
-    container_context: DockerContainerContext,
-    image: str,
-    entrypoint: Optional[Sequence[str]],
-    command: Optional[Sequence[str]],
+        op_context: OpExecutionContext,
+        client,
+        container_context: DockerContainerContext,
+        image: str,
+        entrypoint: Optional[Sequence[str]],
+        command: Optional[Sequence[str]],
         name="",
         workingdir="/",
 
@@ -265,42 +275,42 @@ def _create_service(
     get_dagster_logger().info(f"create docker service for {name}")
     ## thoguhts
     # return service, container, since there is one
-    restart_policy  = RestartPolicy(condition='none')
+    restart_policy = RestartPolicy(condition='none')
     # docker.py if replicated job, total completions = replicas
     # replicas =0 you do not get a container
-    serivce_mode = ServiceMode("replicated-job",concurrency=1,replicas=1)
+    serivce_mode = ServiceMode("replicated-job", concurrency=1, replicas=1)
     get_dagster_logger().info(str(client.configs.list()))
-  #  gleanerid = client.configs.list(filters={"name":{"gleaner-eco": "true"}})
+    #  gleanerid = client.configs.list(filters={"name":{"gleaner-eco": "true"}})
     gleanerconfig = client.configs.list(filters={"name": [GLEANERIO_GLEANER_DOCKER_CONFIG]})
     get_dagster_logger().info(f"docker config gleaner id {str(gleanerconfig[0].id)}")
-    nabuconfig = client.configs.list(filters={"name":[GLEANERIO_NABU_DOCKER_CONFIG]})
+    nabuconfig = client.configs.list(filters={"name": [GLEANERIO_NABU_DOCKER_CONFIG]})
     get_dagster_logger().info(f"docker config nabu id {str(nabuconfig[0].id)}")
     get_dagster_logger().info(f"create docker service for {name}")
-    gleaner = ConfigReference(gleanerconfig[0].id, GLEANERIO_GLEANER_DOCKER_CONFIG,GLEANERIO_GLEANER_CONFIG_PATH)
-    nabu = ConfigReference(nabuconfig[0].id, GLEANERIO_NABU_DOCKER_CONFIG,GLEANERIO_NABU_CONFIG_PATH)
-    configs = [gleaner,nabu]
-   # name = name if len(name) else _get_container_name(op_context.run_id, op_context.op.name, op_context.retry_number),
+    gleaner = ConfigReference(gleanerconfig[0].id, GLEANERIO_GLEANER_DOCKER_CONFIG, GLEANERIO_GLEANER_CONFIG_PATH)
+    nabu = ConfigReference(nabuconfig[0].id, GLEANERIO_NABU_DOCKER_CONFIG, GLEANERIO_NABU_CONFIG_PATH)
+    configs = [gleaner, nabu]
+    # name = name if len(name) else _get_container_name(op_context.run_id, op_context.op.name, op_context.retry_number),
     service = client.services.create(
         image,
         args=command,
-        env= env_vars,
-        name=name ,
-        networks= container_context.networks if len(container_context.networks) else None,
-        restart_policy = restart_policy,
+        env=env_vars,
+        name=name,
+        networks=container_context.networks if len(container_context.networks) else None,
+        restart_policy=restart_policy,
         mode=serivce_mode,
         workdir=workingdir,
         configs=configs
     )
-    wait_count =0
+    wait_count = 0
     while True:
         time.sleep(1)
-        wait_count+=1
+        wait_count += 1
         get_dagster_logger().debug(str(service.tasks()))
 
-        container_task = service.tasks(filters={"service":name})
+        container_task = service.tasks(filters={"service": name})
 
-        containers = client.containers.list(all=True, filters={"label":f"com.docker.swarm.service.name={name}"})
-        if len(containers)> 0:
+        containers = client.containers.list(all=True, filters={"label": f"com.docker.swarm.service.name={name}"})
+        if len(containers) > 0:
             break
         if wait_count > 12:
             raise f"Container  for service {name} not starting"
@@ -309,25 +319,21 @@ def _create_service(
     return service, containers[0]
 
 
-
-
 def gleanerio(context, mode, source):
     ## ------------   Create
     returnCode = 0
     get_dagster_logger().info(f"Gleanerio mode: {str(mode)}")
 
     if str(mode) == "gleaner":
-        IMAGE =GLEANERIO_GLEANER_IMAGE
-
-       # ARGS = f"gleaner --cfg/gleaner/gleanerconfig.yaml -source {source} --rude"
-        ARGS = ["--cfg", GLEANERIO_GLEANER_CONFIG_PATH,"-source", source, "--rude"]
+        IMAGE = GLEANERIO_GLEANER_IMAGE
+        # ARGS = f"gleaner --cfg/gleaner/gleanerconfig.yaml -source {source} --rude"
+        ARGS = ["--cfg", GLEANERIO_GLEANER_CONFIG_PATH, "-source", source, "--rude"]
         NAME = f"sch_{source}_{str(mode)}"
         WorkingDir = "/gleaner/"
-        #Entrypoint = ["/gleaner/gleaner", "--cfg", "/gleaner/gleanerconfig.yaml", "-source", source, "--rude"]
+        # Entrypoint = ["/gleaner/gleaner", "--cfg", "/gleaner/gleanerconfig.yaml", "-source", source, "--rude"]
         # LOGFILE = 'log_gleaner.txt'  # only used for local log file writing
     elif (str(mode) == "prune"):
         IMAGE = GLEANERIO_NABU_IMAGE
-
         ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "prune", "--prefix", "summoned/" + source]
         NAME = f"sch_{source}_{str(mode)}"
         WorkingDir = "/nabu/"
@@ -335,24 +341,29 @@ def gleanerio(context, mode, source):
         # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
     elif (str(mode) == "prov"):
         IMAGE = GLEANERIO_NABU_IMAGE
-
-        ARGS = ["--cfg",  GLEANERIO_NABU_CONFIG_PATH, "prefix", "--prefix", "prov/" + source]
+        ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "prefix", "--prefix", "prov/" + source]
         NAME = f"sch_{source}_{str(mode)}"
         WorkingDir = "/nabu/"
         Entrypoint = "nabu"
         # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
     elif (str(mode) == "orgs"):
         IMAGE = GLEANERIO_NABU_IMAGE
-
-        ARGS = ["--cfg",  GLEANERIO_NABU_CONFIG_PATH, "prefix", "--prefix", "orgs"]
+        ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "prefix", "--prefix", "orgs"]
         NAME = f"sch_{source}_{str(mode)}"
         WorkingDir = "/nabu/"
         Entrypoint = "nabu"
         # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
     elif (str(mode) == "release"):
         IMAGE = GLEANERIO_NABU_IMAGE
+        ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "release", "--prefix", "summoned/" + source]
+        NAME = f"sch_{source}_{str(mode)}"
+        WorkingDir = "/nabu/"
+        Entrypoint = "nabu"
+        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
+    elif (str(mode) == "release_prov"):
+        IMAGE = GLEANERIO_NABU_IMAGE
 
-        ARGS = ["--cfg",  GLEANERIO_NABU_CONFIG_PATH, "release", "--prefix", "summoned/" + source]
+        ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "release", "--prefix", "prov/" + source]
         NAME = f"sch_{source}_{str(mode)}"
         WorkingDir = "/nabu/"
         Entrypoint = "nabu"
@@ -361,13 +372,39 @@ def gleanerio(context, mode, source):
         IMAGE = GLEANERIO_NABU_IMAGE
         # TODO: the follow formatted string should be done in the colling function, here only use the string (source)
         rg = str("/graphs/latest/{}_release.nq").format(source)
-        ARGS = ["--cfg",  GLEANERIO_NABU_CONFIG_PATH, "object", rg]
+        ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "object", rg]
+        NAME = f"sch_{source}_{str(mode)}"
+        WorkingDir = "/nabu/"
+        Entrypoint = "nabu"
+        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
+    elif (str(mode) == "object_prov"):
+        IMAGE = GLEANERIO_NABU_IMAGE
+        # TODO: the follow formatted string should be done in the colling function, here only use the string (source)
+        rg = str("/graphs/latest/{}_prov.nq").format(source)
+        ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "object", rg]
+        NAME = f"sch_{source}_{str(mode)}"
+        WorkingDir = "/nabu/"
+        Entrypoint = "nabu"
+        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
+    elif (str(mode) == "clear"):
+        IMAGE = GLEANERIO_NABU_IMAGE
+        # TODO: the follow formatted string should be done in the colling function, here only use the string (source)
+        rg = str("/graphs/latest/{}_prov.nq").format(source)
+        ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "clear", rg]
+        NAME = f"sch_{source}_{str(mode)}"
+        WorkingDir = "/nabu/"
+        Entrypoint = "nabu"
+        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
+    elif (str(mode) == "drain"):
+        IMAGE = GLEANERIO_NABU_IMAGE
+        # TODO: the follow formatted string should be done in the colling function, here only use the string (source)
+        rg = str("/graphs/latest/{}_prov.nq").format(source)
+        ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "darin", rg]
         NAME = f"sch_{source}_{str(mode)}"
         WorkingDir = "/nabu/"
         Entrypoint = "nabu"
         # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
     else:
-
         returnCode = 1
         return returnCode
 
@@ -385,9 +422,9 @@ def gleanerio(context, mode, source):
         data = {}
         data["Image"] = IMAGE
         data["WorkingDir"] = WorkingDir
-        #data["Entrypoint"] = Entrypoint
+        # data["Entrypoint"] = Entrypoint
         data["Cmd"] = ARGS
-#### gleaner
+        #### gleaner
         # v.BindEnv("minio.address", "MINIO_ADDRESS")
         # v.BindEnv("minio.port", "MINIO_PORT")
         # v.BindEnv("minio.ssl", "MINIO_USE_SSL")
@@ -400,7 +437,7 @@ def gleanerio(context, mode, source):
         # v.BindEnv("sparql.username", "SPARQL_USERNAME")
         # v.BindEnv("sparql.password", "SPARQL_PASSWORD")
         # v.BindEnv("s3.domain", "S3_DOMAIN")
-### gleaner summoner config
+        ### gleaner summoner config
         # viperSubtree.BindEnv("headless", "GLEANER_HEADLESS_ENDPOINT")
         # viperSubtree.BindEnv("threads", "GLEANER_THREADS")
         # viperSubtree.BindEnv("mode", "GLEANER_MODE")
@@ -428,7 +465,8 @@ def gleanerio(context, mode, source):
 
         # TODO: Build SPARQL_ENDPOINT from  GLEANER_GRAPH_URL, GLEANER_GRAPH_NAMESPACE
         enva = []
-        enva.append(str("MINIO_ADDRESS={}".format(GLEANER_MINIO_ADDRESS))) # the python needs to be wrapped, this does not
+        enva.append(
+            str("MINIO_ADDRESS={}".format(GLEANER_MINIO_ADDRESS)))  # the python needs to be wrapped, this does not
         enva.append(str("MINIO_PORT={}".format(GLEANER_MINIO_PORT)))
         enva.append(str("MINIO_USE_SSL={}".format(GLEANER_MINIO_USE_SSL)))
         enva.append(str("MINIO_SECRET_KEY={}".format(GLEANER_MINIO_SECRET_KEY)))
@@ -441,7 +479,7 @@ def gleanerio(context, mode, source):
         data["Env"] = enva
         data["HostConfig"] = {
             "NetworkMode": GLEANER_HEADLESS_NETWORK,
-           # "Binds":  [f"{GLEANER_CONFIG_VOLUME}:/configs"]
+            # "Binds":  [f"{GLEANER_CONFIG_VOLUME}:/configs"]
         }
         # data["Volumes"] = [
         #     "dagster-project:/configs"
@@ -449,9 +487,8 @@ def gleanerio(context, mode, source):
         # we would like this to be "dagster-${PROJECT:-eco}" but that is a bit tricky
         # end setup of data
 
-# docker dagster
+        # docker dagster
         get_dagster_logger().info(f"start docker code region: ")
-
 
         # trying to get headers in:
         # https://github.com/docker/docker-py/blob/84414e343e526cf93f285284dd2c2c40f703e4a9/docker/utils/decorators.py#L45
@@ -465,8 +502,7 @@ def gleanerio(context, mode, source):
                               #                                 {'bind': '/configs', 'mode': 'rw'}
                               #                             },
 
-
-            },
+                              },
         )
         container_context = run_container_context.merge(op_container_context)
         get_dagster_logger().info(f"call docker _get_client: ")
@@ -481,16 +517,11 @@ def gleanerio(context, mode, source):
         except Exception as err:
             raise err
 
-
-        cid = container.id # legacy til the start get's fixed
-
-
+        cid = container.id  # legacy til the start get's fixed
 
         ## ------------  Archive to load, which is how to send in the config (from where?)
 
-
-
-# this method of watching the logs,
+        # this method of watching the logs,
         # do not let a possible issue with container logs  stop log upload.
         ## I thinkthis happens when a container exits immediately.
         try:
@@ -502,9 +533,6 @@ def gleanerio(context, mode, source):
         except Exception as ex:
             get_dagster_logger().info(f"This is ok. watch container logs failed other issue:{repr(ex)} ")
 
-
-
-
         # ## ------------  Wait expect 200
         # we want to get the logs, no matter what, so do not exit, yet.
         ## or should logs be moved into finally?
@@ -514,23 +542,19 @@ def gleanerio(context, mode, source):
         # WE PULL THE LOGS, then will throw an error
         returnCode = exit_status
 
-
-
-
         ## ------------  Copy logs  expect 200
-
 
         c = container.logs(stdout=True, stderr=True, stream=False, follow=False).decode('latin-1')
 
         # write to s3
 
         s3loader(str(c).encode(), NAME)  # s3loader needs a bytes like object
-        #s3loader(str(c).encode('utf-8'), NAME)  # s3loader needs a bytes like object
+        # s3loader(str(c).encode('utf-8'), NAME)  # s3loader needs a bytes like object
         # write to minio (would need the minio info here)
 
         get_dagster_logger().info(f"container Logs to s3: ")
 
-## get log files
+        ## get log files
         url = URL + 'containers/' + cid + '/archive'
         params = {
             'path': f"{WorkingDir}/logs"
@@ -549,27 +573,27 @@ def gleanerio(context, mode, source):
         get_dagster_logger().info(f"Container Archive Retrieved: {str(r.status)}")
         # s3loader(r.read().decode('latin-1'), NAME)
         s3loader(r.read(), f"{source}_{mode}_runlogs")
-    # Future, need to extraxct files, and upload
-    # pw_tar = tarfile.TarFile(fileobj=StringIO(d.decode('utf-8')))
-    #    pw_tar.extractall("extract_to/")
+        # Future, need to extraxct files, and upload
+        # pw_tar = tarfile.TarFile(fileobj=StringIO(d.decode('utf-8')))
+        #    pw_tar.extractall("extract_to/")
 
-    # looks like get_archive also has issues. Returns nothing,
-       #  strm, stat =  container.get_archive(f"{WorkingDir}/logs/")
-       #  get_dagster_logger().info(f"container Logs to s3: {str(stat)}")
-       #
-       #  i =0
-       #  for d in strm:
-       #      r = d.decode('utf-8')
-       # # s3loader(r.read().decode('latin-1'), NAME)
-       #      s3loader(r.encode(), f"{source}_{i}_runlogs")
-       #      i+=1
+        # looks like get_archive also has issues. Returns nothing,
+        #  strm, stat =  container.get_archive(f"{WorkingDir}/logs/")
+        #  get_dagster_logger().info(f"container Logs to s3: {str(stat)}")
+        #
+        #  i =0
+        #  for d in strm:
+        #      r = d.decode('utf-8')
+        # # s3loader(r.read().decode('latin-1'), NAME)
+        #      s3loader(r.encode(), f"{source}_{i}_runlogs")
+        #      i+=1
 
-       # s3loader(r.read().decode('latin-1'), NAME)
+        # s3loader(r.read().decode('latin-1'), NAME)
 
         if exit_status != 0:
             raise Exception(f"Gleaner/Nabu container returned exit code {exit_status}")
     finally:
-        if (not DEBUG) :
+        if (not DEBUG):
             # if (cid):
             #     url = URL + 'containers/' + cid
             #     req = request.Request(url, method="DELETE")
@@ -603,6 +627,7 @@ def gleanerio(context, mode, source):
         raise Exception("Gleaner/Nabu container non-zero exit code. See logs in S3")
     return returnCode
 
+
 @op
 def SOURCEVAL_getImage(context):
     run_container_context = DockerContainerContext.create_for_run(
@@ -615,6 +640,8 @@ def SOURCEVAL_getImage(context):
     client = _get_client(run_container_context)
     client.images.pull(GLEANERIO_GLEANER_IMAGE)
     client.images.pull(GLEANERIO_NABU_IMAGE)
+
+
 @op(ins={"start": In(Nothing)})
 def SOURCEVAL_gleaner(context):
     returned_value = gleanerio(context, ("gleaner"), "SOURCEVAL")
@@ -622,33 +649,38 @@ def SOURCEVAL_gleaner(context):
     get_dagster_logger().info(f"Gleaner returned  {r} ")
     return
 
+
 @op(ins={"start": In(Nothing)})
 def SOURCEVAL_nabu_prune(context):
-    returned_value = gleanerio(context,("prune"), "SOURCEVAL")
+    returned_value = gleanerio(context, ("prune"), "SOURCEVAL")
     r = str('returned value:{}'.format(returned_value))
     get_dagster_logger().info(f"nabu prune returned  {r} ")
     return
 
+
 @op(ins={"start": In(Nothing)})
 def SOURCEVAL_nabuprov(context):
-    returned_value = gleanerio(context,("prov"), "SOURCEVAL")
+    returned_value = gleanerio(context, ("prov"), "SOURCEVAL")
     r = str('returned value:{}'.format(returned_value))
     get_dagster_logger().info(f"nabu prov returned  {r} ")
     return
 
+
 @op(ins={"start": In(Nothing)})
 def SOURCEVAL_nabuorg(context):
-    returned_value = gleanerio(context,("orgs"), "SOURCEVAL")
+    returned_value = gleanerio(context, ("orgs"), "SOURCEVAL")
     r = str('returned value:{}'.format(returned_value))
     get_dagster_logger().info(f"nabu org load returned  {r} ")
     return
 
+
 @op(ins={"start": In(Nothing)})
 def SOURCEVAL_naburelease(context):
-    returned_value = gleanerio(context,("release"), "SOURCEVAL")
+    returned_value = gleanerio(context, ("release"), "SOURCEVAL")
     r = str('returned value:{}'.format(returned_value))
     get_dagster_logger().info(f"nabu release returned  {r} ")
     return
+
 
 @op(ins={"start": In(Nothing)})
 def SOURCEVAL_uploadrelease(context):
@@ -656,6 +688,7 @@ def SOURCEVAL_uploadrelease(context):
     r = str('returned value:{}'.format(returned_value))
     get_dagster_logger().info(f"nabu release returned  {r} ")
     return
+
 
 # @op(ins={"start": In(Nothing)})
 # def SOURCEVAL_uploadrelease(context):
@@ -682,12 +715,15 @@ def SOURCEVAL_missingreport_s3(context):
     graphendpoint = None
     milled = False
     summon = True
-    returned_value = missingReport(source_url, bucket, source_name, s3Minio, graphendpoint, milled=milled, summon=summon)
+    returned_value = missingReport(source_url, bucket, source_name, s3Minio, graphendpoint, milled=milled,
+                                   summon=summon)
     r = str('missing repoort returned value:{}'.format(returned_value))
     report = json.dumps(returned_value, indent=2)
     s3Minio.putReportFile(bucket, source_name, "missing_report_s3.json", report)
     get_dagster_logger().info(f"missing s3 report  returned  {r} ")
     return
+
+
 @op(ins={"start": In(Nothing)})
 def SOURCEVAL_missingreport_graph(context):
     source = getSitemapSourcesFromGleaner(DAGSTER_GLEANER_CONFIG_PATH, sourcename="SOURCEVAL")
@@ -696,36 +732,40 @@ def SOURCEVAL_missingreport_graph(context):
     bucket = GLEANER_MINIO_BUCKET
     source_name = "SOURCEVAL"
 
-    graphendpoint = _graphEndpoint()# f"{os.environ.get('GLEANER_GRAPH_URL')}/namespace/{os.environ.get('GLEANER_GRAPH_NAMESPACE')}/sparql"
+    graphendpoint = _graphEndpoint()  # f"{os.environ.get('GLEANER_GRAPH_URL')}/namespace/{os.environ.get('GLEANER_GRAPH_NAMESPACE')}/sparql"
 
     milled = True
-    summon = False # summon only off
-    returned_value = missingReport(source_url, bucket, source_name, s3Minio, graphendpoint, milled=milled, summon=summon)
+    summon = False  # summon only off
+    returned_value = missingReport(source_url, bucket, source_name, s3Minio, graphendpoint, milled=milled,
+                                   summon=summon)
     r = str('missing report graph returned value:{}'.format(returned_value))
     report = json.dumps(returned_value, indent=2)
 
     s3Minio.putReportFile(bucket, source_name, "missing_report_graph.json", report)
     get_dagster_logger().info(f"missing graph  report  returned  {r} ")
     return
+
+
 @op(ins={"start": In(Nothing)})
-def SOURCEVAL_graph_reports(context) :
+def SOURCEVAL_graph_reports(context):
     source = getSitemapSourcesFromGleaner(DAGSTER_GLEANER_CONFIG_PATH, sourcename="SOURCEVAL")
-    #source_url = source.get('url')
+    # source_url = source.get('url')
     s3Minio = s3.MinioDatastore(_pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT), MINIO_OPTIONS)
     bucket = GLEANER_MINIO_BUCKET
     source_name = "SOURCEVAL"
 
-    graphendpoint = _graphEndpoint() # f"{os.environ.get('GLEANER_GRAPH_URL')}/namespace/{os.environ.get('GLEANER_GRAPH_NAMESPACE')}/sparql"
+    graphendpoint = _graphEndpoint()  # f"{os.environ.get('GLEANER_GRAPH_URL')}/namespace/{os.environ.get('GLEANER_GRAPH_NAMESPACE')}/sparql"
 
     milled = False
     summon = True
-    returned_value = generateGraphReportsRepo(source_name,  graphendpoint, reportList=reportTypes["repo_detailed"])
+    returned_value = generateGraphReportsRepo(source_name, graphendpoint, reportList=reportTypes["repo_detailed"])
     r = str('returned value:{}'.format(returned_value))
-    #report = json.dumps(returned_value, indent=2) # value already json.dumps
+    # report = json.dumps(returned_value, indent=2) # value already json.dumps
     report = returned_value
     s3Minio.putReportFile(bucket, source_name, "graph_stats.json", report)
     get_dagster_logger().info(f"graph report  returned  {r} ")
     return
+
 
 @op(ins={"start": In(Nothing)})
 def SOURCEVAL_identifier_stats(context):
@@ -736,11 +776,12 @@ def SOURCEVAL_identifier_stats(context):
 
     returned_value = generateIdentifierRepo(source_name, bucket, s3Minio)
     r = str('returned value:{}'.format(returned_value))
-    #r = str('identifier stats returned value:{}'.format(returned_value))
+    # r = str('identifier stats returned value:{}'.format(returned_value))
     report = returned_value.to_json()
     s3Minio.putReportFile(bucket, source_name, "identifier_stats.json", report)
     get_dagster_logger().info(f"identifer stats report  returned  {r} ")
     return
+
 
 @op(ins={"start": In(Nothing)})
 def SOURCEVAL_bucket_urls(context):
@@ -755,18 +796,19 @@ def SOURCEVAL_bucket_urls(context):
     get_dagster_logger().info(f"bucker urls report  returned  {r} ")
     return
 
+
 class S3ObjectInfo:
-    bucket_name=""
-    object_name=""
+    bucket_name = ""
+    object_name = ""
+
 
 @op(ins={"start": In(Nothing)})
-def SOURCEVAL_summarize(context) :
+def SOURCEVAL_summarize(context):
     s3Minio = s3.MinioDatastore(_pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT), MINIO_OPTIONS)
     bucket = GLEANER_MINIO_BUCKET
     source_name = "SOURCEVAL"
-    endpoint = _graphEndpoint() # getting data, not uploading data
+    endpoint = _graphEndpoint()  # getting data, not uploading data
     summary_namespace = _graphSummaryEndpoint()
-
 
     try:
 
@@ -776,14 +818,14 @@ def SOURCEVAL_summarize(context) :
         # Lets always write out file to s3, and insert as a separate process
         # we might be able to make this an asset..., but would need to be acessible by http
         # if not stored in s3
-        objectname = f"{SUMMARY_PATH}/{source_name}_release.ttl" # needs to match that is expected by post
-        s3ObjectInfo= S3ObjectInfo()
-        s3ObjectInfo.bucket_name=bucket
-        s3ObjectInfo.object_name=objectname
+        objectname = f"{SUMMARY_PATH}/{source_name}_release.ttl"  # needs to match that is expected by post
+        s3ObjectInfo = S3ObjectInfo()
+        s3ObjectInfo.bucket_name = bucket
+        s3ObjectInfo.object_name = objectname
 
-        s3Minio.putTextFileToStore(summaryttl, s3ObjectInfo )
-        #inserted = sumnsgraph.insert(bytes(summaryttl, 'utf-8'), content_type="application/x-turtle")
-        #if not inserted:
+        s3Minio.putTextFileToStore(summaryttl, s3ObjectInfo)
+        # inserted = sumnsgraph.insert(bytes(summaryttl, 'utf-8'), content_type="application/x-turtle")
+        # if not inserted:
         #    raise Exception("Loading to graph failed.")
     except Exception as e:
         # use dagster logger
@@ -793,16 +835,19 @@ def SOURCEVAL_summarize(context) :
 
     return
 
+
 @op(ins={"start": In(Nothing)})
 def SOURCEVAL_upload_summarize(context):
-    returned_value = post_to_graph("SOURCEVAL",path=SUMMARY_PATH, extension="ttl", graphendpoint=_graphSummaryEndpoint())
+    returned_value = post_to_graph("SOURCEVAL", path=SUMMARY_PATH, extension="ttl",
+                                   graphendpoint=_graphSummaryEndpoint())
     # the above can be done (with a better path approach) in Nabu
     # returned_value = gleanerio(context, ("object"), "SOURCEVAL")
     r = str('returned value:{}'.format(returned_value))
     get_dagster_logger().info(f"upload summary returned  {r} ")
     return
 
-#Can we simplify and use just a method. Then import these methods?
+
+# Can we simplify and use just a method. Then import these methods?
 # def missingreport_s3(context, msg: str, source="SOURCEVAL"):
 #
 #     source= getSitemapSourcesFromGleaner("/scheduler/gleanerconfig.yaml", sourcename=source)
@@ -822,7 +867,7 @@ def harvest_SOURCEVAL():
     containers = SOURCEVAL_getImage()
     harvest = SOURCEVAL_gleaner(start=containers)
 
-# defingin nothing dependencies
+    # definign nothing dependencies
     # https://docs.dagster.io/concepts/ops-jobs-graphs/graphs#defining-nothing-dependencies
 
     report_ms3 = SOURCEVAL_missingreport_s3(start=harvest)
@@ -830,7 +875,7 @@ def harvest_SOURCEVAL():
     # for some reason, this causes a msg parameter missing
     report_bucketurl = SOURCEVAL_bucket_urls(start=report_idstat)
 
-    #report1 = missingreport_s3(harvest, source="SOURCEVAL")
+    # report1 = missingreport_s3(harvest, source="SOURCEVAL")
     load_release = SOURCEVAL_naburelease(start=harvest)
     load_uploadrelease = SOURCEVAL_uploadrelease(start=load_release)
 
@@ -845,4 +890,3 @@ def harvest_SOURCEVAL():
     # run after load
     # report_msgraph = SOURCEVAL_missingreport_graph(start=summarize)
     # report_graph = SOURCEVAL_graph_reports(start=report_msgraph)
-
