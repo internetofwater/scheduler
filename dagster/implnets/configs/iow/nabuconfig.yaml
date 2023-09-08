@@ -1,28 +1,120 @@
+---
 minio:
-  bucket:
-  address:
-  port:
-  accesskey:
-  secretkey:
+  address: 192.168.202.114
+  port: 49153
+  accesskey: AKIAIOSFODNN7EXAMPLE
+  secretkey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  bucket: gleaner.iow
   ssl:
-  region:
+  region: null
+implementation_network:
+  orgname: iow
 context:
-    cache: true
-    strict: true
+  cache: true
+  strict: true
 contextmaps:
-  - prefix: "https://schema.org/"
-    file: "/assets/schemaorg-current-https.jsonld"  # wget http://schema.org/docs/jsonldcontext.jsonld
-  - prefix: "http://schema.org/"
-    file: "/assets/schemaorg-current-http.jsonld"  # wget http://schema.org/docs/jsonldcontext.jsonld
-sparql:
-  endpoint:
-  endpointBulk: http://192.168.134.190:7200/repositories/iow/statements
-  endpointMethod: POST
-  contentType: text/x-nquads
-  authenticate: false
+  - prefix: https://schema.org/
+    file: ./assets/schemaorg-current-https.jsonld
+  - prefix: http://schema.org/
+    file: ./assets/schemaorg-current-http.jsonld
 objects:
   domain: us-east-1
   prefix:
+    - prov/counties0
     - summoned/counties0
-
-
+endpoints:
+  - service: ec_blazegraph
+    baseurl: http://coreos.lan:9090/blazegraph/namespace/iow
+    type: blaszgraph
+    authenticate: false
+    username: admin
+    password: jfpwd
+    modes:
+      - action: sparql
+        suffix: /sparql
+        accept: application/sparql-results+json
+        method: GET
+      - action: update
+        suffix: /sparql
+        accept: application/sparql-update
+        method: POST
+      - action: bulk
+        suffix: /sparql
+        accept: text/x-nquads
+        method: POST
+  - service: iow_data_local
+    baseurl: http://coreos.lan:7200/repositories/iow
+    type: graphed
+    authenticate: false
+    username: admin
+    password: jfpw
+    modes:
+      - action: sparql
+        suffix:  # no suffix needed for GraphDB
+        accept: application/sparql-results+json
+        method: GET
+      - action: update
+        suffix: /statements
+        accept: application/sparql-update
+        method: POST
+      - action: bulk
+        suffix: /statements
+        accept: text/x-nquads
+        method: POST
+  - service: iow_prov_local
+    baseurl: http://coreos.lan:7200/repositories/iowprov
+    type: graphed
+    authenticate: false
+    username: admin
+    password: jfpw
+    modes:
+      - action: sparql
+        suffix:  # no suffix needed for GraphDB
+        accept: application/sparql-results+json
+        method: GET
+      - action: update
+        suffix: /statements
+        accept: application/sparql-update
+        method: POST
+      - action: bulk
+        suffix: /statements
+        accept: text/x-nquads
+        method: POST
+  - service: iow_data
+    baseurl: https://graph.geoconnex.us/repositories/iow
+    type: graphed
+    authenticate: false
+    username: admin
+    password: jfpw
+    modes:
+      - action: sparql
+        suffix:  # no suffix needed for GraphDB
+        accept: application/sparql-results+json
+        method: GET
+      - action: update
+        suffix: /statements
+        accept: application/sparql-update
+        method: POST
+      - action: bulk
+        suffix: /statements
+        accept: text/x-nquads
+        method: POST
+  - service: iow_prov
+    baseurl: https://graph.geoconnex.us/repositories/iowprov
+    type: graphed
+    authenticate: false
+    username: admin
+    password: jfpw
+    modes:
+      - action: sparql
+        suffix:  # no suffix needed for GraphDB
+        accept: application/sparql-results+json
+        method: GET
+      - action: update
+        suffix: /statements
+        accept: application/sparql-update
+        method: POST
+      - action: bulk
+        suffix: /statements
+        accept: text/x-nquads
+        method: POST

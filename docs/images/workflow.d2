@@ -1,0 +1,138 @@
+direction: down
+
+gi: Get Image(s) {
+    style.fill: "#e0a3ff"
+    width: 600
+    height: 150
+    ex: |python 
+    containers = SOURCEVAL_getImage()
+    |
+}
+
+g: Gleaner Harvest {
+    style.fill: honeydew
+    width: 600
+    height: 150
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+}
+
+data: Data Graph {
+    dr: Build Release Graph {
+       style.fill: "#f4a261"
+       width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+
+    }
+    udr: Load Release Graph {
+       style.fill: "#f4a261"
+       width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+     }
+
+    dp: Prune {
+        style.fill: "#f4a261"
+        width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+    }
+}
+
+org: Organization Graph {
+
+    or: Build Release Graph {
+        style.fill: "#f4a261"
+        width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+    }
+
+   op: Prefix Load Graph {
+        style.fill: "#f4a261"
+        width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+    }
+
+    or -> op
+
+}
+
+prov: Provenance Graph {
+    pr: Build Release Graph {
+        style.fill: "#f4a261"
+        width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+    }
+
+    dpg: Clear Current Graph{
+        style.fill: "#f4a261"
+        width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+    }
+
+   upr:  Load Release Graph {
+        style.fill: "#f4a261"
+        width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+    }
+
+    dpp: Delete Generated Prov JSON-LD {
+        style.fill: "#f4a261"
+        width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+    }
+}
+
+r: Reports {
+   m: Missing Reports {
+        style.fill: "#f4a261"
+        width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+    }
+
+   id: Identifier stats {
+        style.fill: "#f4a261"
+        width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+    }
+
+   b: Bucket URLs {
+        style.fill: "#f4a261"
+        width: 300
+    ex: |python 
+    harvest = SOURCEVAL_gleaner(start=containers)
+    |
+    }
+
+  m -> id -> b
+}
+
+gi -> g
+g -> org
+g -> data
+g -> prov
+g -> r
+
+data.dr -> data.udr -> data.dp
+prov.pr -> prov.dpg -> prov.upr -> prov.dpp
