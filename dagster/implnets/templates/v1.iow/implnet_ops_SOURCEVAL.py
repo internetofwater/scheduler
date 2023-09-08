@@ -959,9 +959,9 @@ def harvest_SOURCEVAL():
     load_org = SOURCEVAL_nabuorgs(start=org_release)
 
     # reports branch
-    report_ms3 = SOURCEVAL_missingreport_s3(start=harvest)
-    report_idstat = SOURCEVAL_identifier_stats(start=report_ms3)
-    report_bucketurl = SOURCEVAL_bucket_urls( start=report_idstat)
+    # report_ms3 = SOURCEVAL_missingreport_s3(start=harvest)
+    # report_idstat = SOURCEVAL_identifier_stats(start=report_ms3)
+    # report_bucketurl = SOURCEVAL_bucket_urls( start=report_idstat)
     # for some reason, this causes a msg parameter missing
 
     # summarize
