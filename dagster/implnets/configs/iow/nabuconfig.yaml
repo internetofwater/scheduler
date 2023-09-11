@@ -1,10 +1,10 @@
 ---
 minio:
-  address: 192.168.202.114
-  port: 49153
-  accesskey: AKIAIOSFODNN7EXAMPLE
-  secretkey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  bucket: gleaner.iow
+  address:
+  port:
+  accesskey:
+  secretkey:
+  bucket:
   ssl:
   region: null
 implementation_network:
