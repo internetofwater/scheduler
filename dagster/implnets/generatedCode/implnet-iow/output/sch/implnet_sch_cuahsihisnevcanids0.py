@@ -1,8 +1,8 @@
-from dagster import schedule
+from dagster import schedule, DefaultScheduleStatus
 
 from jobs.implnet_jobs_cuahsihisnevcanids0 import implnet_job_cuahsihisnevcanids0
 
-@schedule(cron_schedule="0 4 19 * *", job=implnet_job_cuahsihisnevcanids0, execution_timezone="US/Central")
+@schedule(cron_schedule="0 4 19 * *", job=implnet_job_cuahsihisnevcanids0, default_status=DefaultScheduleStatus.RUNNING, execution_timezone="US/Central")
 def implnet_sch_cuahsihisnevcanids0(_context):
     run_config = {}
     return run_config

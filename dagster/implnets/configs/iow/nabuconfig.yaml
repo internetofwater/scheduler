@@ -23,66 +23,9 @@ objects:
     - prov/counties0
     - summoned/counties0
 endpoints:
-  - service: ec_blazegraph
-    baseurl: http://coreos.lan:9090/blazegraph/namespace/iow
-    type: blaszgraph
-    authenticate: false
-    username: admin
-    password: jfpwd
-    modes:
-      - action: sparql
-        suffix: /sparql
-        accept: application/sparql-results+json
-        method: GET
-      - action: update
-        suffix: /sparql
-        accept: application/sparql-update
-        method: POST
-      - action: bulk
-        suffix: /sparql
-        accept: text/x-nquads
-        method: POST
-  - service: iow_data_local
-    baseurl: http://coreos.lan:7200/repositories/iow
-    type: graphed
-    authenticate: false
-    username: admin
-    password: jfpw
-    modes:
-      - action: sparql
-        suffix:  # no suffix needed for GraphDB
-        accept: application/sparql-results+json
-        method: GET
-      - action: update
-        suffix: /statements
-        accept: application/sparql-update
-        method: POST
-      - action: bulk
-        suffix: /statements
-        accept: text/x-nquads
-        method: POST
-  - service: iow_prov_local
-    baseurl: http://coreos.lan:7200/repositories/iowprov
-    type: graphed
-    authenticate: false
-    username: admin
-    password: jfpw
-    modes:
-      - action: sparql
-        suffix:  # no suffix needed for GraphDB
-        accept: application/sparql-results+json
-        method: GET
-      - action: update
-        suffix: /statements
-        accept: application/sparql-update
-        method: POST
-      - action: bulk
-        suffix: /statements
-        accept: text/x-nquads
-        method: POST
   - service: iow_data
     baseurl: https://graph.geoconnex.us/repositories/iow
-    type: graphed
+    type: graphdb
     authenticate: false
     username: admin
     password: jfpw
@@ -101,7 +44,7 @@ endpoints:
         method: POST
   - service: iow_prov
     baseurl: https://graph.geoconnex.us/repositories/iowprov
-    type: graphed
+    type: graphdb
     authenticate: false
     username: admin
     password: jfpw
