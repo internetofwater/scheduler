@@ -1,0 +1,7 @@
+from dagster import job
+
+from ops.implnet_ops_cuahsicuahsihisnooksackmicroclimatenetworkids0 import harvest_cuahsicuahsihisnooksackmicroclimatenetworkids0
+
+@job
+def implnet_job_cuahsicuahsihisnooksackmicroclimatenetworkids0():
+    harvest_cuahsicuahsihisnooksackmicroclimatenetworkids0()

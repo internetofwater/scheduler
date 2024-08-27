@@ -1,7 +1,0 @@
-from dagster import job
-
-from ops.implnet_ops_cuahsihislaselvastreamdischargeids0 import harvest_cuahsihislaselvastreamdischargeids0
-
-@job
-def implnet_job_cuahsihislaselvastreamdischargeids0():
-    harvest_cuahsihislaselvastreamdischargeids0()
