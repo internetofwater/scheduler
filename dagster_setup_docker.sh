@@ -119,6 +119,8 @@ else
       fi
 fi
 
+mkdir -p /tmp/io_manager_storage
+
 docker build -t docker_example_user_code_image -f ./Docker/Dockerfile_user_code .
 docker build -t docker_example_webserver_image -f ./Docker/Dockerfile_dagster .
 docker build -t docker_example_daemon_image -f ./Docker/Dockerfile_dagster .
