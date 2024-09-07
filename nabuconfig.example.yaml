@@ -14,17 +14,18 @@ context:
   strict: true
 contextmaps:
   - prefix: https://schema.org/
-    file: ./assets/schemaorg-current-https.jsonld
+    file: /nabu/assets/schemaorg-current-https.jsonld
   - prefix: http://schema.org/
-    file: ./assets/schemaorg-current-http.jsonld
+    file: /nabu/assets/schemaorg-current-http.jsonld
 objects:
   domain: us-east-1
   prefix:
-    - prov/counties0
-    - summoned/counties0
+    - summoned/providera
+    - prov/providera
+    - org
 endpoints:
-  - service: iow_data
-    baseurl: https://graph.geoconnex.us/repositories/iow
+  - service: iow
+    baseurl: http://graphdb:7200/repositories/iow
     type: graphdb
     authenticate: false
     username: admin
@@ -42,8 +43,8 @@ endpoints:
         suffix: /statements
         accept: text/x-nquads
         method: POST
-  - service: iow_prov
-    baseurl: https://graph.geoconnex.us/repositories/iowprov
+  - service: iowprov
+    baseurl: http://graphdb:7200/repositories/iowprov
     type: graphdb
     authenticate: false
     username: admin

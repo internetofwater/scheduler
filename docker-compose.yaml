@@ -74,7 +74,6 @@ services:
       - docker_example_user_code
     env_file: ".env"
     
-
   minio:
     image: minio/minio
     container_name: minio
@@ -104,14 +103,17 @@ services:
     networks:
       - docker_example_network
 
-
   graphdb:
-    image: ontotext/graphdb:10.6.4
+    image: khaller/graphdb-free
     container_name: graphdb
     ports:
       - 7200:7200
+    environment:
+      - JAVA_XMX=4g
+      - JAVA_XMS=2048m
     networks:
       - headless_gleanerio
+      - docker_example_network
 
 networks:
   docker_example_network:
