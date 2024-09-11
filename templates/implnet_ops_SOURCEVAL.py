@@ -4,6 +4,7 @@ import os
 import json
 import io
 import urllib
+from venv import logger
 
 from docker.types import RestartPolicy, ServiceMode
 from ec.gleanerio.gleaner import (
@@ -23,7 +24,7 @@ from ec.summarize import summaryDF2ttl, get_summary4repoSubset
 import requests
 import logging as log
 
-from typing import Optional, Sequence
+from typing import Literal, Optional, Sequence
 
 import docker
 from dagster import op, graph, get_dagster_logger
@@ -218,12 +219,8 @@ def s3loader(data, name: str):
 def post_to_graph(
     source, path=RELEASE_PATH, extension="nq", url=_graphEndpoint()
 ):
-    # revision of EC utilities, will have a insertFromURL
-    # instance =  mg.ManageBlazegraph(os.environ.get('GLEANER_GRAPH_URL'),os.environ.get('GLEANER_GRAPH_NAMESPACE') )
-    proto = "http"
 
-    if GLEANER_MINIO_USE_SSL:
-        proto = "https"
+    proto = "https" if GLEANER_MINIO_USE_SSL else "http"
     address = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
     bucket = GLEANER_MINIO_BUCKET
     release_url = f"{proto}://{address}/{bucket}/{path}/{source}_release.{extension}"
@@ -317,152 +314,111 @@ def _create_service(
     return service, containers[0]
 
 
-def gleanerio(context, mode, source):
-    ## ------------   Create
+def gleanerio(context, mode: Literal["gleaner", "release", "object", "prune", "prov-release", "prov-clear", "prov-object" , "prov-drain", "orgs-release", "orgs"], source) -> int:
     returnCode = 0
 
     get_dagster_logger().info(f"Gleanerio mode: {str(mode)}")
     get_dagster_logger().info(f"Datagraph value: {GLEANERIO_DATAGRAPH_ENDPOINT}")
     get_dagster_logger().info(f"PROVgraph value: {GLEANERIO_PROVGRAPH_ENDPOINT}")
 
-    if str(mode) == "gleaner":
+    if mode == "gleaner":
         IMAGE = GLEANERIO_GLEANER_IMAGE
         ARGS = ["--cfg", GLEANERIO_GLEANER_CONFIG_PATH, "-source", source, "--rude"]
         NAME = f"sch_{source}_{str(mode)}"
         WorkingDir = "/gleaner/"
-        # LOGFILE = 'log_gleaner.txt'  # only used for local log file writing
-    elif str(mode) == "release":
-        IMAGE = GLEANERIO_NABU_IMAGE
-        ARGS = [
-            "--cfg",
-            GLEANERIO_NABU_CONFIG_PATH,
-            "release",
-            "--prefix",
-            "summoned/" + source,
-        ]
-        NAME = f"sch_{source}_{str(mode)}"
-        WorkingDir = "/nabu/"
-        Entrypoint = "nabu"
-        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
-    elif str(mode) == "object":
-        IMAGE = GLEANERIO_NABU_IMAGE
-        rg = str("/graphs/latest/{}_release.nq").format(source)
-        ARGS = [
-            "--cfg",
-            GLEANERIO_NABU_CONFIG_PATH,
-            "object",
-            rg,
-            "--endpoint",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
-        NAME = f"sch_{source}_{str(mode)}"
-        WorkingDir = "/nabu/"
-        Entrypoint = "nabu"
-        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
-    elif (
-        str(mode) == "prune"
-    ):  # this is effective prune summoned, would need a new one for prov if needed
-        IMAGE = GLEANERIO_NABU_IMAGE
-        ARGS = [
-            "--cfg",
-            GLEANERIO_NABU_CONFIG_PATH,
-            "prune",
-            "--prefix",
-            "summoned/" + source,
-            "--endpoint",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
-        NAME = f"sch_{source}_{str(mode)}"
-        WorkingDir = "/nabu/"
-        Entrypoint = "nabu"
-        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
-    elif str(mode) == "prov-release":
-        IMAGE = GLEANERIO_NABU_IMAGE
-        ARGS = [
-            "--cfg",
-            GLEANERIO_NABU_CONFIG_PATH,
-            "release",
-            "--prefix",
-            "prov/" + source,
-        ]
-        NAME = f"sch_{source}_{str(mode)}"
-        WorkingDir = "/nabu/"
-        Entrypoint = "nabu"
-        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
-    elif str(mode) == "prov-clear":
-        IMAGE = GLEANERIO_NABU_IMAGE
-        ARGS = [
-            "--cfg",
-            GLEANERIO_NABU_CONFIG_PATH,
-            "clear",
-            "--endpoint",
-            "--endpoint",
-            GLEANERIO_PROVGRAPH_ENDPOINT,
-        ]
-        NAME = f"sch_{source}_{str(mode)}"
-        WorkingDir = "/nabu/"
-        Entrypoint = "nabu"
-        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
-    elif str(mode) == "prov-object":
-        IMAGE = GLEANERIO_NABU_IMAGE
-        rg = str("/graphs/latest/{}_prov.nq").format(source)
-        ARGS = [
-            "--cfg",
-            GLEANERIO_NABU_CONFIG_PATH,
-            "object",
-            rg,
-            "--endpoint",
-            GLEANERIO_PROVGRAPH_ENDPOINT,
-        ]
-        NAME = f"sch_{source}_{str(mode)}"
-        WorkingDir = "/nabu/"
-        Entrypoint = "nabu"
-        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
-    elif str(mode) == "prov-drain":
-        IMAGE = GLEANERIO_NABU_IMAGE
-        ARGS = [
-            "--cfg",
-            GLEANERIO_NABU_CONFIG_PATH,
-            "drain",
-            "--prefix",
-            "prov/" + source,
-        ]
-        NAME = f"sch_{source}_{str(mode)}"
-        WorkingDir = "/nabu/"
-        Entrypoint = "nabu"
-    elif str(mode) == "orgs-release":
-        IMAGE = GLEANERIO_NABU_IMAGE
-        ARGS = [
-            "--cfg",
-            GLEANERIO_NABU_CONFIG_PATH,
-            "release",
-            "--prefix",
-            "orgs",
-            "--endpoint",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
-        NAME = f"sch_{source}_{str(mode)}"
-        WorkingDir = "/nabu/"
-        Entrypoint = "nabu"
-        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
-    elif str(mode) == "orgs":
-        IMAGE = GLEANERIO_NABU_IMAGE
-        ARGS = [
-            "--cfg",
-            GLEANERIO_NABU_CONFIG_PATH,
-            "prefix",
-            "--prefix",
-            "orgs",
-            "--endpoint",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
-        NAME = f"sch_{source}_{str(mode)}"
-        WorkingDir = "/nabu/"
-        Entrypoint = "nabu"
-        # LOGFILE = 'log_nabu.txt'  # only used for local log file writing
     else:
-        returnCode = 1
-        return returnCode
+        # Handle all nabu modes
+        IMAGE = GLEANERIO_NABU_IMAGE
+        WorkingDir = "/nabu/"
+        NAME = f"sch_{source}_{str(mode)}"
+
+        match mode:
+
+            case "release":
+                ARGS = [
+                    "--cfg",
+                    GLEANERIO_NABU_CONFIG_PATH,
+                    "release",
+                    "--prefix",
+                    "summoned/" + source,
+                ]
+            case "object":
+                ARGS = [
+                    "--cfg",
+                    GLEANERIO_NABU_CONFIG_PATH,
+                    "object",
+                    f"/graphs/latest/{source}_release.nq",
+                    "--endpoint",
+                    GLEANERIO_DATAGRAPH_ENDPOINT,
+                ]
+            case "prune":
+                ARGS = [
+                    "--cfg",
+                    GLEANERIO_NABU_CONFIG_PATH,
+                    "prune",
+                    "--prefix",
+                    "summoned/" + source,
+                    "--endpoint",
+                    GLEANERIO_DATAGRAPH_ENDPOINT,
+                ]
+            case "prov-release":
+                ARGS = [
+                    "--cfg",
+                    GLEANERIO_NABU_CONFIG_PATH,
+                    "release",
+                    "--prefix",
+                    "prov/" + source,
+                ]
+
+            case "prov-clear":
+                ARGS = [
+                    "--cfg",
+                    GLEANERIO_NABU_CONFIG_PATH,
+                    "clear",
+                    "--endpoint",
+                    "--endpoint",
+                    GLEANERIO_PROVGRAPH_ENDPOINT,
+                ]
+            case "prov-object":
+                ARGS = [
+                    "--cfg",
+                    GLEANERIO_NABU_CONFIG_PATH,
+                    "object",
+                    f"/graphs/latest/{source}_prov.nq"
+                    "--endpoint",
+                    GLEANERIO_PROVGRAPH_ENDPOINT,
+                ]
+            case "prov-drain":
+                ARGS = [
+                    "--cfg",
+                    GLEANERIO_NABU_CONFIG_PATH,
+                    "drain",
+                    "--prefix",
+                    "prov/" + source,
+                ]
+            case "orgs-release":
+                ARGS = [
+                    "--cfg",
+                    GLEANERIO_NABU_CONFIG_PATH,
+                    "release",
+                    "--prefix",
+                    "orgs",
+                    "--endpoint",
+                    GLEANERIO_DATAGRAPH_ENDPOINT,
+                ]
+            case "orgs":
+                ARGS = [
+                    "--cfg",
+                    GLEANERIO_NABU_CONFIG_PATH,
+                    "prefix",
+                    "--prefix",
+                    "orgs",
+                    "--endpoint",
+                    GLEANERIO_DATAGRAPH_ENDPOINT,
+                ]
+            case _:
+                get_dagster_logger().error(f"Called gleaner with invalid mode: {mode}")
+                return 1
 
     run_container_context = DockerContainerContext.create_for_run(
         context.dagster_run,
@@ -480,7 +436,8 @@ def gleanerio(context, mode, source):
         # data["Entrypoint"] = Entrypoint
         data["Cmd"] = ARGS
 
-        environment_variables = [
+
+        data["Env"] = [
             f"MINIO_ADDRESS={GLEANER_MINIO_ADDRESS}",
             f"MINIO_PORT={GLEANER_MINIO_PORT}",
             f"MINIO_USE_SSL={GLEANER_MINIO_USE_SSL}",
@@ -491,7 +448,6 @@ def gleanerio(context, mode, source):
             f"GLEANER_HEADLESS_ENDPOINT={GLEANER_HEADLESS_ENDPOINT}",
             f"GLEANER_HEADLESS_NETWORK={GLEANER_HEADLESS_NETWORK}",
         ]
-        data["Env"] = environment_variables
         data["HostConfig"] = {
             "NetworkMode": GLEANER_HEADLESS_NETWORK,
             # "Binds":  [f"{GLEANER_CONFIG_VOLUME}:/configs"]
@@ -504,7 +460,7 @@ def gleanerio(context, mode, source):
         # https://github.com/docker/docker-py/blob/84414e343e526cf93f285284dd2c2c40f703e4a9/docker/utils/decorators.py#L45
         op_container_context = DockerContainerContext(
             # registry=registry,
-            env_vars=environment_variables,
+            env_vars=data["Env"],
             networks=[GLEANER_HEADLESS_NETWORK],
             container_kwargs={
                 "working_dir": data["WorkingDir"],
