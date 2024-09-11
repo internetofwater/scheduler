@@ -52,7 +52,7 @@ if not os.path.exists(GLEANERIO_GLEANER_CONFIG_PATH):
     raise Exception(
         f"Missing gleaner config file: Not located at {GLEANERIO_GLEANER_CONFIG_PATH}"
     )
-GLEANERIO_NABU_CONFIG_PATH = "/opt/dagster/app/nabuconfig.example.yaml"
+GLEANERIO_NABU_CONFIG_PATH = "/opt/dagster/app/build/nabuconfig.yaml"
 if not os.path.exists(GLEANERIO_NABU_CONFIG_PATH):
     raise Exception(
         f"Missing nabu config file: Not located at {GLEANERIO_NABU_CONFIG_PATH}"
@@ -88,6 +88,7 @@ def strict_env(key: str):
     val = os.environ.get(key)
     if val is None:
         raise Exception(f"Missing {key}")
+    
     return val
 
 

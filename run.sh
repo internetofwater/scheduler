@@ -29,7 +29,6 @@ if [ ! -d .venv ]; then
 fi
 source .venv/bin/activate
 python3 -m pip install -r requirements.txt
-python3 main.py all
 
 # reset the swarm if it exists
 docker swarm leave --force || true
@@ -52,9 +51,12 @@ if [ -f $envfile ]
 fi
 
 # Cleanup old configs before creating new ones. Always return true since we don't care if it fails due to it not existing
-docker config rm gleaner || true
-docker config rm nabu || true
-docker config rm workspace || true
+docker config rm gleaner 2> /dev/null || true
+docker config rm nabu 2> /dev/null || true
+docker config rm workspace 2> /dev/null || true
+
+python3 main.py all
+
 
 if [  "$(docker network ls  | grep ${GLEANERIO_HEADLESS_NETWORK})" ] ; then
    echo ${GLEANERIO_HEADLESS_NETWORK} network exists;

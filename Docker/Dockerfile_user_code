@@ -17,12 +17,8 @@ WORKDIR /opt/dagster/app
 
 COPY build /opt/dagster/app/build
 
-
-
 # Run dagster gRPC server on port 4000
 EXPOSE 4000
-
-COPY ../nabuconfig.example.yaml /opt/dagster/app/nabuconfig.example.yaml
 
 # CMD allows this to be overridden from run launchers or executors that want
 # to run other commands against your repository

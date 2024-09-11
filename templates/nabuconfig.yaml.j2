@@ -1,12 +1,11 @@
 ---
 minio:
-  address: minio
-  port: 9000
-  accessKey: minio_access_key
-  secretKey: minio_secret_key
-  ssl: false
-  bucket: gleanerbucket
-  region: null
+  address: {{ GLEANERIO_MINIO_ADDRESS}}
+  port: {{ GLEANERIO_MINIO_PORT}}
+  accessKey: {{ GLEANERIO_MINIO_ACCESS_KEY}}
+  secretKey: {{ GLEANERIO_MINIO_SECRET_KEY}}
+  ssl: {{ GLEANERIO_MINIO_USE_SSL}}
+  bucket: {{ GLEANERIO_MINIO_BUCKET}}
 implementation_network:
   orgname: iow
 context:
