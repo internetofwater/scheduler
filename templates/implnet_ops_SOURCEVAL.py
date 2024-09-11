@@ -350,7 +350,8 @@ def get_cli_args(
                     "--cfg",
                     GLEANERIO_NABU_CONFIG_PATH,
                     "object",
-                    f"/graphs/latest/{source}_prov.nq" "--endpoint",
+                    f"/graphs/latest/{source}_prov.nq",
+                    "--endpoint",
                     GLEANERIO_PROVGRAPH_ENDPOINT,
                 ]
             case "prov-drain":
