@@ -52,9 +52,9 @@ if [ -f $envfile ]
 fi
 
 # Cleanup old configs before creating new ones. Always return true since we don't care if it fails due to it not existing
-docker config rm gleaner || true
-docker config rm nabu || true
-docker config rm workspace || true
+docker config rm gleaner 2> /dev/null || true
+docker config rm nabu 2> /dev/null || true
+docker config rm workspace 2> /dev/null || true
 
 if [  "$(docker network ls  | grep ${GLEANERIO_HEADLESS_NETWORK})" ] ; then
    echo ${GLEANERIO_HEADLESS_NETWORK} network exists;

@@ -35,8 +35,6 @@ services:
       - -w
       - workspace.yaml
     container_name: docker_example_webserver
-    expose:
-      - "3000"
     ports:
       - "3000:3000"
     environment:
