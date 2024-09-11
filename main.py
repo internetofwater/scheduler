@@ -15,7 +15,42 @@ app = typer.Typer()
 BUILD_DIR =    os.path.join(os.path.dirname(__file__), "build")
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
-def generate_code(cf, od, template_dir: str, days: int) -> str:
+def remove_non_alphanumeric(string):
+    return re.sub(r'[^a-zA-Z0-9_]+', '', string)
+
+def strict_env(env_var: str) -> str:
+    val = os.environ.get(env_var)
+    if val is None:
+        raise RuntimeError(f"Missing required environment variable: {env_var}")
+    return val
+
+def read_common_env():
+    return {
+        "GLEANERIO_MINIO_ADDRESS": strict_env("GLEANERIO_MINIO_ADDRESS"),
+        "GLEANERIO_MINIO_ACCESS_KEY": strict_env("GLEANERIO_MINIO_ACCESS_KEY"),
+        "GLEANERIO_MINIO_SECRET_KEY": strict_env("GLEANERIO_MINIO_SECRET_KEY"),
+        "GLEANERIO_MINIO_BUCKET": strict_env("GLEANERIO_MINIO_BUCKET"),
+        "GLEANERIO_MINIO_PORT": strict_env("GLEANERIO_MINIO_PORT"),
+        "GLEANERIO_MINIO_USE_SSL": strict_env("GLEANERIO_MINIO_USE_SSL"),
+    }
+
+
+def generate_repository(config, output_dir: str):
+    """Generate the topline repository python file that links to all the jobs"""
+    c = yaml.safe_load(open(config, 'r'))
+
+    # Set up Jinja2 environment and load the template
+    env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
+    template = env.get_template('repository.py.j2') 
+
+    # Render the template with the context
+    rendered_content = template.render(sources=c["sources"])
+
+    # Write the rendered content to the output file
+    with open(os.path.join(output_dir, "repository.py"), 'w+') as file:
+        file.write(rendered_content)
+
+def generate_code(cf, od, template_dir: str, days: int):
     """Generate each individual dagster job that is a separate python file"""
     c = yaml.safe_load(open(cf, 'r'))
 
@@ -73,25 +108,9 @@ def generate_code(cf, od, template_dir: str, days: int) -> str:
                 dst = "{0}/{1}/implnet_{1}_{2}.py".format(od, operation, source["name"])
                 shutil.copyfile(src, dst)
 
-    return "done"
-
-def generate_repository(config, output_dir: str):
-    """Generate the topline repository python file that links to all the jobs"""
-    c = yaml.safe_load(open(config, 'r'))
-
-    # Set up Jinja2 environment and load the template
-    env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
-    template = env.get_template('repository.py.j2') 
-
-    # Render the template with the context
-    rendered_content = template.render(sources=c["sources"])
-
-    # Write the rendered content to the output file
-    with open(os.path.join(output_dir, "repository.py"), 'w+') as file:
-        file.write(rendered_content)
 
 @app.command()
-def generate_jobs(
+def generate_python_jobs(
     # weekly: Annotated[int, typer.Option(help="Spread the run over a week")],
     # monthly: Annotated[str, typer.Option(help="Spread the run over a month")],
     config: Annotated[str, typer.Option(help="Gleaner config to use as source")] = os.path.join(BUILD_DIR, "gleanerconfig.yaml"),
@@ -114,18 +133,33 @@ def generate_jobs(
                     file.write("")
 
 
+def template_config(base, out_dir):
+    env = Environment(loader=FileSystemLoader(os.path.dirname(base)))
+    template = env.get_template(os.path.basename(base)) 
 
+    # Render the template with the context
+    rendered_content = template.render(**read_common_env())
+
+    # Write the rendered content to the output file
+    output_name = str(os.path.basename(base)).removesuffix('.j2')
+
+    with open(os.path.join(out_dir, output_name), 'w+') as file:
+        file.write(rendered_content)
+
+    return os.path.join(out_dir, output_name)
+
+    
 @app.command()
-def generate_config(sitemap_url: Annotated[str, typer.Option()] = "https://geoconnex.us/sitemap.xml",
-            base: Annotated[str, typer.Option()] = "gleanerconfigPREFIX.example.yaml"
+def generate_gleaner_config(sitemap_url: Annotated[str, typer.Option()] = "https://geoconnex.us/sitemap.xml",
+                base: Annotated[str, typer.Option(help="nabu config to use as source")] = os.path.join(TEMPLATE_DIR, "gleanerconfigPREFIX.yaml.j2"),
+    out_dir: Annotated[str, typer.Option(help="Directory for output")] = BUILD_DIR
             ):
     """Generate the gleaner config from a remote sitemap"""
 
-    def remove_non_alphanumeric(string):
-        return re.sub(r'[^a-zA-Z0-9_]+', '', string)
+    # Fill in the config with the common minio configuration
+    common_config = template_config(base, out_dir)
 
-    # Load the base YAML file
-    with open(base, 'r') as base_file:
+    with open(common_config, 'r') as base_file:
         base_data = yaml.safe_load(base_file)
 
     # Parse the sitemap INDEX for the referenced sitemaps for a config file
@@ -176,11 +210,20 @@ def generate_config(sitemap_url: Annotated[str, typer.Option()] = "https://geoco
         yaml.dump(base_data, outfile, default_flow_style=False)
 
 @app.command()
+def generate_nabu_config(
+    base: Annotated[str, typer.Option(help="nabu config to use as source")] = os.path.join(TEMPLATE_DIR, "nabuconfig.yaml.j2"),
+    out_dir: Annotated[str, typer.Option(help="Directory for output")] = BUILD_DIR
+):
+    """Generate the nabu config from the base template""" 
+    template_config(base, out_dir)
+
+@app.command()
 def all():
-    """Generate all the files"""
+    """Generate all the files """
     clean()
-    generate_config()
-    generate_jobs()
+    generate_gleaner_config()
+    generate_nabu_config()
+    generate_python_jobs()
 
 @app.command()
 def clean():
@@ -189,7 +232,7 @@ def clean():
     if os.path.exists(BUILD_DIR):
         print("Cleaning contents of the build directory")
         
-        for root, dirs, files in os.walk(BUILD_DIR):
+        for root, _, files in os.walk(BUILD_DIR):
             for name in files:
                 if name != '.gitkeep' and name != "__init__.py":
                     os.remove(os.path.join(root, name))

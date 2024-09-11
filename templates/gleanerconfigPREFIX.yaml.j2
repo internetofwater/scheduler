@@ -1,11 +1,13 @@
+# This file represents the prefix for the gleaner config file
+
 ---
 minio:
-  address: minio
-  port: 9000
-  accessKey: minio_access_key
-  secretKey: minio_secret_key
-  ssl: false
-  bucket: gleanerbucket
+  address: {{ GLEANERIO_MINIO_ADDRESS}}
+  port: {{ GLEANERIO_MINIO_PORT}}
+  accessKey: {{ GLEANERIO_MINIO_ACCESS_KEY}}
+  secretKey: {{ GLEANERIO_MINIO_SECRET_KEY}}
+  ssl: {{ GLEANERIO_MINIO_USE_SSL}}
+  bucket: {{ GLEANERIO_MINIO_BUCKET}}
 gleaner:
   runid: oih # this will be the bucket the output is placed in...
   summon: true # do we want to visit the web sites and pull down the files
