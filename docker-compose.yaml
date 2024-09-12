@@ -1,6 +1,30 @@
 version: "3.7"
 
 services:
+  
+  traefik:
+    image: "traefik:v3.1"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=default"
+      - "--entrypoints.web.address=:80"
+      - "--api"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    ports:
+      - 80:80
+      # management console
+      - 8080:8080
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      # auth middleware with user / password
+      # password: test username: test
+      - "traefik.http.middlewares.my-auth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/,test2:$$apr1$$d9hr9HBB$$4HxwgUir3HP4EsggP/QNo0"
+
   docker_example_postgresql:
     image: postgres:11
     container_name: dagster-postgres
@@ -49,6 +73,11 @@ services:
     depends_on:
       - docker_example_postgresql
       - docker_example_user_code
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docker_example_webserver.rule=Host(`127.0.0.1:3000`)"
+      - "traefik.http.routers.docker_example_webserver.entrypoints=web"
+      - "traefik.http.routers.docker_example_webserver.middlewares=my-auth"
     env_file: ".env"
 
   docker_example_daemon:
