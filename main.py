@@ -33,6 +33,7 @@ def read_common_env():
         "GLEANERIO_MINIO_PORT": strict_env("GLEANERIO_MINIO_PORT"),
         "GLEANERIO_MINIO_USE_SSL": strict_env("GLEANERIO_MINIO_USE_SSL"),
         "GLEANERIO_GRAPH_URL": strict_env("GLEANERIO_GRAPH_URL"),
+        "GLEANERIO_HEADLESS_ENDPOINT": strict_env("GLEANERIO_HEADLESS_ENDPOINT"),
         "GLEANERIO_DATAGRAPH_ENDPOINT": strict_env("GLEANERIO_DATAGRAPH_ENDPOINT"),
         "GLEANERIO_PROVGRAPH_ENDPOINT": strict_env("GLEANERIO_PROVGRAPH_ENDPOINT"),
     }
@@ -154,7 +155,7 @@ def template_config(base, out_dir):
     
 @app.command()
 def generate_gleaner_config(sitemap_url: Annotated[str, typer.Option()] = "https://geoconnex.us/sitemap.xml",
-                base: Annotated[str, typer.Option(help="nabu config to use as source")] = os.path.join(TEMPLATE_DIR, "gleanerconfigPREFIX.yaml.j2"),
+                base: Annotated[str, typer.Option(help="nabu config to use as source")] = os.path.join(TEMPLATE_DIR, "gleanerconfig.yaml.j2"),
     out_dir: Annotated[str, typer.Option(help="Directory for output")] = BUILD_DIR
             ):
     """Generate the gleaner config from a remote sitemap"""
