@@ -23,8 +23,8 @@ objects:
     - prov/providera
     - org
 endpoints:
-  - service: iow
-    baseurl: http://graphdb:7200/repositories/iow
+  - service: {{ GLEANERIO_DATAGRAPH_ENDPOINT }}
+    baseurl: {{ GLEANERIO_GRAPH_URL }}/repositories/{{ GLEANERIO_DATAGRAPH_ENDPOINT }}
     type: graphdb
     authenticate: false
     username: admin
@@ -42,8 +42,8 @@ endpoints:
         suffix: /statements
         accept: text/x-nquads
         method: POST
-  - service: iowprov
-    baseurl: http://graphdb:7200/repositories/iowprov
+  - service: {{ GLEANERIO_PROVGRAPH_ENDPOINT }}
+    baseurl: {{ GLEANERIO_GRAPH_URL }}/repositories/{{ GLEANERIO_PROVGRAPH_ENDPOINT }}
     type: graphdb
     authenticate: false
     username: admin
