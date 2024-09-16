@@ -1,12 +1,39 @@
-from ast import Tuple
-from calendar import Day
-from dagster import DefaultScheduleStatus, Definitions, DynamicOut, DynamicOutput, In, JobDefinition, Nothing, ScheduleDefinition, get_dagster_logger, job, op, graph, schedule, asset
+from dagster import (
+    DefaultScheduleStatus,
+    Definitions,
+    GraphDefinition,
+    GraphIn,
+    GraphOut,
+    In,
+    JobDefinition,
+    OpExecutionContext,
+    String,
+    ScheduleDefinition,
+    get_dagster_logger,
+    op,
+    graph,
+)
 import docker
 
-from .lib import gleanerio
+from lib.utils import (
+    _graphEndpoint,
+    _graphSummaryEndpoint,
+    _pythonMinioAddress,
+    run_gleaner,
+    post_to_graph,
+)
 import yaml
 
-from .env import GLEANERIO_GLEANER_IMAGE, GLEANERIO_NABU_IMAGE, SUMMARY_PATH, GLEANER_CONFIG_PATH
+from lib.env import (
+    GLEANER_MINIO_ADDRESS,
+    GLEANER_MINIO_BUCKET,
+    GLEANER_MINIO_PORT,
+    GLEANERIO_GLEANER_IMAGE,
+    GLEANERIO_NABU_IMAGE,
+    MINIO_OPTIONS,
+    SUMMARY_PATH,
+    GLEANER_CONFIG_PATH,
+)
 import json
 
 from ec.gleanerio.gleaner import (
@@ -24,132 +51,88 @@ from ec.summarize import summaryDF2ttl, get_summary4repoSubset
 import docker
 from dagster import op, graph, get_dagster_logger
 from dagster import In, Nothing
-from dagster._core.utils import parse_env_var
 
-from dagster_docker.container_context import DockerContainerContext
-from dagster_docker.docker_run_launcher import DockerRunLauncher
-from dagster_docker.utils import validate_docker_image
-from docker.types.services import ConfigReference
-from .types import GleanerSource
-
-@op(out=DynamicOut())
-def get_gleaner_config_sources() -> list[DynamicOutput[GleanerSource]]:
-    """Given a config, return the jobs that will need to be run to perform a crawl"""
-    # mimicking getSitemapSourcesFromGleaner from earthcube-utils
-    with open(GLEANER_CONFIG_PATH) as f:
-        config = yaml.safe_load(f)
-        all_sources = [site for site in config["sources"]]
-        assert len(all_sources) > 0
-        return all_sources
-
-
-
-@job
-def construct_repository():
-    # the repository.py file is 
-
-    def generate_job_and_schedules(source: GleanerSource):
-
-        job = JobDefinition(
-            
-        )
-
-        schedule = ScheduleDefinition(
-            job=job,
-            cron_schedule="15 5 * * 1-5",
-            default_status=DefaultScheduleStatus.STOPPED,
-        )
-
-
-
-    get_gleaner_config_sources()
-
-    
-
-    definitions = Definitions(
-        # https://docs.dagster.io/concepts/automation/schedules/automating-ops-schedules-jobs
-        jobs=[],
-        schedules=[],
-    )
+from lib.types import GleanerSource, S3ObjectInfo
 
 
 @op
-def SOURCEVAL_getImage(context):
+def getImage():
     get_dagster_logger().info("Getting docker client and pulling images: ")
     client = docker.DockerClient(version="1.43")
     client.images.pull(GLEANERIO_GLEANER_IMAGE)
     client.images.pull(GLEANERIO_NABU_IMAGE)
 
-
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_gleaner(context):
-    returned_value = gleanerio(context, "gleaner", "SOURCEVAL")
-    r = str("returned value:{}".format(returned_value))
-    get_dagster_logger().info(f"Gleaner returned  {r} ")
-    return
+@op(ins={'source': In(dagster_type=dict)})
+def gleaner(context: OpExecutionContext, source: str):
+    returned_value = run_gleaner(context, "gleaner", source)
+    get_dagster_logger().info(f"Gleaner returned value: '{returned_value}'")
 
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_naburelease(context):
-    returned_value = gleanerio(context, "release", "SOURCEVAL")
+@op(ins={'source': In(dagster_type=dict)})
+def naburelease(context: OpExecutionContext, source: str):
+    returned_value = run_gleaner(context, "release", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu release returned  {r} ")
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_uploadrelease(context):
-    returned_value = gleanerio(context, "object", "SOURCEVAL")
+
+@op(ins={'source': In(dagster_type=dict)})
+def uploadrelease(context: OpExecutionContext, source: str):
+    returned_value = run_gleaner(context, "object", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu object call release returned  {r} ")
 
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_nabu_prune(context):
-    returned_value = gleanerio(context, "prune", "SOURCEVAL")
+@op(ins={'source': In(dagster_type=dict)})
+def nabu_prune(context: OpExecutionContext, source: str):
+    returned_value = run_gleaner(context, "prune", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu prune returned  {r} ")
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_nabu_provrelease(context):
-    returned_value = gleanerio(context, "prov-release", "SOURCEVAL")
+@op(ins={'source': In(dagster_type=dict)})
+def nabu_provrelease(context, source: str):
+    returned_value = run_gleaner(context, "prov-release", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu prov-release returned  {r} ")
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_nabu_provclear(context):
-    returned_value = gleanerio(context, "prov-clear", "SOURCEVAL")
+
+@op(ins={'source': In(dagster_type=dict)})
+def nabu_provclear(context, source: str):
+    returned_value = run_gleaner(context, "prov-clear", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu prov-clear returned  {r} ")
 
+
 @op(ins={"start": In(Nothing)})
-def SOURCEVAL_nabu_provobject(context):
-    returned_value = gleanerio(context, "prov-object", "SOURCEVAL")
+def nabu_provobject(context, source: str):
+    returned_value = run_gleaner(context, "prov-object", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu prov-object returned  {r} ")
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_nabu_provdrain(context):
-    returned_value = gleanerio(context, "prov-drain", "SOURCEVAL")
+
+@op(ins={'source': In(dagster_type=dict)})
+def nabu_provdrain(context: OpExecutionContext, source: str):
+    returned_value = run_gleaner(context, "prov-drain", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu prov-drain returned  {r} ")
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_nabu_orgsrelease(context):
-    returned_value = gleanerio(context, "orgs-release", "SOURCEVAL")
+
+@op(ins={'source': In(dagster_type=dict)})
+def nabu_orgsrelease(context: OpExecutionContext, source: str):
+    returned_value = run_gleaner(context, "orgs-release", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu orgs-release returned  {r} ")
 
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_nabuorgs(context):
-    returned_value = gleanerio(context, ("orgs"), "SOURCEVAL")
+@op(ins={'source': In(dagster_type=dict)})
+def nabuorgs(context: OpExecutionContext, source: str):
+    returned_value = run_gleaner(context, ("orgs"), "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu org load returned  {r} ")
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_missingreport_s3(context):
-    source = getSitemapSourcesFromGleaner(
-        DAGSTER_GLEANER_CONFIG_PATH, sourcename="SOURCEVAL"
-    )
+
+@op(ins={'source': In(dagster_type=dict)})
+def missingreport_s3(context: OpExecutionContext, source: str):
+    source = getSitemapSourcesFromGleaner(GLEANER_CONFIG_PATH, sourcename="SOURCEVAL")
     source_url = source.get("url")
     s3Minio = s3.MinioDatastore(
         _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT), MINIO_OPTIONS
@@ -174,11 +157,9 @@ def SOURCEVAL_missingreport_s3(context):
     get_dagster_logger().info(f"missing s3 report  returned  {r} ")
 
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_missingreport_graph(context):
-    source = getSitemapSourcesFromGleaner(
-        DAGSTER_GLEANER_CONFIG_PATH, sourcename="SOURCEVAL"
-    )
+@op(ins={'source': In(dagster_type=dict)})
+def missingreport_graph(context: OpExecutionContext, source: str):
+    source = getSitemapSourcesFromGleaner(GLEANER_CONFIG_PATH, sourcename="SOURCEVAL")
     source_url = source.get("url")
     s3Minio = s3.MinioDatastore(
         _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT), MINIO_OPTIONS
@@ -186,7 +167,7 @@ def SOURCEVAL_missingreport_graph(context):
     bucket = GLEANER_MINIO_BUCKET
     source_name = "SOURCEVAL"
 
-    graphendpoint = _graphEndpoint() 
+    graphendpoint = _graphEndpoint()
 
     milled = True
     summon = False  # summon only off
@@ -205,18 +186,17 @@ def SOURCEVAL_missingreport_graph(context):
     s3Minio.putReportFile(bucket, source_name, "missing_report_graph.json", report)
     get_dagster_logger().info(f"missing graph  report  returned  {r} ")
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_graph_reports(context):
-    source = getSitemapSourcesFromGleaner(
-        DAGSTER_GLEANER_CONFIG_PATH, sourcename="SOURCEVAL"
-    )
+
+@op(ins={'source': In(dagster_type=dict)})
+def graph_reports(context: OpExecutionContext, source: str):
+    source = getSitemapSourcesFromGleaner(GLEANER_CONFIG_PATH, sourcename="SOURCEVAL")
     s3Minio = s3.MinioDatastore(
         _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT), MINIO_OPTIONS
     )
     bucket = GLEANER_MINIO_BUCKET
     source_name = "SOURCEVAL"
 
-    graphendpoint = _graphEndpoint() 
+    graphendpoint = _graphEndpoint()
 
     returned_value = generateGraphReportsRepo(
         source_name, graphendpoint, reportList=reportTypes["repo_detailed"]
@@ -227,12 +207,9 @@ def SOURCEVAL_graph_reports(context):
     s3Minio.putReportFile(bucket, source_name, "graph_stats.json", report)
     get_dagster_logger().info(f"graph report  returned  {r} ")
 
-
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_identifier_stats(context):
-    source = getSitemapSourcesFromGleaner(
-        DAGSTER_GLEANER_CONFIG_PATH, sourcename="SOURCEVAL"
-    )
+@op(ins={'source': In(dagster_type=dict)})
+def identifier_stats(context: OpExecutionContext, source: str):
+    source = getSitemapSourcesFromGleaner(GLEANER_CONFIG_PATH, sourcename="SOURCEVAL")
     s3Minio = s3.MinioDatastore(
         _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT), MINIO_OPTIONS
     )
@@ -247,24 +224,23 @@ def SOURCEVAL_identifier_stats(context):
     get_dagster_logger().info(f"identifer stats report  returned  {r} ")
 
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_bucket_urls(context):
+@op(ins={'source': In(dagster_type=dict)})
+def bucket_urls(context: OpExecutionContext, source: dict):
     s3Minio = s3.MinioDatastore(
-        _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT), MINIO_OPTIONS
+        f"{GLEANER_MINIO_ADDRESS}:{GLEANER_MINIO_PORT}", MINIO_OPTIONS
     )
     bucket = GLEANER_MINIO_BUCKET
     source_name = "SOURCEVAL"
 
     res = s3Minio.listSummonedUrls(bucket, source_name)
-    r = str("returned value:{}".format(res))
     bucketurls = json.dumps(res, indent=2)
     s3Minio.putReportFile(
         GLEANER_MINIO_BUCKET, source_name, "bucketutil_urls.json", bucketurls
     )
-    get_dagster_logger().info(f"bucker urls report  returned  {r} ")
+    get_dagster_logger().info(f"bucker urls report  returned value: {res} ")
 
-@op(ins={"start": In(Nothing)})
-def SOURCEVAL_summarize(context):
+@op(ins={'source': In(dagster_type=dict)})
+def summarize(context: OpExecutionContext, source: dict):
     s3Minio = s3.MinioDatastore(
         _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT), MINIO_OPTIONS
     )
@@ -293,7 +269,7 @@ def SOURCEVAL_summarize(context):
 
 
 @op(ins={"start": In(Nothing)})
-def SOURCEVAL_upload_summarize(context):
+def upload_summarize(context):
     returned_value = post_to_graph(
         "SOURCEVAL",
         path=SUMMARY_PATH,
@@ -305,26 +281,49 @@ def SOURCEVAL_upload_summarize(context):
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"upload summary returned  {r} ")
 
-
 @graph
-def harvest(source):
-    # check for containers
-    containers = getImage()
+def harvest(source: str):
 
-    # conduct the harvest
-    harvest = gleaner(start=containers)
+    gleaner(getImage(), source)
 
     # data branch
-    load_release = naburelease(start=harvest)
-    load_uploadrelease = uploadrelease(start=load_release)
-    load_prune = nabu_prune(start=load_uploadrelease)
+    nabu_prune(uploadrelease(naburelease()))
 
     # prov branch
-    prov_release = nabu_provrelease(start=harvest)
-    prov_clear = nabu_provclear(start=prov_release)
-    prov_object = nabu_provobject(start=prov_clear)
-    prov_drain = nabu_provdrain(start=prov_object)
+    nabu_provrelease(nabu_provclear(nabu_provobject(nabu_provdrain())))
 
     # org branch
-    org_release = nabu_orgsrelease(start=harvest)
-    load_org = nabuorgs(start=org_release)
+    nabu_orgsrelease(nabuorgs())
+
+
+def generate_job_and_schedules(
+    source: GleanerSource,
+) -> tuple[JobDefinition, ScheduleDefinition]:
+    
+    job = JobDefinition(graph_def=harvest, input_values={"source": source})
+    schedule = ScheduleDefinition(
+        job=job,
+        # “At 23:59 on day-of-month 1.”
+        cron_schedule="59 23 1 * *",
+        default_status=DefaultScheduleStatus.STOPPED,
+    )
+
+    return (job, schedule)
+
+def get_gleaner_config_sources() -> list[GleanerSource]:
+    """Given a config, return the jobs that will need to be run to perform a crawl"""
+    with open(GLEANER_CONFIG_PATH) as f:
+        config = yaml.safe_load(f)
+        all_sources = [site for site in config["sources"]]
+        assert len(all_sources) > 0
+        return all_sources
+    
+sources = get_gleaner_config_sources()
+# Generate the list of jobs and schedules to create the entire harvest graph as soon as dagster is loaded
+jobs, schedules = zip(*map(generate_job_and_schedules, sources))
+
+# definitions are a new replacement for repository.py and instantiate all the jobs and schedules
+definitions = Definitions(
+    jobs,
+    schedules,
+)
