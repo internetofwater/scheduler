@@ -1,17 +1,17 @@
-from dagster import In, Nothing, get_dagster_logger, job, op, graph, schedule, asset
+from ast import Tuple
+from calendar import Day
+from dagster import DefaultScheduleStatus, Definitions, DynamicOut, DynamicOutput, In, JobDefinition, Nothing, ScheduleDefinition, get_dagster_logger, job, op, graph, schedule, asset
 import docker
 
 from .lib import gleanerio
+import yaml
 
-from .env import GLEANERIO_GLEANER_IMAGE, GLEANERIO_NABU_IMAGE, SUMMARY_PATH
+from .env import GLEANERIO_GLEANER_IMAGE, GLEANERIO_NABU_IMAGE, SUMMARY_PATH, GLEANER_CONFIG_PATH
 import json
 
 from ec.gleanerio.gleaner import (
     getSitemapSourcesFromGleaner,
 )
-from minio import Minio
-from minio.error import S3Error
-from datetime import datetime
 from ec.reporting.report import (
     missingReport,
     generateGraphReportsRepo,
@@ -20,10 +20,6 @@ from ec.reporting.report import (
 )
 from ec.datastore import s3
 from ec.summarize import summaryDF2ttl, get_summary4repoSubset
-import requests
-import logging as log
-
-from typing import List, Literal, Optional, Sequence, Tuple
 
 import docker
 from dagster import op, graph, get_dagster_logger
@@ -34,16 +30,47 @@ from dagster_docker.container_context import DockerContainerContext
 from dagster_docker.docker_run_launcher import DockerRunLauncher
 from dagster_docker.utils import validate_docker_image
 from docker.types.services import ConfigReference
+from .types import GleanerSource
 
-@asset 
-def sitemap():
-    """Right now we construct the gleaner config outside of dagster. Future plan"""
-    pass
+@op(out=DynamicOut())
+def get_gleaner_config_sources() -> list[DynamicOutput[GleanerSource]]:
+    """Given a config, return the jobs that will need to be run to perform a crawl"""
+    # mimicking getSitemapSourcesFromGleaner from earthcube-utils
+    with open(GLEANER_CONFIG_PATH) as f:
+        config = yaml.safe_load(f)
+        all_sources = [site for site in config["sources"]]
+        assert len(all_sources) > 0
+        return all_sources
+
 
 
 @job
-def implnet_job_SOURCEVAL():
-    harvest_SOURCEVAL()
+def construct_repository():
+    # the repository.py file is 
+
+    def generate_job_and_schedules(source: GleanerSource):
+
+        job = JobDefinition(
+            
+        )
+
+        schedule = ScheduleDefinition(
+            job=job,
+            cron_schedule="15 5 * * 1-5",
+            default_status=DefaultScheduleStatus.STOPPED,
+        )
+
+
+
+    get_gleaner_config_sources()
+
+    
+
+    definitions = Definitions(
+        # https://docs.dagster.io/concepts/automation/schedules/automating-ops-schedules-jobs
+        jobs=[],
+        schedules=[],
+    )
 
 
 @op
@@ -280,24 +307,24 @@ def SOURCEVAL_upload_summarize(context):
 
 
 @graph
-def harvest_SOURCEVAL():
+def harvest(source):
     # check for containers
-    containers = SOURCEVAL_getImage()
+    containers = getImage()
 
     # conduct the harvest
-    harvest = SOURCEVAL_gleaner(start=containers)
+    harvest = gleaner(start=containers)
 
     # data branch
-    load_release = SOURCEVAL_naburelease(start=harvest)
-    load_uploadrelease = SOURCEVAL_uploadrelease(start=load_release)
-    load_prune = SOURCEVAL_nabu_prune(start=load_uploadrelease)
+    load_release = naburelease(start=harvest)
+    load_uploadrelease = uploadrelease(start=load_release)
+    load_prune = nabu_prune(start=load_uploadrelease)
 
     # prov branch
-    prov_release = SOURCEVAL_nabu_provrelease(start=harvest)
-    prov_clear = SOURCEVAL_nabu_provclear(start=prov_release)
-    prov_object = SOURCEVAL_nabu_provobject(start=prov_clear)
-    prov_drain = SOURCEVAL_nabu_provdrain(start=prov_object)
+    prov_release = nabu_provrelease(start=harvest)
+    prov_clear = nabu_provclear(start=prov_release)
+    prov_object = nabu_provobject(start=prov_clear)
+    prov_drain = nabu_provdrain(start=prov_object)
 
     # org branch
-    org_release = SOURCEVAL_nabu_orgsrelease(start=harvest)
-    load_org = SOURCEVAL_nabuorgs(start=org_release)
+    org_release = nabu_orgsrelease(start=harvest)
+    load_org = nabuorgs(start=org_release)

@@ -6,21 +6,21 @@ from .env import GLEANERIO_DATAGRAPH_ENDPOINT, GLEANERIO_GLEANER_IMAGE, GLEANERI
 from .types import cli_modes
 
 def get_cli_args(
-    mode: cli_modes,
+    action_to_run: cli_modes,
     source: str,
 ) -> Tuple[str, List[str], str, str]:
     """Given a mode and source return the cli args that are needed to run either gleaner or nabu"""
-    if mode == "gleaner":
+    if action_to_run == "gleaner":
         IMAGE = GLEANERIO_GLEANER_IMAGE
         ARGS = ["--cfg", GLEANERIO_GLEANER_CONFIG_PATH, "-source", source, "--rude"]
-        NAME = f"sch_{source}_{str(mode)}"
+        NAME = f"sch_{source}_{action_to_run}"
         WorkingDir = "/gleaner/"
     else:
         # Handle all nabu modes
         IMAGE = GLEANERIO_NABU_IMAGE
         WorkingDir = "/nabu/"
-        NAME = f"sch_{source}_{str(mode)}"
-        match mode:
+        NAME = f"sch_{source}_{str(action_to_run)}"
+        match action_to_run:
             case "release":
                 ARGS = [
                     "--cfg",
@@ -104,7 +104,7 @@ def get_cli_args(
                     GLEANERIO_DATAGRAPH_ENDPOINT,
                 ]
             case _:
-                get_dagster_logger().error(f"Called gleaner with invalid mode: {mode}")
+                get_dagster_logger().error(f"Called gleaner with invalid mode: {action_to_run}")
                 return 1
     return IMAGE, ARGS, NAME, WorkingDir
 

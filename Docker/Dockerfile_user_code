@@ -10,7 +10,8 @@ RUN pip install \
     # our utilities
     earthcube-utilities \
     minio \
-    dagster
+    dagster \
+    pyyaml
 
 # Add repository code
 WORKDIR /opt/dagster/app
