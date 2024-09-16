@@ -15,10 +15,8 @@ RUN pip install \
 
 # Add repository code
 WORKDIR /opt/dagster/app
-
-COPY code /opt/dagster/app/build
-COPY build/gleanerconfig.yaml /opt/dagster/app/build/gleanerconfig.yaml
-COPY build/nabuconfig.yaml /opt/dagster/app/build/nabuconfig.yaml
+COPY build/gleanerconfig.yaml /opt/dagster/app/config/gleanerconfig.yaml
+COPY build/nabuconfig.yaml /opt/dagster/app/config/nabuconfig.yaml
 
 # Run dagster gRPC server on port 4000
 EXPOSE 4000

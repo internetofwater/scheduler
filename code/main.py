@@ -1,13 +1,10 @@
 from dagster import (
     DefaultScheduleStatus,
     Definitions,
-    GraphDefinition,
-    GraphIn,
-    GraphOut,
     In,
     JobDefinition,
+    Nothing,
     OpExecutionContext,
-    String,
     ScheduleDefinition,
     get_dagster_logger,
     op,
@@ -47,10 +44,6 @@ from ec.reporting.report import (
 )
 from ec.datastore import s3
 from ec.summarize import summaryDF2ttl, get_summary4repoSubset
-
-import docker
-from dagster import op, graph, get_dagster_logger
-from dagster import In, Nothing
 
 from lib.types import GleanerSource, S3ObjectInfo
 
@@ -284,7 +277,7 @@ def upload_summarize(context):
 @graph
 def harvest(source: str):
 
-    gleaner(getImage(), source)
+    gleaner(getImage())
 
     # data branch
     nabu_prune(uploadrelease(naburelease()))

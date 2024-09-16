@@ -5,7 +5,7 @@ SUMMARY_PATH = "graphs/summary"
 RELEASE_PATH = "graphs/latest"
 GLEANER_HEADLESS_NETWORK = "headless_gleanerio"
 GLEANERIO_LOG_PREFIX = "scheduler/logs/"
-GLEANER_CONFIG_PATH = "/opt/dagster/app/build/gleanerconfig.yaml"
+GLEANER_CONFIG_PATH = "/opt/dagster/app/config/gleanerconfig.yaml"
 if not os.path.exists(GLEANER_CONFIG_PATH):
     raise Exception(
         f"Missing gleaner config file: Not located at {GLEANER_CONFIG_PATH}"
@@ -15,7 +15,7 @@ if not os.path.exists(GLEANERIO_GLEANER_CONFIG_PATH):
     raise Exception(
         f"Missing gleaner config file: Not located at {GLEANERIO_GLEANER_CONFIG_PATH}"
     )
-GLEANERIO_NABU_CONFIG_PATH = "/opt/dagster/app/build/nabuconfig.yaml"
+GLEANERIO_NABU_CONFIG_PATH = "/opt/dagster/app/config/nabuconfig.yaml"
 if not os.path.exists(GLEANERIO_NABU_CONFIG_PATH):
     raise Exception(
         f"Missing nabu config file: Not located at {GLEANERIO_NABU_CONFIG_PATH}"
