@@ -1,4 +1,5 @@
 import os
+
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 SUMMARY_PATH = "graphs/summary"
 RELEASE_PATH = "graphs/latest"

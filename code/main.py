@@ -1,8 +1,39 @@
-from dagster import get_dagster_logger, job, op, graph, schedule, asset
+from dagster import In, Nothing, get_dagster_logger, job, op, graph, schedule, asset
 import docker
 
-from .env import GLEANERIO_GLEANER_IMAGE, GLEANERIO_NABU_IMAGE
+from .lib import gleanerio
 
+from .env import GLEANERIO_GLEANER_IMAGE, GLEANERIO_NABU_IMAGE, SUMMARY_PATH
+import json
+
+from ec.gleanerio.gleaner import (
+    getSitemapSourcesFromGleaner,
+)
+from minio import Minio
+from minio.error import S3Error
+from datetime import datetime
+from ec.reporting.report import (
+    missingReport,
+    generateGraphReportsRepo,
+    reportTypes,
+    generateIdentifierRepo,
+)
+from ec.datastore import s3
+from ec.summarize import summaryDF2ttl, get_summary4repoSubset
+import requests
+import logging as log
+
+from typing import List, Literal, Optional, Sequence, Tuple
+
+import docker
+from dagster import op, graph, get_dagster_logger
+from dagster import In, Nothing
+from dagster._core.utils import parse_env_var
+
+from dagster_docker.container_context import DockerContainerContext
+from dagster_docker.docker_run_launcher import DockerRunLauncher
+from dagster_docker.utils import validate_docker_image
+from docker.types.services import ConfigReference
 
 @asset 
 def sitemap():
