@@ -50,81 +50,83 @@ from lib.types import GleanerSource, S3ObjectInfo
 
 
 @op
-def getImage():
+def pull_docker_images():
     get_dagster_logger().info("Getting docker client and pulling images: ")
     client = docker.DockerClient(version="1.43")
     client.images.pull(GLEANERIO_GLEANER_IMAGE)
     client.images.pull(GLEANERIO_NABU_IMAGE)
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def gleaner(context: OpExecutionContext, source: dict):
     returned_value = run_gleaner(context, "gleaner", source)
     get_dagster_logger().info(f"Gleaner returned value: '{returned_value}'")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def naburelease(context: OpExecutionContext, source: dict):
     returned_value = run_gleaner(context, "release", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu release returned  {r} ")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def uploadrelease(context: OpExecutionContext, source: dict):
     returned_value = run_gleaner(context, "object", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu object call release returned  {r} ")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def nabu_prune(context: OpExecutionContext, source: dict):
     returned_value = run_gleaner(context, "prune", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu prune returned  {r} ")
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def nabu_provrelease(context, source: dict):
     returned_value = run_gleaner(context, "prov-release", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu prov-release returned  {r} ")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def nabu_provclear(context: OpExecutionContext, source: str):
     returned_value = run_gleaner(context, "prov-clear", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu prov-clear returned  {r} ")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def nabu_provobject(context, source: dict):
     returned_value = run_gleaner(context, "prov-object", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu prov-object returned  {r} ")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def nabu_provdrain(context: OpExecutionContext, source: dict):
     returned_value = run_gleaner(context, "prov-drain", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu prov-drain returned  {r} ")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def nabu_orgsrelease(context: OpExecutionContext, source: dict):
     returned_value = run_gleaner(context, "orgs-release", "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu orgs-release returned  {r} ")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def nabuorgs(context: OpExecutionContext, source: dict):
     returned_value = run_gleaner(context, ("orgs"), "SOURCEVAL")
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu org load returned  {r} ")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def missingreport_s3(context: OpExecutionContext, source: dict):
     source = getSitemapSourcesFromGleaner(GLEANER_CONFIG_PATH, sourcename="SOURCEVAL")
     source_url = source.get("url")
@@ -151,7 +153,7 @@ def missingreport_s3(context: OpExecutionContext, source: dict):
     get_dagster_logger().info(f"missing s3 report  returned  {r} ")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def missingreport_graph(context: OpExecutionContext, source: dict):
     source = getSitemapSourcesFromGleaner(GLEANER_CONFIG_PATH, sourcename="SOURCEVAL")
     source_url = source.get("url")
@@ -181,7 +183,7 @@ def missingreport_graph(context: OpExecutionContext, source: dict):
     get_dagster_logger().info(f"missing graph  report  returned  {r} ")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def graph_reports(context: OpExecutionContext, source: dict):
     source = getSitemapSourcesFromGleaner(GLEANER_CONFIG_PATH, sourcename="SOURCEVAL")
     s3Minio = s3.MinioDatastore(
@@ -201,7 +203,8 @@ def graph_reports(context: OpExecutionContext, source: dict):
     s3Minio.putReportFile(bucket, source_name, "graph_stats.json", report)
     get_dagster_logger().info(f"graph report  returned  {r} ")
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def identifier_stats(context: OpExecutionContext, source: dict):
     source = getSitemapSourcesFromGleaner(GLEANER_CONFIG_PATH, sourcename="SOURCEVAL")
     s3Minio = s3.MinioDatastore(
@@ -218,7 +221,7 @@ def identifier_stats(context: OpExecutionContext, source: dict):
     get_dagster_logger().info(f"identifer stats report  returned  {r} ")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def bucket_urls(context: OpExecutionContext, source: dict):
     s3Minio = s3.MinioDatastore(
         f"{GLEANER_MINIO_ADDRESS}:{GLEANER_MINIO_PORT}", MINIO_OPTIONS
@@ -233,7 +236,8 @@ def bucket_urls(context: OpExecutionContext, source: dict):
     )
     get_dagster_logger().info(f"bucker urls report  returned value: {res} ")
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def summarize(context: OpExecutionContext, source: dict):
     s3Minio = s3.MinioDatastore(
         _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT), MINIO_OPTIONS
@@ -262,7 +266,7 @@ def summarize(context: OpExecutionContext, source: dict):
         raise Exception(f"Loading Summary graph failed. {str(e)}")
 
 
-@op(ins={"start": In(Nothing), 'source': In(dagster_type=dict)})
+@op(ins={"start": In(Nothing), "source": In(dagster_type=dict)})
 def upload_summarize(context: OpExecutionContext, source: dict):
     returned_value = post_to_graph(
         "SOURCEVAL",
@@ -275,26 +279,39 @@ def upload_summarize(context: OpExecutionContext, source: dict):
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"upload summary returned  {r} ")
 
+
 @graph
 def harvest(source: dict):
+    """Harvest all assets for a given source. Since dagster cannot easily parametrize, we need to pass in source for each fn"""
+    get_dagster_logger().info(f"Harvesting source: {source}")
 
-    setup = gleaner(getImage(), source)
+    setup = gleaner(pull_docker_images(), source)
 
     # # data branch
-    nabu_prune(uploadrelease(naburelease(start= setup)))
+    release = naburelease(start=setup, source=source)
+    upload = uploadrelease(start=release, source=source)
+    nabu_prune(start=upload, source=source)
 
     # # prov branch
-    nabu_provrelease(nabu_provclear(nabu_provobject(nabu_provdrain(start = setup))))
+    provdrain = nabu_provdrain(start=setup, source=source)
+    prune = nabu_provobject(start=provdrain, source=source)
+    provclear = nabu_provclear(start=prune, source=source)
+    nabu_provrelease(start=provclear, source=source)
 
     # # org branch
-    nabu_orgsrelease(nabuorgs(start = setup))
+    orgs = nabuorgs(start=setup, source=source)
+    nabu_orgsrelease(start=orgs, source=source)
 
 
 def generate_job_and_schedules(
     source: GleanerSource,
 ) -> tuple[JobDefinition, ScheduleDefinition]:
-    
-    job = JobDefinition(graph_def=harvest, name = "harvest_" + source["name"], description=f"harvest all assets for {source['name']}", input_values={"source": source})
+    job = JobDefinition(
+        graph_def=harvest,
+        name="harvest_" + source["name"],
+        description=f"harvest all assets for {source['name']}",
+        input_values={"source": source},
+    )
     schedule = ScheduleDefinition(
         job=job,
         # “At 23:59 on day-of-month 1.”
@@ -304,14 +321,16 @@ def generate_job_and_schedules(
 
     return (job, schedule)
 
+
 def get_gleaner_config_sources() -> list[GleanerSource]:
-    """Given a config, return the jobs that will need to be run to perform a crawl"""
+    """Given a config, return the jobs that will need to be run to perform a full geoconnex crawl"""
     with open(GLEANER_CONFIG_PATH) as f:
         config = yaml.safe_load(f)
         all_sources = [site for site in config["sources"]]
         assert len(all_sources) > 0
         return all_sources
-    
+
+
 sources = get_gleaner_config_sources()
 jobs, schedules = [], []
 for src in sources:
@@ -319,7 +338,7 @@ for src in sources:
     jobs += [jbs]
     schedules += [schd]
 
-# definitions are a new replacement for repository.py and instantiate all the jobs and schedules
+# definitions instantiate all the jobs and schedules for a dagster repo
 definitions = Definitions(
     jobs=jobs,
     schedules=schedules,
