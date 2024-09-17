@@ -2,9 +2,8 @@ scheduler:
   module: dagster.core.scheduler
   class: DagsterDaemonScheduler
 
-run_coordinator:
-  module: dagster.core.run_coordinator
-  class: QueuedRunCoordinator
+run_queue:
+  max_concurrent_runs: 1
 
 run_launcher:
   module: dagster_docker
@@ -75,3 +74,4 @@ event_log_storage:
       db_name:
         env: DAGSTER_POSTGRES_DB
       port: 5432
+

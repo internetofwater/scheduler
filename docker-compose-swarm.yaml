@@ -1,5 +1,6 @@
 version: "3.7"
 
+# A full docker swarm configuration for running the geoconnex stack
 services:
   dagster_postgres:
     image: postgres:11

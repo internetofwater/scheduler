@@ -4,6 +4,7 @@ FROM python:3.10-slim
 # exposing your repository to dagster-webserver and dagster-daemon, and to load the DagsterInstance
 
 RUN pip install \
+    # baseline libraries
     dagster \
     dagster-postgres \
     dagster-docker \
@@ -13,7 +14,7 @@ RUN pip install \
     dagster \
     pyyaml
 
-# Add repository code
+# configs and runtime code
 WORKDIR /opt/dagster/app
 COPY code /opt/dagster/app/code
 COPY build/gleanerconfig.yaml /opt/dagster/app/config/gleanerconfig.yaml

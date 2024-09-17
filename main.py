@@ -1,52 +1,86 @@
 import os
-import re
+import shutil
+import pty
 from typing import Annotated
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 import requests
 import typer
-from jinja2 import Environment, FileSystemLoader
 import yaml
+import sys
+from cli_lib.utils import remove_non_alphanumeric, strict_env, template_config, run_command
 
 app = typer.Typer()
 
 BUILD_DIR =    os.path.join(os.path.dirname(__file__), "build")
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
-def remove_non_alphanumeric(string):
-    return re.sub(r'[^a-zA-Z0-9_]+', '', string)
+def run_docker_stack():
 
-def strict_env(env_var: str) -> str:
-    val = os.environ.get(env_var)
-    if val is None:
-        raise RuntimeError(f"Missing required environment variable: {env_var}")
-    return val
+    # Reset the swarm if it exists
+    run_command("docker swarm leave --force || true", print_output=False)
+    run_command("docker swarm init")
 
-def read_common_env():
-    """All env files here are used in templating configs since they are used in both gleaner and nabu configs"""
-    return {
-        "GLEANERIO_MINIO_ADDRESS": strict_env("GLEANERIO_MINIO_ADDRESS"),
-        "MINIO_ACCESS_KEY": strict_env("MINIO_ACCESS_KEY"),
-        "MINIO_SECRET_KEY": strict_env("MINIO_SECRET_KEY"),
-        "GLEANERIO_MINIO_BUCKET": strict_env("GLEANERIO_MINIO_BUCKET"),
-        "GLEANERIO_MINIO_PORT": strict_env("GLEANERIO_MINIO_PORT"),
-        "GLEANERIO_MINIO_USE_SSL": strict_env("GLEANERIO_MINIO_USE_SSL"),
+    reload_docker_configs()
+
+    # Create a network that we can attach to from the swarm
+    run_command("docker network create --driver overlay --attachable dagster_network")
+
+    network_name = strict_env("GLEANERIO_HEADLESS_NETWORK")
+    network_list = run_command("docker network ls", print_output=False).stdout
+    swarm_state = run_command("docker info --format '{{.Swarm.LocalNodeState}}'", print_output=False).stdout.strip()
+
+    if network_name in network_list:
+        print(f"{network_name} network exists")
+        if swarm_state == "inactive":
+            print("Network is not swarm")
+        else:
+            print("Network is swarm")
+    else:
+        print("Creating network")
+        if swarm_state == "inactive":
+            if run_command(f"docker network create -d bridge --attachable {network_name}").returncode == 0:
+                print(f"Created network {network_name}")
+            else:
+                print("ERROR: *** Failed to create local network.")
+                sys.exit(1)
+        else:
+            if run_command(f"docker network create -d overlay --attachable {network_name}").returncode == 0:
+                print(f"Created network {network_name}")
+            else:
+                print("ERROR: *** Failed to create swarm network.")
+                sys.exit(1)
+
+    # Needed for a docker issue on MacOS; sometimes this dir isn't present
+    os.makedirs("/tmp/io_manager_storage", exist_ok=True)
+
+    # Build then deploy the docker swarm stack
+    run_command("docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code .")
+    run_command("docker build -t dagster_webserver_image -f ./Docker/Dockerfile_dagster .")
+    run_command("docker build -t dagster_daemon_image -f ./Docker/Dockerfile_dagster .")
+    run_command("docker stack deploy -c docker-compose-swarm.yaml geoconnex_crawler --detach=false", print_output=True)
+
+def reload_docker_configs():
+    """Reload the config files present in the docker swarm"""
+    config_paths = {
+        "gleaner": strict_env("GLEANERIO_GLEANER_CONFIG_PATH"),
+        "nabu": strict_env("GLEANERIO_NABU_CONFIG_PATH"),
     }
 
-def template_config(base, out_dir):
-    env = Environment(loader=FileSystemLoader(os.path.dirname(base)))
-    template = env.get_template(os.path.basename(base)) 
+    for config in config_paths.values():
+        run_command(f"docker config rm {config}")
 
-    # Render the template with the context
-    rendered_content = template.render(**read_common_env())
-
-    # Write the rendered content to the output file
-    output_name = str(os.path.basename(base)).removesuffix('.j2')
-
-    with open(os.path.join(out_dir, output_name), 'w+') as file:
-        file.write(rendered_content)
-
-    return os.path.join(out_dir, output_name)
-
+    for config_name, config_path in config_paths.items():
+        config_list = run_command("docker config ls", print_output=False).stdout
+        if config_path in config_list:
+            print(f"{config_path} config exists")
+        else:
+            print(f"Creating config {config_name}")
+            if run_command(f"docker config create {config_name} \"{config_path}\"").returncode == 0:
+                print(f"Created config {config_name} {config_path}")
+            else:
+                print(f"ERROR: *** Failed to create {config_name} config.")
+                sys.exit(1)
     
 @app.command()
 def generate_gleaner_config(sitemap_url: Annotated[str, typer.Option()] = "https://geoconnex.us/sitemap.xml",
@@ -56,21 +90,16 @@ def generate_gleaner_config(sitemap_url: Annotated[str, typer.Option()] = "https
     """Generate the gleaner config from a remote sitemap"""
 
     # Fill in the config with the common minio configuration
-    common_config = template_config(base, out_dir)
+    base_config = template_config(base, out_dir)
 
-    with open(common_config, 'r') as base_file:
+    with open(base_config, 'r') as base_file:
         base_data = yaml.safe_load(base_file)
 
-    # Parse the sitemap INDEX for the referenced sitemaps for a config file
-    Lines = []
-
+    # Parse the sitemap index for the referenced sitemaps for a config file
     r = requests.get(sitemap_url)
     xml = r.text
-    soup = BeautifulSoup(xml, features='xml')
-    sitemapTags = soup.find_all("sitemap")
-
-    for sitemap in sitemapTags:
-        Lines.append(sitemap.findNext("loc").text)  # type: ignore
+    sitemapTags = BeautifulSoup(xml, features='xml').find_all("sitemap")
+    Lines = [ sitemap.findNext("loc").text for sitemap in sitemapTags ]
 
     sources = []
     names = set()
@@ -114,12 +143,31 @@ def generate_nabu_config(
     """Generate the nabu config from the base template""" 
     template_config(base, out_dir)
 
+
 @app.command()
-def all():
-    """Generate all the files """
+def stop_swarm():
+    """Stop the docker swarm stack"""
+    run_command("docker swarm leave --force || true", print_output=True)
+
+@app.command()
+def all(env: Annotated[str, typer.Option(help="File containing your env vars")] = ".env"):
+    """Generate all config files and run the docker swarm stack"""
+
+    if not os.path.exists(env):
+        print("Missing .env file. Do you want to copy .env.example to .env ? (y/n)")
+        answer = input().lower()
+        if answer.lower() == "y" or answer.lower() == "yes":
+            shutil.copy(".env.example", ".env")
+        else:
+            print("Missing .env file. Exiting")
+            return
+            
+    load_dotenv(env)
+    run_command("docker swarm leave --force || true", print_output=False)    
     clean()
     generate_gleaner_config()
     generate_nabu_config()
+    run_docker_stack()
 
 @app.command()
 def clean():
@@ -130,6 +178,8 @@ def clean():
                 os.remove(os.path.join(BUILD_DIR, name))
     else:
         print("Build directory does not exist")
+        os.mkdir(BUILD_DIR)
+
     print("Removed contents of the build directory")
 
 if __name__ == "__main__":
