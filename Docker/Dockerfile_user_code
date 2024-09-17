@@ -4,22 +4,25 @@ FROM python:3.10-slim
 # exposing your repository to dagster-webserver and dagster-daemon, and to load the DagsterInstance
 
 RUN pip install \
+    # baseline libraries
     dagster \
     dagster-postgres \
     dagster-docker \
     # our utilities
     earthcube-utilities \
     minio \
-    dagster
+    dagster \
+    pyyaml
 
-# Add repository code
+# configs and runtime code
 WORKDIR /opt/dagster/app
-
-COPY build /opt/dagster/app/build
+COPY code /opt/dagster/app/code
+COPY build/gleanerconfig.yaml /opt/dagster/app/config/gleanerconfig.yaml
+COPY build/nabuconfig.yaml /opt/dagster/app/config/nabuconfig.yaml
 
 # Run dagster gRPC server on port 4000
 EXPOSE 4000
 
 # CMD allows this to be overridden from run launchers or executors that want
 # to run other commands against your repository
-CMD [ "dagster", "api","grpc", "-h", "0.0.0.0", "-p", "4000", "--python-file", "/opt/dagster/app/build/repository.py", "-d", "/opt/dagster/app/build"]
+CMD [ "dagster", "api","grpc", "-h", "0.0.0.0", "-p", "4000", "--python-file", "/opt/dagster/app/code/main.py", "-d", "/opt/dagster/app/code"]

@@ -1,31 +1,28 @@
 version: "3.7"
 
+# A full docker swarm configuration for running the geoconnex stack
 services:
-  docker_example_postgresql:
+  dagster_postgres:
     image: postgres:11
-    container_name: dagster-postgres
-    environment:
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres_password"
-      POSTGRES_DB: "postgres_db"
+    container_name: dagster_postgres
     networks:
-      - docker_example_network
-
-  docker_example_user_code:
-    image: docker_example_user_code_image
-    container_name: docker_example_user_code
-    restart: always
-    environment:
-      DAGSTER_POSTGRES_USER: "postgres"
-      DAGSTER_POSTGRES_PASSWORD: "postgres_password"
-      DAGSTER_POSTGRES_DB: "postgres_db"
-      DAGSTER_CURRENT_IMAGE: "docker_example_user_code_image"
-    networks:
-      - docker_example_network
+      - dagster_network
     env_file: ".env"
 
-  docker_example_webserver:
-    image: docker_example_webserver_image
+  dagster_user_code:
+    image: dagster_user_code_image
+    container_name: dagster_user_code
+    restart: always
+    environment:
+      DAGSTER_CURRENT_IMAGE: "dagster_user_code_image"
+    volumes:
+      - ./code:/opt/dagster/app/code
+    networks:
+      - dagster_network
+    env_file: ".env"
+
+  dagster_webserver:
+    image: dagster_webserver_image
     entrypoint:
       - dagster-webserver
       - -h
@@ -34,42 +31,34 @@ services:
       - "3000"
       - -w
       - workspace.yaml
-    container_name: docker_example_webserver
+    container_name: dagster_webserver
     ports:
       - "3000:3000"
-    environment:
-      DAGSTER_POSTGRES_USER: "postgres"
-      DAGSTER_POSTGRES_PASSWORD: "postgres_password"
-      DAGSTER_POSTGRES_DB: "postgres_db"
     volumes: # Make docker client accessible so we can terminate containers from the webserver
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
     networks:
-      - docker_example_network
+      - dagster_network
     depends_on:
-      - docker_example_postgresql
-      - docker_example_user_code
+      - dagster_postgres
+      - dagster_user_code
     env_file: ".env"
 
-  docker_example_daemon:
-    image: docker_example_daemon_image
+  dagster_daemon:
+    image: dagster_daemon_image
     entrypoint:
       - dagster-daemon
       - run
-    container_name: docker_example_daemon
+    container_name: dagster_daemon
     restart: on-failure
-    environment:
-      DAGSTER_POSTGRES_USER: "postgres"
-      DAGSTER_POSTGRES_PASSWORD: "postgres_password"
-      DAGSTER_POSTGRES_DB: "postgres_db"
     volumes: # Make docker client accessible so we can launch containers using host docker
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
     networks:
-      - docker_example_network
+      - dagster_network
     depends_on:
-      - docker_example_postgresql
-      - docker_example_user_code
+      - dagster_postgres
+      - dagster_user_code
     env_file: ".env"
     
   minio:
@@ -79,12 +68,10 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
-    environment:
-      MINIO_ACCESS_KEY: "minio_access_key"
-      MINIO_SECRET_KEY: "minio_secret_key"
     networks:
       - headless_gleanerio
-      - docker_example_network
+      - dagster_network
+    env_file: ".env"
 
   createbuckets:
     # Creates the buckets on minio for the harvester to move assets into
@@ -100,7 +87,7 @@ services:
       sleep infinity;
        "
     networks:
-      - docker_example_network
+      - dagster_network
     
   createrepositories:
     # Applies migrations aka "repositories" after the database is created
@@ -117,7 +104,7 @@ services:
     volumes: 
       - ./templates:/templates
     networks:
-      - docker_example_network
+      - dagster_network
 
   graphdb:
     image: khaller/graphdb-free
@@ -129,10 +116,10 @@ services:
       - JAVA_XMS=2048m
     networks:
       - headless_gleanerio
-      - docker_example_network
+      - dagster_network
 
 networks:
-  docker_example_network:
+  dagster_network:
     external: true
   headless_gleanerio:
       external: true
