@@ -1,8 +1,12 @@
 # How to use this repository
 
-1. Run `run.sh` from this repository's root
-2. Navigate to `localhost:3000` to view the dagster UI
+1. `python3 -m venv .venv`
+2. `source .venv/bin/activate`
+3. `pip install -r requirements.txt`
+4. `python3 main.py all`
+5. Navigate to `localhost:3000` to view the dagster UI
 
+You can also quickstart the venv by running `./run.sh`
 
 ## Architecture
 
