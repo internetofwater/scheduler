@@ -22,6 +22,7 @@ def strict_env(env_var: str) -> str:
     return val
 
 def read_common_env():
+    """All env files here are used in templating configs since they are used in both gleaner and nabu configs"""
     return {
         "GLEANERIO_MINIO_ADDRESS": strict_env("GLEANERIO_MINIO_ADDRESS"),
         "GLEANERIO_MINIO_ACCESS_KEY": strict_env("GLEANERIO_MINIO_ACCESS_KEY"),
@@ -74,27 +75,25 @@ def generate_gleaner_config(sitemap_url: Annotated[str, typer.Option()] = "https
     sources = []
     names = set()
     for line in Lines:
-        data = {}
 
         basename = sitemap_url.removesuffix(".xml")
         name =  line.removeprefix(basename).removesuffix(".xml").removeprefix("/").removesuffix("/").replace("/", "_")
         name = remove_non_alphanumeric(name)
-        
-        data["sourcetype"] = "sitemap"
-        
         if name in names:
             print(f"Warning! Skipping duplicate name {name}")
             continue
-        
-        names.add(name)
-        data["name"] = name
-        data["url"] = line.strip()
-        data["headless"] = "false"
-        data["pid"] = "https://gleaner.io/genid/geoconnex"
-        data["propername"] = name
-        data["domain"] = "https://geoconnex.us"
-        data["active"] = "true"
 
+        data = {
+            "sourcetype": "sitemap",
+            "name": name,
+            "url": line.strip(),
+            "headless": "false",
+            "pid": "https://gleaner.io/genid/geoconnex",
+            "propername": name,
+            "domain": "https://geoconnex.us",
+            "active": "true"
+        }
+        names.add(name)
         sources.append(data)
 
     # Combine base data with the new sources
@@ -125,16 +124,13 @@ def all():
 @app.command()
 def clean():
     """Delete the contents of the build directory"""
-
     if os.path.exists(BUILD_DIR):
-        print("Cleaning contents of the build directory")
-        
-        for root, _, files in os.walk(BUILD_DIR):
-            for name in files:
-                if name != '.gitkeep' and name != "__init__.py":
-                    os.remove(os.path.join(root, name))
+        for name in os.listdir(BUILD_DIR):
+            if name != '.gitkeep' and name != "__init__.py":
+                os.remove(os.path.join(BUILD_DIR, name))
     else:
         print("Build directory does not exist")
+    print("Removed contents of the build directory")
 
 if __name__ == "__main__":
     app()

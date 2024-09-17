@@ -1,3 +1,5 @@
+from datetime import datetime
+import io
 import time
 from typing import List, Optional, Sequence, Tuple
 
@@ -6,13 +8,40 @@ from dagster_docker import DockerRunLauncher
 import docker
 from minio import Minio, S3Error
 import requests
-from .env import GLEANER_GRAPH_NAMESPACE, GLEANER_GRAPH_URL, GLEANER_HEADLESS_NETWORK, GLEANER_MINIO_ACCESS_KEY, GLEANER_MINIO_ADDRESS, GLEANER_MINIO_BUCKET, GLEANER_MINIO_PORT, GLEANER_MINIO_SECRET_KEY, GLEANER_MINIO_USE_SSL, GLEANERIO_DATAGRAPH_ENDPOINT, GLEANERIO_GLEANER_IMAGE, GLEANERIO_GLEANER_CONFIG_PATH, GLEANERIO_NABU_IMAGE, GLEANERIO_NABU_CONFIG_PATH, GLEANERIO_PROVGRAPH_ENDPOINT, RELEASE_PATH
+from .env import GLEANER_GRAPH_NAMESPACE, GLEANER_GRAPH_URL, GLEANER_HEADLESS_NETWORK, GLEANER_MINIO_ACCESS_KEY, GLEANER_MINIO_ADDRESS, GLEANER_MINIO_BUCKET, GLEANER_MINIO_PORT, GLEANER_MINIO_SECRET_KEY, GLEANER_MINIO_USE_SSL, GLEANERIO_DATAGRAPH_ENDPOINT, GLEANERIO_GLEANER_IMAGE, GLEANERIO_GLEANER_CONFIG_PATH, GLEANERIO_LOG_PREFIX, GLEANERIO_NABU_IMAGE, GLEANERIO_NABU_CONFIG_PATH, GLEANERIO_PROVGRAPH_ENDPOINT, RELEASE_PATH
 from .types import cli_modes
 from docker.types.services import ConfigReference
 from dagster_docker.container_context import DockerContainerContext
 from docker.types import RestartPolicy, ServiceMode
 from dagster_docker.utils import validate_docker_image
 from dagster._core.utils import parse_env_var
+
+def s3loader(data, name: str):
+    """Load arbitrary data into the s3 bucket"""
+    endpoint = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
+
+    client = Minio(
+        endpoint,
+        secure=GLEANER_MINIO_USE_SSL,
+        access_key=GLEANER_MINIO_ACCESS_KEY,
+        secret_key=GLEANER_MINIO_SECRET_KEY,
+    )
+
+    date_string = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+
+    logname = name + "_{}.log".format(date_string)
+    objPrefix = GLEANERIO_LOG_PREFIX + logname
+    f = io.BytesIO()
+    length = f.write(data)
+    f.seek(0)
+    client.put_object(
+        GLEANER_MINIO_BUCKET,
+        objPrefix,
+        f,  
+        length,
+        content_type="text/plain",
+    )
+    get_dagster_logger().info(f"Log uploaded: {str(objPrefix)}")
 
 
 def get_cli_args(
@@ -180,7 +209,7 @@ def _create_service(
 def run_gleaner(
     context,
     mode: cli_modes,
-    source,
+    source: str,
 ) -> int:
 
     get_dagster_logger().info(f"Gleanerio mode: {mode}")
@@ -249,18 +278,13 @@ def run_gleaner(
         if exit_status != 0:
             raise Exception(f"Gleaner/Nabu container returned exit code {exit_status}")
     finally:
-        if not DEBUG:
-            try:
-                if service:
-                    service.remove()
-                    get_dagster_logger().info(f"Service Remove: {service.name}")
-            except:
-                get_dagster_logger().info(f"Service Not created, so not removed.")
+        try:
+            if service:
+                service.remove()
+                get_dagster_logger().info(f"Service Remove: {service.name}")
+        except:
+            get_dagster_logger().info("Service Not created, so not removed.")
 
-        else:
-            get_dagster_logger().info(
-                f"Service {service.name} NOT Removed : DEBUG ENABLED"
-            )
 
     if returnCode != 0:
         get_dagster_logger().error(
