@@ -12,8 +12,9 @@ def assert_all_vars():
         "GLEANERIO_MINIO_ADDRESS",
         "GLEANERIO_MINIO_PORT",
         "GLEANERIO_MINIO_USE_SSL",
-        "GLEANERIO_MINIO_SECRET_KEY",
-        "GLEANERIO_MINIO_ACCESS_KEY",
+        # these are named differently since they are shared between user code and the minio container
+        "MINIO_SECRET_KEY",
+        "MINIO_ACCESS_KEY",
         "GLEANERIO_MINIO_BUCKET",
         "GLEANERIO_HEADLESS_ENDPOINT",
         "GLEANERIO_GRAPH_URL",
@@ -64,8 +65,8 @@ GLEANER_MINIO_USE_SSL = strict_env("GLEANERIO_MINIO_USE_SSL") in [
     "true",
     "True",
 ]
-GLEANER_MINIO_SECRET_KEY = strict_env("GLEANERIO_MINIO_SECRET_KEY")
-GLEANER_MINIO_ACCESS_KEY = strict_env("GLEANERIO_MINIO_ACCESS_KEY")
+GLEANER_MINIO_SECRET_KEY = strict_env("MINIO_SECRET_KEY")
+GLEANER_MINIO_ACCESS_KEY = strict_env("MINIO_ACCESS_KEY")
 GLEANER_MINIO_BUCKET = strict_env("GLEANERIO_MINIO_BUCKET")
 # set for the earhtcube utiltiies
 MINIO_OPTIONS = {

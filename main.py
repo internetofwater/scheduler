@@ -25,8 +25,8 @@ def read_common_env():
     """All env files here are used in templating configs since they are used in both gleaner and nabu configs"""
     return {
         "GLEANERIO_MINIO_ADDRESS": strict_env("GLEANERIO_MINIO_ADDRESS"),
-        "GLEANERIO_MINIO_ACCESS_KEY": strict_env("GLEANERIO_MINIO_ACCESS_KEY"),
-        "GLEANERIO_MINIO_SECRET_KEY": strict_env("GLEANERIO_MINIO_SECRET_KEY"),
+        "MINIO_ACCESS_KEY": strict_env("MINIO_ACCESS_KEY"),
+        "MINIO_SECRET_KEY": strict_env("MINIO_SECRET_KEY"),
         "GLEANERIO_MINIO_BUCKET": strict_env("GLEANERIO_MINIO_BUCKET"),
         "GLEANERIO_MINIO_PORT": strict_env("GLEANERIO_MINIO_PORT"),
         "GLEANERIO_MINIO_USE_SSL": strict_env("GLEANERIO_MINIO_USE_SSL"),

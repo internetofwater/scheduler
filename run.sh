@@ -34,7 +34,7 @@ python3 -m pip install -r requirements.txt
 docker swarm leave --force || true
 docker swarm init
 # creates a network that we can attach to from the swarm
-docker network create --driver overlay --attachable docker_example_network
+docker network create --driver overlay --attachable dagster_network
 
 envfile=".env"
 
@@ -141,8 +141,8 @@ fi
 
 mkdir -p /tmp/io_manager_storage
 
-docker build -t docker_example_user_code_image -f ./Docker/Dockerfile_user_code .
-docker build -t docker_example_webserver_image -f ./Docker/Dockerfile_dagster .
-docker build -t docker_example_daemon_image -f ./Docker/Dockerfile_dagster .
+docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code .
+docker build -t dagster_webserver_image -f ./Docker/Dockerfile_dagster .
+docker build -t dagster_daemon_image -f ./Docker/Dockerfile_dagster .
 
 docker stack deploy -c docker-compose.yaml e2edagster --detach=false

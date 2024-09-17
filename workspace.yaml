@@ -2,6 +2,6 @@
 load_from:
   # Each entry here corresponds to a service in the docker-compose file that exposes user code.
   - grpc_server:
-      host: docker_example_user_code
+      host: dagster_user_code
       port: 4000
-      location_name: "example_user_code"
+      location_name: "dagster_user_code"

@@ -18,8 +18,8 @@ run_launcher:
       - GLEANERIO_MINIO_PORT
       - GLEANERIO_MINIO_USE_SSL
       - GLEANERIO_MINIO_BUCKET
-      - GLEANERIO_MINIO_ACCESS_KEY
-      - GLEANERIO_MINIO_SECRET_KEY
+      - MINIO_ACCESS_KEY
+      - MINIO_SECRET_KEY
       - GLEANERIO_HEADLESS_ENDPOINT
       - GLEANERIO_GRAPH_URL
       - GLEANERIO_GRAPH_NAMESPACE
@@ -28,7 +28,7 @@ run_launcher:
       - GLEANERIO_GLEANER_IMAGE
       - GLEANERIO_NABU_IMAGE
       
-    network: docker_example_network
+    network: dagster_network
     container_kwargs:
       volumes: # Make docker client accessible to any launched containers as well
         - /var/run/docker.sock:/var/run/docker.sock
@@ -39,7 +39,7 @@ run_storage:
   class: PostgresRunStorage
   config:
     postgres_db:
-      hostname: docker_example_postgresql
+      hostname: dagster_postgres
       username:
         env: DAGSTER_POSTGRES_USER
       password:
@@ -53,7 +53,7 @@ schedule_storage:
   class: PostgresScheduleStorage
   config:
     postgres_db:
-      hostname: docker_example_postgresql
+      hostname: dagster_postgres
       username:
         env: DAGSTER_POSTGRES_USER
       password:
@@ -67,7 +67,7 @@ event_log_storage:
   class: PostgresEventLogStorage
   config:
     postgres_db:
-      hostname: docker_example_postgresql
+      hostname: dagster_postgres
       username:
         env: DAGSTER_POSTGRES_USER
       password:
