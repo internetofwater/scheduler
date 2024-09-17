@@ -84,7 +84,7 @@ def reload_docker_configs():
     
 @app.command()
 def generate_gleaner_config(sitemap_url: Annotated[str, typer.Option()] = "https://geoconnex.us/sitemap.xml",
-                base: Annotated[str, typer.Option(help="nabu config to use as source")] = os.path.join(TEMPLATE_DIR, "gleanerconfigPREFIX.yaml.j2"),
+                base: Annotated[str, typer.Option(help="nabu config to use as source")] = os.path.join(TEMPLATE_DIR, "gleanerconfig.yaml.j2"),
     out_dir: Annotated[str, typer.Option(help="Directory for output")] = BUILD_DIR
             ):
     """Generate the gleaner config from a remote sitemap"""
