@@ -2,6 +2,7 @@ import sched
 from dagster import (
     DefaultScheduleStatus,
     Definitions,
+    GraphDefinition,
     In,
     JobDefinition,
     Nothing,
@@ -280,38 +281,43 @@ def upload_summarize(context: OpExecutionContext, source: dict):
     get_dagster_logger().info(f"upload summary returned  {r} ")
 
 
-@graph
-def harvest(source: dict):
-    """Harvest all assets for a given source. Since dagster cannot easily parametrize, we need to pass in source for each fn"""
-    get_dagster_logger().info(f"Harvesting source: {source}")
 
-    setup = gleaner(pull_docker_images(), source)
+def harvest_with_source(source: GleanerSource):
+    @graph
+    def harvest():
+        """Harvest all assets for a given source. Since dagster cannot easily parametrize, we need to pass in source for each fn"""
+        get_dagster_logger().info(f"Harvesting source: {source}")
 
-    # # data branch
-    release = naburelease(start=setup, source=source)
-    upload = uploadrelease(start=release, source=source)
-    nabu_prune(start=upload, source=source)
+        setup = gleaner(start = pull_docker_images(), source=source)
 
-    # # prov branch
-    provdrain = nabu_provdrain(start=setup, source=source)
-    prune = nabu_provobject(start=provdrain, source=source)
-    provclear = nabu_provclear(start=prune, source=source)
-    nabu_provrelease(start=provclear, source=source)
+        # # data branch
+        release = naburelease(start=setup, source=source)
+        upload = uploadrelease(start=release, source=source)
+        nabu_prune(start=upload, source=source)
 
-    # # org branch
-    orgs = nabuorgs(start=setup, source=source)
-    nabu_orgsrelease(start=orgs, source=source)
+        # # prov branch
+        provdrain = nabu_provdrain(start=setup, source=source)
+        prune = nabu_provobject(start=provdrain, source=source)
+        provclear = nabu_provclear(start=prune, source=source)
+        nabu_provrelease(start=provclear, source=source)
 
+        # # org branch
+        orgs = nabuorgs(start=setup, source=source)
+        nabu_orgsrelease(start=orgs, source=source)
 
-def generate_job_and_schedules(
-    source: GleanerSource,
-) -> tuple[JobDefinition, ScheduleDefinition]:
+    return harvest
+
+def generate_job_and_schedules(source: GleanerSource) -> tuple[JobDefinition, ScheduleDefinition]:
+
+    # Define the job using the created graph
     job = JobDefinition(
-        graph_def=harvest,
+        graph_def=harvest_with_source(source),
         name="harvest_" + source["name"],
         description=f"harvest all assets for {source['name']}",
         input_values={"source": source},
     )
+
+    # Define the schedule for the job
     schedule = ScheduleDefinition(
         job=job,
         # “At 23:59 on day-of-month 1.”
