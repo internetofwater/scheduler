@@ -1,31 +1,13 @@
 import os
 
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-SUMMARY_PATH = "graphs/summary"
-RELEASE_PATH = "graphs/latest"
-GLEANER_HEADLESS_NETWORK = "headless_gleanerio"
-GLEANERIO_LOG_PREFIX = "scheduler/logs/"
-GLEANER_CONFIG_PATH = "/opt/dagster/app/config/gleanerconfig.yaml"
-if not os.path.exists(GLEANER_CONFIG_PATH):
-    raise Exception(
-        f"Missing gleaner config file: Not located at {GLEANER_CONFIG_PATH}"
-    )
-GLEANERIO_GLEANER_CONFIG_PATH = GLEANER_CONFIG_PATH
-if not os.path.exists(GLEANERIO_GLEANER_CONFIG_PATH):
-    raise Exception(
-        f"Missing gleaner config file: Not located at {GLEANERIO_GLEANER_CONFIG_PATH}"
-    )
-GLEANERIO_NABU_CONFIG_PATH = "/opt/dagster/app/config/nabuconfig.yaml"
-if not os.path.exists(GLEANERIO_NABU_CONFIG_PATH):
-    raise Exception(
-        f"Missing nabu config file: Not located at {GLEANERIO_NABU_CONFIG_PATH}"
-    )
+"""
+Runtime config and env vars for dagster; prioritizes strict env vars
+that fail immediately if missing instead of later in the run
+"""
 
 
-## Env vars ##
 def assert_all_vars():
-    """If env vars aren't defined properly, we want to immediately catch
-    this and fail early instead of spawning containers with empty env vars"""
+    """assert that all required env vars are set"""
     vars = [
         "GLEANERIO_MINIO_ADDRESS",
         "GLEANERIO_MINIO_PORT",
@@ -47,7 +29,6 @@ def assert_all_vars():
 
 assert_all_vars()
 
-
 def strict_env(key: str):
     val = os.environ.get(key)
     if val is None:
@@ -55,6 +36,26 @@ def strict_env(key: str):
 
     return val
 
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+SUMMARY_PATH = "graphs/summary"
+RELEASE_PATH = "graphs/latest"
+GLEANER_HEADLESS_NETWORK = "headless_gleanerio"
+GLEANERIO_LOG_PREFIX = "scheduler/logs/"
+GLEANER_CONFIG_PATH = "/opt/dagster/app/config/gleanerconfig.yaml"
+if not os.path.exists(GLEANER_CONFIG_PATH):
+    raise Exception(
+        f"Missing gleaner config file: Not located at {GLEANER_CONFIG_PATH}"
+    )
+GLEANERIO_GLEANER_CONFIG_PATH = GLEANER_CONFIG_PATH
+if not os.path.exists(GLEANERIO_GLEANER_CONFIG_PATH):
+    raise Exception(
+        f"Missing gleaner config file: Not located at {GLEANERIO_GLEANER_CONFIG_PATH}"
+    )
+GLEANERIO_NABU_CONFIG_PATH = "/opt/dagster/app/config/nabuconfig.yaml"
+if not os.path.exists(GLEANERIO_NABU_CONFIG_PATH):
+    raise Exception(
+        f"Missing nabu config file: Not located at {GLEANERIO_NABU_CONFIG_PATH}"
+    )
 
 GLEANER_MINIO_ADDRESS = strict_env("GLEANERIO_MINIO_ADDRESS")
 GLEANER_MINIO_PORT = strict_env("GLEANERIO_MINIO_PORT")

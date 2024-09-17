@@ -4,6 +4,7 @@ from typing import Literal, TypeAlias, TypedDict
 
 
 cli_modes: TypeAlias = Literal[
+    """All the options for either gleaner or nabu"""
         "gleaner", 
         
         # All the cli modes that nabu can run
@@ -26,9 +27,13 @@ class S3ObjectInfo:
 
 
 class GleanerSource(TypedDict):
+    """Represents one source in the gleaner config file"""
     active: str
     domain: str 
+
+    # this is a string of "true" or "false"
     headless: str 
+    
     name: str 
     pid: str 
     propername: str

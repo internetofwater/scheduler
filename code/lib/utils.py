@@ -1,9 +1,9 @@
 from datetime import datetime
 import io
 import time
-from typing import List, Optional, Sequence, Tuple
+from typing import Any, List, Optional, Sequence, Tuple
 
-from dagster import get_dagster_logger
+from dagster import OpExecutionContext, get_dagster_logger
 from dagster_docker import DockerRunLauncher
 import docker
 from minio import Minio, S3Error
@@ -16,7 +16,7 @@ from docker.types import RestartPolicy, ServiceMode
 from dagster_docker.utils import validate_docker_image
 from dagster._core.utils import parse_env_var
 
-def s3loader(data, name: str):
+def s3loader(data: Any, name: str):
     """Load arbitrary data into the s3 bucket"""
     endpoint = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
 
@@ -188,6 +188,7 @@ def _create_service(
         configs=[gleaner, nabu],
     )
 
+    # If the docker container is not created within 10 seconds, raise an error
     ARBITRARY_SECONDS_TO_WAIT_UNTIL_FAILURE = 10
     for _ in range(0, ARBITRARY_SECONDS_TO_WAIT_UNTIL_FAILURE):
         get_dagster_logger().debug(str(service.tasks()))
@@ -207,7 +208,7 @@ def _create_service(
 
 
 def run_gleaner(
-    context,
+    context: OpExecutionContext,
     mode: cli_modes,
     source: str,
 ) -> int:
@@ -323,7 +324,7 @@ def s3reader(object_to_get):
     try:
         return client.get_object(GLEANER_MINIO_BUCKET, object_to_get)
     except S3Error as err:
-        get_dagster_logger().error(f"S3 read error : {str(err)}")
+        get_dagster_logger().error(f"S3 read error : {err}")
         raise err
     
 def post_to_graph(source, path=RELEASE_PATH, extension="nq", url=_graphEndpoint()):
