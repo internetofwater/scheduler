@@ -1,16 +1,19 @@
 from dagster import (
     DefaultScheduleStatus,
+    DefaultSensorStatus,
     Definitions,
     In,
     JobDefinition,
     Nothing,
     OpExecutionContext,
+    RunFailureSensorContext,
     ScheduleDefinition,
     get_dagster_logger,
     op,
     graph,
 )
 import docker
+import dagster_slack
 
 from lib.utils import (
     _graphEndpoint,
@@ -30,6 +33,7 @@ from lib.env import (
     MINIO_OPTIONS,
     SUMMARY_PATH,
     GLEANER_CONFIG_PATH,
+    strict_env,
 )
 import json
 
@@ -47,15 +51,18 @@ from ec.summarize import summaryDF2ttl, get_summary4repoSubset
 
 from lib.types import GleanerSource, S3ObjectInfo
 
+
 def strict_get_tag(context: OpExecutionContext, key: str) -> str:
     src = context.run_tags[key]
     if src is None:
         raise Exception(f"Missing run tag {key}")
     return src
 
+
 @op
 def pull_docker_images():
     get_dagster_logger().info("Getting docker client and pulling images: ")
+    
     client = docker.DockerClient(version="1.43")
     client.images.pull(GLEANERIO_GLEANER_IMAGE)
     client.images.pull(GLEANERIO_NABU_IMAGE)
@@ -88,7 +95,6 @@ def uploadrelease(context: OpExecutionContext):
 
 @op(ins={"start": In(Nothing)})
 def nabu_prune(context: OpExecutionContext):
-    
     source = strict_get_tag(context, "source")
     returned_value = run_gleaner(context, "prune", source)
     r = str("returned value:{}".format(returned_value))
@@ -138,7 +144,7 @@ def nabu_orgsrelease(context: OpExecutionContext):
 @op(ins={"start": In(Nothing)})
 def nabuorgs(context: OpExecutionContext):
     source = strict_get_tag(context, "source")
-    returned_value = run_gleaner(context, ("orgs"), source)
+    returned_value = run_gleaner(context, "orgs", source)
     r = str("returned value:{}".format(returned_value))
     get_dagster_logger().info(f"nabu org load returned  {r} ")
 
@@ -308,18 +314,15 @@ def upload_summarize(context: OpExecutionContext):
     get_dagster_logger().info(f"upload summary returned  {r} ")
 
 
-
 @graph
 def harvest():
     """
     Harvest all assets for a given source.
-    All source specific info is passed via tags within the run context 
+    All source specific info is passed via tags within the run context
     """
-    
-    get_dagster_logger().info("Harvesting source")
 
-    # dagster links between ops with arguments as dependencies. 
-    setup = gleaner(start = pull_docker_images())
+    # dagster links between ops with arguments as dependencies.
+    setup = gleaner(start=pull_docker_images())
 
     # # # data branch
     release = naburelease(start=setup)
@@ -333,13 +336,18 @@ def harvest():
     nabu_provdrain(start=obj)
 
     # # org branch
-    org_release =nabu_orgsrelease(start=setup)
+    org_release = nabu_orgsrelease(start=setup)
     nabuorgs(start=org_release)
 
 
-def generate_job_and_schedules(source: GleanerSource) -> tuple[JobDefinition, ScheduleDefinition]:
-
-    job = harvest.to_job(name="harvest_" + source["name"], description=f"harvest all assets for {source['name']}", tags={"source": source["name"]})
+def generate_job_and_schedules(
+    source: GleanerSource,
+) -> tuple[JobDefinition, ScheduleDefinition]:
+    job = harvest.to_job(
+        name="harvest_" + source["name"],
+        description=f"harvest all assets for {source['name']}",
+        tags={"source": source["name"]},
+    )
 
     # Define the schedule for the job
     schedule = ScheduleDefinition(
@@ -368,8 +376,31 @@ for src in sources:
     jobs += [jbs]
     schedules += [schd]
 
-# definitions instantiate all the jobs and schedules for a dagster repo
+
+def slack_error_fn(context: RunFailureSensorContext) -> str:
+    get_dagster_logger().info("Sending notification to slack")
+    # The make_slack_on_run_failure_sensor automatically sends the job 
+    # id and name so you can just send the error
+    return (
+        f"Error: {context.failure_event.message}"
+    )
+
+# expose all the code needed for our dagster repo
 definitions = Definitions(
     jobs=jobs,
     schedules=schedules,
+    sensors=[
+        dagster_slack.make_slack_on_run_failure_sensor(
+            channel='#cgs-iow-bots',
+            slack_token=strict_env("DAGSTER_SLACK_TOKEN"),
+            text_fn=slack_error_fn,
+            default_status=DefaultSensorStatus.RUNNING,
+            monitor_all_code_locations=True,
+            monitor_all_repositories=True,
+            monitored_jobs=jobs,
+        )
+    ],
+    # resources={
+    #     "slack": dagster_slack.SlackResource(token=strict_env("DAGSTER_SLACK_TOKEN")),
+    # },
 )

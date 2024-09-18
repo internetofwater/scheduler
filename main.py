@@ -16,11 +16,11 @@ BUILD_DIR =    os.path.join(os.path.dirname(__file__), "build")
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
 def run_docker_stack():
+    """Initialize and run the docker swarm stack"""
 
     # Reset the swarm if it exists
     run_command("docker swarm leave --force || true", print_output=False)
     run_command("docker swarm init")
-
     reload_docker_configs()
 
     # Create a network that we can attach to from the swarm
@@ -58,7 +58,7 @@ def run_docker_stack():
     run_command("docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code .")
     run_command("docker build -t dagster_webserver_image -f ./Docker/Dockerfile_dagster .")
     run_command("docker build -t dagster_daemon_image -f ./Docker/Dockerfile_dagster .")
-    run_command("docker stack deploy -c docker-compose-swarm.yaml geoconnex_crawler --detach=false", print_output=True)
+    run_command("docker stack deploy -c docker-compose-swarm.yaml geoconnex_crawler --detach=false")
 
 def reload_docker_configs():
     """Reload the config files present in the docker swarm"""
@@ -181,6 +181,13 @@ def clean():
         os.mkdir(BUILD_DIR)
 
     print("Removed contents of the build directory")
+
+@app.command()
+def env(env: Annotated[str, typer.Option(help="File containing your env vars")] = ".env"):
+    """Print the env vars that will be used for the docker swarm stack"""
+    load_dotenv(env)
+    for key, value in os.environ.items():
+        print(f"{key}={value}")
 
 if __name__ == "__main__":
     app()

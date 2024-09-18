@@ -26,6 +26,7 @@ run_launcher:
       - GLEANERIO_PROVGRAPH_ENDPOINT
       - GLEANERIO_GLEANER_IMAGE
       - GLEANERIO_NABU_IMAGE
+      - DAGSTER_SLACK_TOKEN
       
     network: dagster_network
     container_kwargs:
