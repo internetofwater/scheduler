@@ -1,7 +1,8 @@
 from datetime import datetime
 import io
+from os import name
 import time
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, List, Optional, Sequence
 
 from dagster import OpExecutionContext, get_dagster_logger
 from dagster_docker import DockerRunLauncher
@@ -9,13 +10,29 @@ import docker
 import docker.errors
 from minio import Minio, S3Error
 import requests
-from .env import GLEANER_GRAPH_NAMESPACE, GLEANER_GRAPH_URL, GLEANER_HEADLESS_NETWORK, GLEANER_MINIO_ACCESS_KEY, GLEANER_MINIO_ADDRESS, GLEANER_MINIO_BUCKET, GLEANER_MINIO_PORT, GLEANER_MINIO_SECRET_KEY, GLEANER_MINIO_USE_SSL, GLEANERIO_DATAGRAPH_ENDPOINT, GLEANERIO_GLEANER_IMAGE, GLEANERIO_GLEANER_CONFIG_PATH, GLEANERIO_LOG_PREFIX, GLEANERIO_NABU_IMAGE, GLEANERIO_NABU_CONFIG_PATH, GLEANERIO_PROVGRAPH_ENDPOINT, RELEASE_PATH
-from .types import cli_modes
+from .env import (
+    GLEANER_GRAPH_NAMESPACE,
+    GLEANER_GRAPH_URL,
+    GLEANER_HEADLESS_NETWORK,
+    GLEANER_MINIO_ACCESS_KEY,
+    GLEANER_MINIO_ADDRESS,
+    GLEANER_MINIO_BUCKET,
+    GLEANER_MINIO_PORT,
+    GLEANER_MINIO_SECRET_KEY,
+    GLEANER_MINIO_USE_SSL,
+    GLEANERIO_DATAGRAPH_ENDPOINT,
+    GLEANERIO_GLEANER_CONFIG_PATH,
+    GLEANERIO_LOG_PREFIX,
+    GLEANERIO_NABU_CONFIG_PATH,
+    GLEANERIO_PROVGRAPH_ENDPOINT,
+    RELEASE_PATH,
+)
 from docker.types.services import ConfigReference
 from dagster_docker.container_context import DockerContainerContext
 from docker.types import RestartPolicy, ServiceMode
 from dagster_docker.utils import validate_docker_image
 from dagster._core.utils import parse_env_var
+
 
 def s3loader(data: Any, name: str):
     """Load arbitrary data into the s3 bucket"""
@@ -38,116 +55,12 @@ def s3loader(data: Any, name: str):
     client.put_object(
         GLEANER_MINIO_BUCKET,
         objPrefix,
-        f,  
+        f,
         length,
         content_type="text/plain",
     )
     get_dagster_logger().info(f"Log uploaded: {str(objPrefix)}")
 
-
-def get_cli_args(
-    action_to_run: cli_modes,
-    source: str,
-) -> Tuple[str, List[str], str, str]:
-    """Given a mode and source return the cli args that are needed to run either gleaner or nabu"""
-    assert source
-    assert action_to_run
-
-    if action_to_run == "gleaner":
-        IMAGE = GLEANERIO_GLEANER_IMAGE
-        ARGS = ["--cfg", GLEANERIO_GLEANER_CONFIG_PATH, "-source", source, "--rude"]
-        NAME = f"sch_{source}_{action_to_run}"
-        WorkingDir = "/gleaner/"
-    else:
-        # Handle all nabu modes
-        IMAGE = GLEANERIO_NABU_IMAGE
-        WorkingDir = "/nabu/"
-        NAME = f"sch_{source}_{str(action_to_run)}"
-        match action_to_run:
-            case "release":
-                ARGS = [
-                    "--cfg",
-                    GLEANERIO_NABU_CONFIG_PATH,
-                    "release",
-                    "--prefix",
-                    "summoned/" + source,
-                ]
-            case "object":
-                ARGS = [
-                    "--cfg",
-                    GLEANERIO_NABU_CONFIG_PATH,
-                    "object",
-                    f"/graphs/latest/{source}_release.nq",
-                    "--endpoint",
-                    GLEANERIO_DATAGRAPH_ENDPOINT,
-                ]
-            case "prune":
-                ARGS = [
-                    "--cfg",
-                    GLEANERIO_NABU_CONFIG_PATH,
-                    "prune",
-                    "--prefix",
-                    "summoned/" + source,
-                    "--endpoint",
-                    GLEANERIO_DATAGRAPH_ENDPOINT,
-                ]
-            case "prov-release":
-                ARGS = [
-                    "--cfg",
-                    GLEANERIO_NABU_CONFIG_PATH,
-                    "release",
-                    "--prefix",
-                    "prov/" + source,
-                ]
-
-            case "prov-clear":
-                ARGS = [
-                    "--cfg",
-                    GLEANERIO_NABU_CONFIG_PATH,
-                    "clear",
-                    "--endpoint",
-                    "--endpoint",
-                    GLEANERIO_PROVGRAPH_ENDPOINT,
-                ]
-            case "prov-object":
-                ARGS = [
-                    "--cfg",
-                    GLEANERIO_NABU_CONFIG_PATH,
-                    "object",
-                    f"/graphs/latest/{source}_prov.nq",
-                    "--endpoint",
-                    GLEANERIO_PROVGRAPH_ENDPOINT,
-                ]
-            case "prov-drain":
-                ARGS = [
-                    "--cfg",
-                    GLEANERIO_NABU_CONFIG_PATH,
-                    "drain",
-                    "--prefix",
-                    "prov/" + source,
-                ]
-            case "orgs-release":
-                ARGS = [
-                    "--cfg",
-                    GLEANERIO_NABU_CONFIG_PATH,
-                    "release",
-                    "--prefix",
-                    "orgs"
-                    "--endpoint",
-                    GLEANERIO_DATAGRAPH_ENDPOINT,
-                ]
-            case "orgs":
-                ARGS = [
-                    "--cfg",
-                    GLEANERIO_NABU_CONFIG_PATH,
-                    "prefix",
-                    "--prefix",
-                    "orgs"
-                ]
-            case _:
-                get_dagster_logger().error(f"Called gleaner with invalid mode: {action_to_run}")
-                raise ValueError(f"Called gleaner with invalid mode: {action_to_run}")
-    return IMAGE, ARGS, NAME, WorkingDir
 
 def _create_service(
     client: docker.DockerClient,
@@ -164,14 +77,13 @@ def _create_service(
     nabuconfig = client.configs.list(filters={"name": ["nabu"]})
     get_dagster_logger().info(f"create docker service for {name}")
 
-    
     gleaner = ConfigReference(
         gleanerconfig[0].id,
         "gleaner",
         GLEANERIO_GLEANER_CONFIG_PATH,
     )
     nabu = ConfigReference(nabuconfig[0].id, "nabu", GLEANERIO_NABU_CONFIG_PATH)
-    
+
     service = client.services.create(
         image,
         args=command,
@@ -180,7 +92,7 @@ def _create_service(
         networks=container_context.networks
         if len(container_context.networks)
         else None,
-        restart_policy= RestartPolicy(condition="none"),
+        restart_policy=RestartPolicy(condition="none"),
         mode=ServiceMode("replicated-job", concurrency=1, replicas=1),
         workdir=workingdir,
         configs=[gleaner, nabu],
@@ -201,21 +113,28 @@ def _create_service(
     else:
         raise RuntimeError(f"Container for service {name} not starting")
 
-    get_dagster_logger().info(f"Spawned {len(containers)} containers for service {name}")
+    get_dagster_logger().info(
+        f"Spawned {len(containers)} containers for service {name}"
+    )
     return service, containers[0]
 
 
-def  run_gleaner(
+def run_scheduler_docker_image(
     context: OpExecutionContext,
-    mode: cli_modes,
-    source: str,
+    source: str, # which organization we are crawling
+    # the name of the docker image to pull and validate
+    image_name: str,
+    # the list of arguments to pass to the gleaner/nabu command
+    args: List[str],
+    # the name of the action to run inside gleaner/nabu
+    action_name: str,
 ) -> int:
+    """Run a docker image inside the context of dagster"""
+    container_name = f"sch_{source}_{action_name}"
+    WorkingDir = "/nabu/" if "nabu" in image_name else "/gleaner/"
 
-    get_dagster_logger().info(f"Gleanerio mode: {mode}")
     get_dagster_logger().info(f"Datagraph value: {GLEANERIO_DATAGRAPH_ENDPOINT}")
     get_dagster_logger().info(f"PROVgraph value: {GLEANERIO_PROVGRAPH_ENDPOINT}")
-
-    IMAGE, ARGS, NAME, WorkingDir = get_cli_args(mode, source)
 
     run_container_context = DockerContainerContext.create_for_run(
         context.dagster_run,
@@ -223,7 +142,7 @@ def  run_gleaner(
         if isinstance(context.instance.run_launcher, DockerRunLauncher)
         else None,
     )
-    validate_docker_image(IMAGE)
+    validate_docker_image(image_name)
 
     # Create a service var at the beginning of the function so we can check against
     # it during cleanup to see if the service was created.
@@ -237,13 +156,15 @@ def  run_gleaner(
         )
         container_context = run_container_context.merge(op_container_context)
 
-        get_dagster_logger().info(f"Spinning up {NAME=} with {IMAGE=}, and {ARGS=}")
+        get_dagster_logger().info(
+            f"Spinning up {container_name=} with {image_name=}, and {args=}"
+        )
         service, container = _create_service(
             docker.DockerClient(version="1.43"),
             container_context,
-            IMAGE,
-            command=ARGS,
-            name=NAME,
+            image=image_name,
+            command=args,
+            name=container_name,
             workingdir=WorkingDir,
         )
 
@@ -254,17 +175,17 @@ def  run_gleaner(
                 get_dagster_logger().debug(line)  # noqa: T201s
         except docker.errors.APIError as ex:
             get_dagster_logger().warning(
-                f"Caught potential docker API issue for {NAME}: {ex}"
+                f"Caught potential docker API issue for {container_name}: {ex}"
             )
 
         exit_status: int = container.wait()["StatusCode"]
         get_dagster_logger().info(f"Container Wait Exit status:  {exit_status}")
 
-        logs = container.logs(stdout=True, stderr=True, stream=False, follow=False).decode(
-            "latin-1"
-        )
+        logs = container.logs(
+            stdout=True, stderr=True, stream=False, follow=False
+        ).decode("latin-1")
         # Send the logs, then check the exit status to throw the error if needed
-        s3loader(str(logs).encode(), NAME)
+        s3loader(str(logs).encode(), container_name)
 
         get_dagster_logger().info("Sent container Logs to s3: ")
 
@@ -272,20 +193,24 @@ def  run_gleaner(
             get_dagster_logger().error(
                 f"Gleaner/Nabu container returned exit code {exit_status}. See logs in S3"
             )
-            raise Exception(f"Gleaner/Nabu container returned exit code {exit_status}. See logs in S3 ")
+            raise Exception(
+                f"Gleaner/Nabu container returned exit code {exit_status}. See logs in S3 "
+            )
     finally:
         if service:
             service.remove()
             get_dagster_logger().info(f"Service Remove: {service.name}")
 
-
     return 0
+
 
 def _graphEndpoint():
     return f"{GLEANER_GRAPH_URL}/namespace/{GLEANER_GRAPH_NAMESPACE}/sparql"
 
+
 def _graphSummaryEndpoint():
     return f"{GLEANER_GRAPH_URL}/namespace/{GLEANER_GRAPH_NAMESPACE}_summary/sparql"
+
 
 def _pythonMinioAddress(url, port=None) -> str:
     """Construct a string for connecting to a minio S3 server"""
@@ -293,6 +218,7 @@ def _pythonMinioAddress(url, port=None) -> str:
         raise RuntimeError("Tried to construct minio address with an empty URL")
     get_dagster_logger().info(f"Sending to data to s3 at: {url=}{port=}")
     return f"{url}:{port}" if port is not None else url
+
 
 def s3reader(object_to_get):
     server = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
@@ -313,7 +239,8 @@ def s3reader(object_to_get):
     except S3Error as err:
         get_dagster_logger().error(f"S3 read error : {err}")
         raise err
-    
+
+
 def post_to_graph(source, path=RELEASE_PATH, extension="nq", url=_graphEndpoint()):
     proto = "https" if GLEANER_MINIO_USE_SSL else "http"
     address = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
@@ -334,4 +261,3 @@ def post_to_graph(source, path=RELEASE_PATH, extension="nq", url=_graphEndpoint(
         raise Exception(
             f" graph: failed, LOAD from {release_url}: status:{r.status_code}"
         )
-

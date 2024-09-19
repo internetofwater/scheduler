@@ -1,6 +1,5 @@
 import os
 import shutil
-import pty
 from typing import Annotated
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
