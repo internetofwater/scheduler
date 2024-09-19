@@ -1,5 +1,4 @@
 from dagster import (
-    DefaultScheduleStatus,
     DefaultSensorStatus,
     Definitions,
     In,
@@ -8,6 +7,8 @@ from dagster import (
     OpExecutionContext,
     RunFailureSensorContext,
     ScheduleDefinition,
+    asset,
+    define_asset_job,
     get_dagster_logger,
     op,
     graph,
@@ -190,6 +191,7 @@ def nabu_orgs_release(context: OpExecutionContext):
 
 @op(ins={"start": In(Nothing)})
 def nabu_orgs(context: OpExecutionContext):
+    """Move the orgs nq file(s) into the graphdb"""
     source = strict_get_tag(context, "source")
     ARGS = [
         "--cfg",
@@ -244,26 +246,15 @@ def harvest():
     nabu_orgs(start=orgs_release)
 
 
-def generate_job_and_schedules(
+def generate_job(
     source: GleanerSource,
-) -> tuple[JobDefinition, ScheduleDefinition]:
+) ->JobDefinition:
     """Given a source from the gleaner config, generate a dagster job and schedule"""
-    job = harvest.to_job(
+    return harvest.to_job(
         name="harvest_" + source["name"],
         description=f"harvest all assets for {source['name']}",
         tags={"source": source["name"]},
     )
-
-    # Define the schedule for the job
-    schedule = ScheduleDefinition(
-        job=job,
-        # “At 23:59 on day-of-month 1.”
-        cron_schedule="59 23 1 * *",
-        default_status=DefaultScheduleStatus.STOPPED,
-    )
-
-    return (job, schedule)
-
 
 def get_gleaner_config_sources() -> list[GleanerSource]:
     """Given a config, return the jobs that will need to be run to perform a full geoconnex crawl"""
@@ -275,12 +266,9 @@ def get_gleaner_config_sources() -> list[GleanerSource]:
 
 
 sources = get_gleaner_config_sources()
-jobs, schedules = [], []
-for src in sources:
-    jbs, schd = generate_job_and_schedules(src)
-    jobs += [jbs]
-    schedules += [schd]
-
+individual_source_crawls: list[JobDefinition] = []
+for sitemap in sources:
+    individual_source_crawls.append(generate_job(sitemap))
 
 def slack_error_fn(context: RunFailureSensorContext) -> str:
     get_dagster_logger().info("Sending notification to slack")
@@ -289,10 +277,29 @@ def slack_error_fn(context: RunFailureSensorContext) -> str:
     return f"Error: {context.failure_event.message}"
 
 
+
+@asset(deps=[job.name for job in individual_source_crawls])
+def geoconnex_graph_db():
+    pass
+
+# We make one special job to materialize the entire graph
+materialize_geoconnex_graph_db = define_asset_job(
+    "materialize_geoconnex_graph_db",
+    selection="geoconnex_graph_db",
+)
+
+all_jobs = individual_source_crawls + [materialize_geoconnex_graph_db]
+
 # expose all the code needed for our dagster repo
 definitions = Definitions(
-    jobs=jobs,
-    schedules=schedules,
+    jobs=all_jobs,
+    schedules=[ScheduleDefinition(
+        name="materialize_geoconnex_schedule",
+        description="Run all the jobs to materialize the geoconnex graph db",
+        job=materialize_geoconnex_graph_db,
+        cron_schedule="0 0 1 * *",
+    )],
+    assets=[geoconnex_graph_db],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(
             channel="#cgs-iow-bots",
@@ -301,7 +308,7 @@ definitions = Definitions(
             default_status=DefaultSensorStatus.RUNNING,
             monitor_all_code_locations=True,
             monitor_all_repositories=True,
-            monitored_jobs=jobs,
+            monitored_jobs=all_jobs
         )
     ],
     # Commented out but can uncomment if we want to send other slack msgs
