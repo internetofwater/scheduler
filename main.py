@@ -137,9 +137,13 @@ def generate_gleaner_config(sitemap_url: Annotated[str, typer.Option()] = "https
 @app.command()
 def generate_nabu_config(
     base: Annotated[str, typer.Option(help="nabu config to use as source")] = os.path.join(TEMPLATE_DIR, "nabuconfig.yaml.j2"),
-    out_dir: Annotated[str, typer.Option(help="Directory for output")] = BUILD_DIR
+    out_dir: Annotated[str, typer.Option(help="Directory for output")] = BUILD_DIR,
+    env: Annotated[str, typer.Option(help="File containing your env vars")] = ".env"
 ):
     """Generate the nabu config from the base template""" 
+    load_dotenv(env)
+    assert os.environ.get("GLEANERIO_DATAGRAPH_ENDPOINT")
+    assert os.environ.get("GLEANERIO_GRAPH_URL")
     template_config(base, out_dir)
 
 

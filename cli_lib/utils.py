@@ -90,4 +90,6 @@ def get_common_env():
         "GLEANERIO_MINIO_BUCKET": strict_env("GLEANERIO_MINIO_BUCKET"),
         "GLEANERIO_MINIO_PORT": strict_env("GLEANERIO_MINIO_PORT"),
         "GLEANERIO_MINIO_USE_SSL": strict_env("GLEANERIO_MINIO_USE_SSL"),
+        "GLEANERIO_DATAGRAPH_ENDPOINT": strict_env("GLEANERIO_DATAGRAPH_ENDPOINT"),
+        "GLEANERIO_GRAPH_URL": strict_env("GLEANERIO_GRAPH_URL"),
     }
