@@ -34,6 +34,7 @@ from lib.env import (
 
 
 def strict_get_tag(context: OpExecutionContext, key: str) -> str:
+    """Gets a tag and make sure it exists before running further jobs"""
     src = context.run_tags[key]
     if src is None:
         raise Exception(f"Missing run tag {key}")
@@ -97,7 +98,7 @@ def nabu_object(context: OpExecutionContext):
 
 @op(ins={"start": In(Nothing)})
 def nabu_prune(context: OpExecutionContext):
-    """Synchronize the graph with s3 by adding/removing from the grpah"""
+    """Synchronize the graph with s3 by adding/removing from the graph"""
     source = strict_get_tag(context, "source")
     ARGS = [
         "--cfg",
@@ -116,7 +117,7 @@ def nabu_prune(context: OpExecutionContext):
 
 @op(ins={"start": In(Nothing)})
 def nabu_prov_release(context):
-    """Construct an nq file from all of the jsonld prov produced by gleaner. 
+    """Construct an nq file from all of the jsonld prov produced by gleaner.
     Used for tracing data lineage"""
     source = strict_get_tag(context, "source")
     ARGS = [
@@ -134,13 +135,14 @@ def nabu_prov_release(context):
 
 @op(ins={"start": In(Nothing)})
 def nabu_prov_clear(context: OpExecutionContext):
+    """Clears the prov graph before putting the new nq in"""
     source = strict_get_tag(context, "source")
     ARGS = [
         "--cfg",
         GLEANERIO_NABU_CONFIG_PATH,
         "clear",
         "--endpoint",
-        GLEANERIO_PROVGRAPH_ENDPOINT
+        GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
     returned_value = run_scheduler_docker_image(
         context, source, GLEANERIO_NABU_IMAGE, ARGS, "prov-clear"
@@ -150,6 +152,7 @@ def nabu_prov_clear(context: OpExecutionContext):
 
 @op(ins={"start": In(Nothing)})
 def nabu_prov_object(context):
+    """Take the nq file from s3 and use the sparql API to upload it into the graph"""
     source = strict_get_tag(context, "source")
     ARGS = [
         "--cfg",
@@ -167,15 +170,17 @@ def nabu_prov_object(context):
 
 @op(ins={"start": In(Nothing)})
 def nabu_orgs_release(context: OpExecutionContext):
+    """Construct an nq file for all the organizations. Their data is not included in this step.
+    This is just flat metadata"""
     source = strict_get_tag(context, "source")
     ARGS = [
         "--cfg",
         GLEANERIO_NABU_CONFIG_PATH,
         "release",
         "--prefix",
-        "orgs", 
+        "orgs",
         "--endpoint",
-        GLEANERIO_DATAGRAPH_ENDPOINT
+        GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
     returned_value = run_scheduler_docker_image(
         context, source, GLEANERIO_NABU_IMAGE, ARGS, "orgs-release"
@@ -186,7 +191,15 @@ def nabu_orgs_release(context: OpExecutionContext):
 @op(ins={"start": In(Nothing)})
 def nabu_orgs(context: OpExecutionContext):
     source = strict_get_tag(context, "source")
-    ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "prefix", "--prefix", "orgs"]
+    ARGS = [
+        "--cfg",
+        GLEANERIO_NABU_CONFIG_PATH,
+        "prefix",
+        "--prefix",
+        "orgs",
+        "--endpoint",
+        GLEANERIO_DATAGRAPH_ENDPOINT,
+    ]
     returned_value = run_scheduler_docker_image(
         context, source, GLEANERIO_NABU_IMAGE, ARGS, "orgs"
     )
@@ -234,6 +247,7 @@ def harvest():
 def generate_job_and_schedules(
     source: GleanerSource,
 ) -> tuple[JobDefinition, ScheduleDefinition]:
+    """Given a source from the gleaner config, generate a dagster job and schedule"""
     job = harvest.to_job(
         name="harvest_" + source["name"],
         description=f"harvest all assets for {source['name']}",
@@ -271,7 +285,7 @@ for src in sources:
 def slack_error_fn(context: RunFailureSensorContext) -> str:
     get_dagster_logger().info("Sending notification to slack")
     # The make_slack_on_run_failure_sensor automatically sends the job
-    # id and name so you can just send the error
+    # id and name so you can just send the error. We don't need other data in the string
     return f"Error: {context.failure_event.message}"
 
 

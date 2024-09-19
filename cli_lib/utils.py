@@ -82,7 +82,7 @@ def template_config(base, out_dir):
 
 
 def get_common_env():
-    """All env files here are used in templating configs since they are used in both gleaner and nabu configs"""
+    """All env vars here are used in templating configs since they are used in both gleaner and nabu configs"""
     return {
         "GLEANERIO_MINIO_ADDRESS": strict_env("GLEANERIO_MINIO_ADDRESS"),
         "MINIO_ACCESS_KEY": strict_env("MINIO_ACCESS_KEY"),
@@ -92,4 +92,5 @@ def get_common_env():
         "GLEANERIO_MINIO_USE_SSL": strict_env("GLEANERIO_MINIO_USE_SSL"),
         "GLEANERIO_DATAGRAPH_ENDPOINT": strict_env("GLEANERIO_DATAGRAPH_ENDPOINT"),
         "GLEANERIO_GRAPH_URL": strict_env("GLEANERIO_GRAPH_URL"),
+        "GLEANERIO_PROVGRAPH_ENDPOINT": strict_env("GLEANERIO_PROVGRAPH_ENDPOINT"),
     }
