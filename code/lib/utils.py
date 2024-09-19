@@ -120,7 +120,7 @@ def _create_service(
 
 def run_scheduler_docker_image(
     context: OpExecutionContext,
-    source: str, # which organization we are crawling
+    source: str,  # which organization we are crawling
     # the name of the docker image to pull and validate
     image_name: str,
     # the list of arguments to pass to the gleaner/nabu command

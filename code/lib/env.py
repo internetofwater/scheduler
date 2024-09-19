@@ -30,12 +30,14 @@ def assert_all_vars():
 
 assert_all_vars()
 
+
 def strict_env(key: str):
     val = os.environ.get(key)
     if val is None:
         raise Exception(f"Missing {key}")
 
     return val
+
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 SUMMARY_PATH = "graphs/summary"

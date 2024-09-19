@@ -60,7 +60,7 @@ services:
       - dagster_postgres
       - dagster_user_code
     env_file: ".env"
-    
+
   minio:
     image: minio/minio
     container_name: minio
@@ -88,20 +88,20 @@ services:
        "
     networks:
       - dagster_network
-    
+
   createrepositories:
     # Applies migrations aka "repositories" after the database is created
     image: alpine/curl
     depends_on:
       - graphdb
-    # Apply the local config files into the graphdb. We sleep 5 since even after the service is up, the graphdb is not fully ready    
-    entrypoint: > 
-     /bin/sh -c "
-     sleep 5;
-     curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iow-config.ttl'; 
-     curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iowprov-config.ttl'; 
-     sleep infinity"
-    volumes: 
+    # Apply the local config files into the graphdb. We sleep 5 since even after the service is up, the graphdb is not fully ready
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iow-config.ttl'; 
+      curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iowprov-config.ttl'; 
+      sleep infinity"
+    volumes:
       - ./templates:/templates
     networks:
       - dagster_network
@@ -122,4 +122,4 @@ networks:
   dagster_network:
     external: true
   headless_gleanerio:
-      external: true
+    external: true

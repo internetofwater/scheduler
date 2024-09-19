@@ -249,13 +249,14 @@ def harvest():
 
 def generate_job(
     source: GleanerSource,
-) ->JobDefinition:
+) -> JobDefinition:
     """Given a source from the gleaner config, generate a dagster job and schedule"""
     return harvest.to_job(
         name="harvest_" + source["name"],
         description=f"harvest all assets for {source['name']}",
         tags={"source": source["name"]},
     )
+
 
 def get_gleaner_config_sources() -> list[GleanerSource]:
     """Given a config, return the jobs that will need to be run to perform a full geoconnex crawl"""
@@ -271,6 +272,7 @@ individual_source_crawls: list[JobDefinition] = []
 for sitemap in sources:
     individual_source_crawls.append(generate_job(sitemap))
 
+
 def slack_error_fn(context: RunFailureSensorContext) -> str:
     get_dagster_logger().info("Sending notification to slack")
     # The make_slack_on_run_failure_sensor automatically sends the job
@@ -278,10 +280,10 @@ def slack_error_fn(context: RunFailureSensorContext) -> str:
     return f"Error: {context.failure_event.message}"
 
 
-
 @asset(deps=[job.name for job in individual_source_crawls])
 def geoconnex_graph_db():
     pass
+
 
 # We make one special job to materialize the entire graph
 materialize_geoconnex_graph_db = define_asset_job(
@@ -294,13 +296,15 @@ all_jobs = individual_source_crawls + [materialize_geoconnex_graph_db]
 # expose all the code needed for our dagster repo
 definitions = Definitions(
     jobs=all_jobs,
-    schedules=[ScheduleDefinition(
-        name="materialize_geoconnex_schedule",
-        description="Run all the jobs to materialize the geoconnex graph db",
-        job=materialize_geoconnex_graph_db,
-        cron_schedule="0 0 1 * *",
-        default_status=DefaultScheduleStatus.STOPPED
-    )],
+    schedules=[
+        ScheduleDefinition(
+            name="materialize_geoconnex_schedule",
+            description="Run all the jobs to materialize the geoconnex graph db",
+            job=materialize_geoconnex_graph_db,
+            cron_schedule="0 0 1 * *",
+            default_status=DefaultScheduleStatus.STOPPED,
+        )
+    ],
     assets=[geoconnex_graph_db],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(
@@ -310,7 +314,7 @@ definitions = Definitions(
             default_status=DefaultSensorStatus.RUNNING,
             monitor_all_code_locations=True,
             monitor_all_repositories=True,
-            monitored_jobs=all_jobs
+            monitored_jobs=all_jobs,
         )
     ],
     # Commented out but can uncomment if we want to send other slack msgs
