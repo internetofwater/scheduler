@@ -2,13 +2,13 @@ services:
   dagster-dagit:
     image: docker.io/fils/dagster:0.0.1
     environment:
-    - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+      - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
     ports:
       - 3000:3000
   dagster-daemon:
     image: docker.io/fils/dagster:0.0.1
     environment:
-    - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+      - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
     command: "dagster-daemon run"
   dagster-postgres:
     image: postgres:13.3

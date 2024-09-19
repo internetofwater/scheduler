@@ -3,7 +3,7 @@ site_name: Gleaner IO Scheduler
 #theme: 'mkdocs'
 theme:
   name: material
-#  name: 'readthedocs'
+  #  name: 'readthedocs'
   features:
     #    - content.code.copy
     - navigation.sections
@@ -22,13 +22,13 @@ markdown_extensions:
 
 plugins:
   - search
-# literate_nav must load after multirepo for the features to be available.
+  # literate_nav must load after multirepo for the features to be available.
   - multirepo:
       # (optional) tells multirepo to cleanup the temporary directory after site is built.
       cleanup: true
-  -  mermaid2
+  - mermaid2
   - literate-nav
-  -  mkdocs-jupyter
+  - mkdocs-jupyter
   - callouts
   # get a NoneType error, even when trying to generate in Geocodes-Metadata
 #  - schema_reader:
@@ -36,7 +36,6 @@ plugins:
 #        - "./docs/GeoCODES-Metadata/schemas/"
 nav:
   - Gleaner IO Scheduler:
-    - Dagster: README.md
-    - Quick: quick.md
-    - Add Containers:  add_containers.md
-
+      - Dagster: README.md
+      - Quick: quick.md
+      - Add Containers: add_containers.md

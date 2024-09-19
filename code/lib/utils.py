@@ -8,13 +8,32 @@ from dagster_docker import DockerRunLauncher
 import docker
 from minio import Minio, S3Error
 import requests
-from .env import GLEANER_GRAPH_NAMESPACE, GLEANER_GRAPH_URL, GLEANER_HEADLESS_NETWORK, GLEANER_MINIO_ACCESS_KEY, GLEANER_MINIO_ADDRESS, GLEANER_MINIO_BUCKET, GLEANER_MINIO_PORT, GLEANER_MINIO_SECRET_KEY, GLEANER_MINIO_USE_SSL, GLEANERIO_DATAGRAPH_ENDPOINT, GLEANERIO_GLEANER_IMAGE, GLEANERIO_GLEANER_CONFIG_PATH, GLEANERIO_LOG_PREFIX, GLEANERIO_NABU_IMAGE, GLEANERIO_NABU_CONFIG_PATH, GLEANERIO_PROVGRAPH_ENDPOINT, RELEASE_PATH
+from .env import (
+    GLEANER_GRAPH_NAMESPACE,
+    GLEANER_GRAPH_URL,
+    GLEANER_HEADLESS_NETWORK,
+    GLEANER_MINIO_ACCESS_KEY,
+    GLEANER_MINIO_ADDRESS,
+    GLEANER_MINIO_BUCKET,
+    GLEANER_MINIO_PORT,
+    GLEANER_MINIO_SECRET_KEY,
+    GLEANER_MINIO_USE_SSL,
+    GLEANERIO_DATAGRAPH_ENDPOINT,
+    GLEANERIO_GLEANER_IMAGE,
+    GLEANERIO_GLEANER_CONFIG_PATH,
+    GLEANERIO_LOG_PREFIX,
+    GLEANERIO_NABU_IMAGE,
+    GLEANERIO_NABU_CONFIG_PATH,
+    GLEANERIO_PROVGRAPH_ENDPOINT,
+    RELEASE_PATH,
+)
 from .types import cli_modes
 from docker.types.services import ConfigReference
 from dagster_docker.container_context import DockerContainerContext
 from docker.types import RestartPolicy, ServiceMode
 from dagster_docker.utils import validate_docker_image
 from dagster._core.utils import parse_env_var
+
 
 def s3loader(data: Any, name: str):
     """Load arbitrary data into the s3 bucket"""
@@ -37,7 +56,7 @@ def s3loader(data: Any, name: str):
     client.put_object(
         GLEANER_MINIO_BUCKET,
         objPrefix,
-        f,  
+        f,
         length,
         content_type="text/plain",
     )
@@ -143,9 +162,12 @@ def get_cli_args(
                     GLEANERIO_DATAGRAPH_ENDPOINT,
                 ]
             case _:
-                get_dagster_logger().error(f"Called gleaner with invalid mode: {action_to_run}")
+                get_dagster_logger().error(
+                    f"Called gleaner with invalid mode: {action_to_run}"
+                )
                 raise ValueError(f"Called gleaner with invalid mode: {action_to_run}")
     return IMAGE, ARGS, NAME, WorkingDir
+
 
 def _create_service(
     client: docker.DockerClient,
@@ -166,14 +188,13 @@ def _create_service(
     get_dagster_logger().info(f"docker config nabu id {str(nabuconfig[0].id)}")
     get_dagster_logger().info(f"create docker service for {name}")
 
-    
     gleaner = ConfigReference(
         gleanerconfig[0].id,
         "gleaner",
         GLEANERIO_GLEANER_CONFIG_PATH,
     )
     nabu = ConfigReference(nabuconfig[0].id, "nabu", GLEANERIO_NABU_CONFIG_PATH)
-    
+
     service = client.services.create(
         image,
         args=command,
@@ -182,7 +203,7 @@ def _create_service(
         networks=container_context.networks
         if len(container_context.networks)
         else None,
-        restart_policy= RestartPolicy(condition="none"),
+        restart_policy=RestartPolicy(condition="none"),
         mode=ServiceMode("replicated-job", concurrency=1, replicas=1),
         workdir=workingdir,
         configs=[gleaner, nabu],
@@ -212,7 +233,6 @@ def run_gleaner(
     mode: cli_modes,
     source: str,
 ) -> int:
-
     get_dagster_logger().info(f"Gleanerio mode: {mode}")
     get_dagster_logger().info(f"Datagraph value: {GLEANERIO_DATAGRAPH_ENDPOINT}")
     get_dagster_logger().info(f"PROVgraph value: {GLEANERIO_PROVGRAPH_ENDPOINT}")
@@ -268,9 +288,9 @@ def run_gleaner(
         # WE PULL THE LOGS, then will throw an error
         returnCode = exit_status
 
-        logs = container.logs(stdout=True, stderr=True, stream=False, follow=False).decode(
-            "latin-1"
-        )
+        logs = container.logs(
+            stdout=True, stderr=True, stream=False, follow=False
+        ).decode("latin-1")
 
         s3loader(str(logs).encode(), NAME)
 
@@ -286,7 +306,6 @@ def run_gleaner(
         except:
             get_dagster_logger().info("Service Not created, so not removed.")
 
-
     if returnCode != 0:
         get_dagster_logger().error(
             f"Gleaner/Nabu container {returnCode} exit code. See logs in S3"
@@ -294,11 +313,14 @@ def run_gleaner(
         raise Exception("Gleaner/Nabu container non-zero exit code. See logs in S3")
     return 0
 
+
 def _graphEndpoint():
     return f"{GLEANER_GRAPH_URL}/namespace/{GLEANER_GRAPH_NAMESPACE}/sparql"
 
+
 def _graphSummaryEndpoint():
     return f"{GLEANER_GRAPH_URL}/namespace/{GLEANER_GRAPH_NAMESPACE}_summary/sparql"
+
 
 def _pythonMinioAddress(url, port=None) -> str:
     """Construct a string for connecting to a minio S3 server"""
@@ -306,6 +328,7 @@ def _pythonMinioAddress(url, port=None) -> str:
         raise RuntimeError("Tried to construct minio address with an empty URL")
     get_dagster_logger().info(f"Sending to data to s3 at: {url=}{port=}")
     return f"{url}:{port}" if port is not None else url
+
 
 def s3reader(object_to_get):
     server = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
@@ -326,7 +349,8 @@ def s3reader(object_to_get):
     except S3Error as err:
         get_dagster_logger().error(f"S3 read error : {err}")
         raise err
-    
+
+
 def post_to_graph(source, path=RELEASE_PATH, extension="nq", url=_graphEndpoint()):
     proto = "https" if GLEANER_MINIO_USE_SSL else "http"
     address = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
@@ -347,4 +371,3 @@ def post_to_graph(source, path=RELEASE_PATH, extension="nq", url=_graphEndpoint(
         raise Exception(
             f" graph: failed, LOAD from {release_url}: status:{r.status_code}"
         )
-

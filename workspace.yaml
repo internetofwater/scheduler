@@ -1,4 +1,4 @@
-# This file specifies how dagster should load user code 
+# This file specifies how dagster should load user code
 load_from:
   # Each entry here corresponds to a service in the docker-compose file that exposes user code.
   - grpc_server:

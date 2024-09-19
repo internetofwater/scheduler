@@ -26,7 +26,7 @@ run_launcher:
       - GLEANERIO_PROVGRAPH_ENDPOINT
       - GLEANERIO_GLEANER_IMAGE
       - GLEANERIO_NABU_IMAGE
-      
+
     network: dagster_network
     container_kwargs:
       volumes: # Make docker client accessible to any launched containers as well
@@ -74,4 +74,3 @@ event_log_storage:
       db_name:
         env: DAGSTER_POSTGRES_DB
       port: 5432
-

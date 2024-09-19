@@ -47,11 +47,13 @@ from ec.summarize import summaryDF2ttl, get_summary4repoSubset
 
 from lib.types import GleanerSource, S3ObjectInfo
 
+
 def strict_get_tag(context: OpExecutionContext, key: str) -> str:
     src = context.run_tags[key]
     if src is None:
         raise Exception(f"Missing run tag {key}")
     return src
+
 
 @op
 def pull_docker_images():
@@ -88,7 +90,6 @@ def uploadrelease(context: OpExecutionContext):
 
 @op(ins={"start": In(Nothing)})
 def nabu_prune(context: OpExecutionContext):
-    
     source = strict_get_tag(context, "source")
     returned_value = run_gleaner(context, "prune", source)
     r = str("returned value:{}".format(returned_value))
@@ -308,18 +309,17 @@ def upload_summarize(context: OpExecutionContext):
     get_dagster_logger().info(f"upload summary returned  {r} ")
 
 
-
 @graph
 def harvest():
     """
     Harvest all assets for a given source.
-    All source specific info is passed via tags within the run context 
+    All source specific info is passed via tags within the run context
     """
-    
+
     get_dagster_logger().info("Harvesting source")
 
-    # dagster links between ops with arguments as dependencies. 
-    setup = gleaner(start = pull_docker_images())
+    # dagster links between ops with arguments as dependencies.
+    setup = gleaner(start=pull_docker_images())
 
     # # # data branch
     release = naburelease(start=setup)
@@ -333,13 +333,18 @@ def harvest():
     nabu_provdrain(start=obj)
 
     # # org branch
-    org_release =nabu_orgsrelease(start=setup)
+    org_release = nabu_orgsrelease(start=setup)
     nabuorgs(start=org_release)
 
 
-def generate_job_and_schedules(source: GleanerSource) -> tuple[JobDefinition, ScheduleDefinition]:
-
-    job = harvest.to_job(name="harvest_" + source["name"], description=f"harvest all assets for {source['name']}", tags={"source": source["name"]})
+def generate_job_and_schedules(
+    source: GleanerSource,
+) -> tuple[JobDefinition, ScheduleDefinition]:
+    job = harvest.to_job(
+        name="harvest_" + source["name"],
+        description=f"harvest all assets for {source['name']}",
+        tags={"source": source["name"]},
+    )
 
     # Define the schedule for the job
     schedule = ScheduleDefinition(
