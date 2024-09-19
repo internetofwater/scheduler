@@ -1,4 +1,5 @@
 from dagster import (
+    DefaultScheduleStatus,
     DefaultSensorStatus,
     Definitions,
     In,
@@ -298,6 +299,7 @@ definitions = Definitions(
         description="Run all the jobs to materialize the geoconnex graph db",
         job=materialize_geoconnex_graph_db,
         cron_schedule="0 0 1 * *",
+        default_status=DefaultScheduleStatus.STOPPED
     )],
     assets=[geoconnex_graph_db],
     sensors=[

@@ -1,6 +1,5 @@
 from datetime import datetime
 import io
-from os import name
 import time
 from typing import Any, List, Optional, Sequence
 
