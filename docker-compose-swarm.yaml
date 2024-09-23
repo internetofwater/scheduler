@@ -68,6 +68,8 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    volumes:
+      - minio_data:/data
     networks:
       - headless_gleanerio
       - dagster_network
@@ -114,6 +116,8 @@ services:
     environment:
       - JAVA_XMX=4g
       - JAVA_XMS=2048m
+    volumes:
+      - graphdb_data:/opt/graphdb/data
     networks:
       - headless_gleanerio
       - dagster_network
@@ -123,3 +127,7 @@ networks:
     external: true
   headless_gleanerio:
     external: true
+
+volumes:
+  minio_data:
+  graphdb_data:
