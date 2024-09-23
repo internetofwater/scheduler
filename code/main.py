@@ -1,37 +1,22 @@
 from dagster import (
-    AssetSelection,
     RunRequest,
     StaticPartitionsDefinition,
     DefaultScheduleStatus,
     DefaultSensorStatus,
     Definitions,
-    DependencyDefinition,
-    GraphDefinition,
-    In,
-    JobDefinition,
-    Nothing,
     OpExecutionContext,
-    RunFailureSensorContext,
-    ScheduleDefinition,
     asset,
     define_asset_job,
     get_dagster_logger,
-    op,
-    graph,
     schedule,
 )
-import dagster
 import docker
 import dagster_slack
-from pydash import pull
-import requests
 
-from lib.types import GleanerSource
 from lib.utils import (
     run_scheduler_docker_image,
     slack_error_fn,
 )
-import yaml
 
 from lib.env import (
     GLEANERIO_DATAGRAPH_ENDPOINT,
@@ -40,11 +25,11 @@ from lib.env import (
     GLEANERIO_NABU_CONFIG_PATH,
     GLEANERIO_NABU_IMAGE,
     GLEANERIO_PROVGRAPH_ENDPOINT,
-    GLEANER_CONFIG_PATH,
     strict_env,
 )
 
 sources_partitions_def = StaticPartitionsDefinition(["customer1", "customer2"])
+
 
 @asset
 def pull_docker_images():
@@ -119,6 +104,7 @@ def nabu_prune(context: OpExecutionContext):
     )
     get_dagster_logger().info(f"nabu prune returned value '{returned_value}'")
 
+
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
 def nabu_prov_release(context):
     """Construct an nq file from all of the jsonld prov produced by gleaner.
@@ -135,6 +121,7 @@ def nabu_prov_release(context):
         context, source, GLEANERIO_NABU_IMAGE, ARGS, "prov-release"
     )
     get_dagster_logger().info(f"nabu prov-release returned value '{returned_value}'")
+
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_release])
 def nabu_prov_clear(context: OpExecutionContext):
@@ -210,18 +197,44 @@ def nabu_orgs(context: OpExecutionContext):
     get_dagster_logger().info(f"nabu orgs returned value '{returned_value}'")
 
 
-@asset(partitions_def=sources_partitions_def, deps=[nabu_orgs, nabu_prov_object, nabu_prune])
+@asset(
+    partitions_def=sources_partitions_def,
+    deps=[nabu_orgs, nabu_prov_object, nabu_prune],
+)
 def geoconnex_source(context: OpExecutionContext):
     pass
 
-all_assets = [pull_docker_images, gleaner, nabu_object, nabu_release, nabu_prune, nabu_prov_release, nabu_prov_clear, nabu_prov_object, nabu_orgs_release, nabu_orgs, geoconnex_source]
 
-harvest_job = define_asset_job("harvest_source", description="harvest a source for the geoconnex graphdb", selection=all_assets)
+all_assets = [
+    pull_docker_images,
+    gleaner,
+    nabu_object,
+    nabu_release,
+    nabu_prune,
+    nabu_prov_release,
+    nabu_prov_clear,
+    nabu_prov_object,
+    nabu_orgs_release,
+    nabu_orgs,
+    geoconnex_source,
+]
 
-@schedule(cron_schedule="@daily", job=harvest_job, default_status=DefaultScheduleStatus.STOPPED)
+harvest_job = define_asset_job(
+    "harvest_source",
+    description="harvest a source for the geoconnex graphdb",
+    selection=all_assets,
+)
+
+
+@schedule(
+    cron_schedule="@daily",
+    job=harvest_job,
+    default_status=DefaultScheduleStatus.STOPPED,
+)
 def geoconnex_schedule():
     for partition_key in sources_partitions_def.get_partition_keys():
         yield RunRequest(partition_key=partition_key)
+
 
 # expose all the code needed for our dagster repo
 definitions = Definitions(

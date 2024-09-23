@@ -40,6 +40,7 @@ def strict_env(key: str):
 
     return val
 
+
 def strict_get_tag(context: OpExecutionContext, key: str) -> str:
     """Gets a tag and make sure it exists before running further jobs"""
     src = context.run_tags[key]

@@ -261,6 +261,7 @@ def post_to_graph(source, path=RELEASE_PATH, extension="nq", url=_graphEndpoint(
             f" graph: failed, LOAD from {release_url}: status:{r.status_code}"
         )
 
+
 def slack_error_fn(context: RunFailureSensorContext) -> str:
     get_dagster_logger().info("Sending notification to slack")
     # The make_slack_on_run_failure_sensor automatically sends the job
