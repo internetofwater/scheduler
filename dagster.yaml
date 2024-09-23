@@ -5,6 +5,18 @@ scheduler:
 run_queue:
   max_concurrent_runs: 1
 
+run_monitoring:
+  enabled: true
+  # values below are the defaults, and don't need to be specified except to override them
+  # start_timeout_seconds: 180
+  # cancel_timeout_seconds: 180
+  # max_resume_run_attempts: 3 # experimental if above 0
+
+  # NOTE: Timeouts can be confusing given the fact that polling only occurs
+  # every one hundred twenty seconds by default for some reason; This can be
+  # changed in the future if we want shorter timeouts
+  # poll_interval_seconds: 120
+
 run_launcher:
   module: dagster_docker
   class: DockerRunLauncher

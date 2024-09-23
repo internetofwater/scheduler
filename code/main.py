@@ -269,10 +269,12 @@ all_assets = [
     export_graph_as_nquads,
 ]
 
+THREE_MIN = 60 * 3
 harvest_job = define_asset_job(
     "harvest_source",
     description="harvest a source for the geoconnex graphdb",
     selection=all_assets,
+    tags={"dagster/max_runtime": THREE_MIN}
 )
 
 
