@@ -30,9 +30,12 @@ from docker.types import RestartPolicy, ServiceMode
 from dagster_docker.utils import validate_docker_image
 from dagster._core.utils import parse_env_var
 
-def s3loader(data: Any, 
-            # path relative from the root bucket. i.e. 'foo/bar/baz.txt' -> gleanerbucket/foo/bar/baz.txt
-             path: str):
+
+def s3loader(
+    data: Any,
+    # path relative from the root bucket. i.e. 'foo/bar/baz.txt' -> gleanerbucket/foo/bar/baz.txt
+    path: str,
+):
     """Load arbitrary data into the s3 bucket"""
     endpoint = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
 
@@ -55,10 +58,12 @@ def s3loader(data: Any,
     )
     get_dagster_logger().info(f"Uploaded '{path.split('/')[-1]}'")
 
+
 def s3_log_loader(data: Any, name: str):
     date_string = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     filename = name + f"_{date_string}.log"
-    s3loader(data, path = f"scheduler/logs/{filename}")
+    s3loader(data, path=f"scheduler/logs/{filename}")
+
 
 def _create_service(
     client: docker.DockerClient,

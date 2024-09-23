@@ -1,6 +1,5 @@
 from datetime import datetime
 from dagster import (
-    MaterializeResult,
     RunRequest,
     StaticPartitionsDefinition,
     DefaultScheduleStatus,
@@ -224,15 +223,16 @@ def finished_individual_crawl(context: OpExecutionContext):
     """Dummy asset signifying the geoconnex crawl is completed once the orgs and prov nq files are in the graphdb and the graph is synced with the s3 bucket"""
     pass
 
+
 @asset(deps=[finished_individual_crawl])
 def export_graph_as_nquads():
     """Export the graphdb to nquads"""
-    
+
     # Define the repository name and endpoint
-    endpoint = f'{GLEANER_GRAPH_URL}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}/statements?infer=false'
+    endpoint = f"{GLEANER_GRAPH_URL}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}/statements?infer=false"
 
     headers = {
-        'Accept': 'application/n-quads',
+        "Accept": "application/n-quads",
     }
 
     # Send the POST request to export the data
@@ -241,14 +241,18 @@ def export_graph_as_nquads():
     # Check if the request was successful
     if response.status_code == 200:
         # Save the response content to a file
-        with open('outputfile.nq', 'wb') as f:
+        with open("outputfile.nq", "wb") as f:
             f.write(response.content)
-        get_dagster_logger().info('Export of graphdb to nquads successful')
+        get_dagster_logger().info("Export of graphdb to nquads successful")
     else:
-        get_dagster_logger().error(f'Response: {response.text}')
-        raise RuntimeError(f'Export failed, status code: {response.status_code}')
-    
-    s3loader(response.content, f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}")
+        get_dagster_logger().error(f"Response: {response.text}")
+        raise RuntimeError(f"Export failed, status code: {response.status_code}")
+
+    s3loader(
+        response.content,
+        f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}",
+    )
+
 
 all_assets = [
     pull_docker_images,
@@ -262,7 +266,7 @@ all_assets = [
     nabu_orgs_release,
     nabu_orgs,
     finished_individual_crawl,
-    export_graph_as_nquads
+    export_graph_as_nquads,
 ]
 
 harvest_job = define_asset_job(
@@ -280,10 +284,6 @@ harvest_job = define_asset_job(
 def geoconnex_schedule():
     for partition_key in sources_partitions_def.get_partition_keys():
         yield RunRequest(partition_key=partition_key)
-
-
-
-
 
 
 # expose all the code needed for our dagster repo
