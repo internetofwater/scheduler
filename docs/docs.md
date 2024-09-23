@@ -23,7 +23,7 @@ You can also rerun individual assets by going to the assets tab and then materia
 
 ## Credit and Refactors from previous versions
 
-This repository is a refactor of the [gleanerio/scheduler](https://github.com/gleanerio/gleaner) project. The goal of this refactor was to decrease code duplication and improve maintainability by reducing the amount of templated code using Jinja2. It also aimed to make the Dagster find a configuration more idiomatic to the asset-driven ETL paradigm that Dagster recommends.
+This repository is a refactor of the [gleanerio/scheduler](https://github.com/gleanerio/gleaner) project. The goal of this refactor was to decrease code duplication and improve maintainability by reducing the amount of templated code using Jinja2. It also aimed to make the Dagster configuration more idiomatic to the asset-driven ETL paradigm that Dagster recommends. 
 
 Previously `pygen.py` templated a significant amount of `ops` that were nearly duplicated between providers. By using partitioned assets we can reduce this templated code and make the configuration less verbose.
 
