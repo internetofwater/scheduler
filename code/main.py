@@ -12,13 +12,16 @@ from dagster import (
 )
 import docker
 import dagster_slack
+import yaml
 
+from lib.types import GleanerSource
 from lib.utils import (
     run_scheduler_docker_image,
     slack_error_fn,
 )
 
 from lib.env import (
+    GLEANER_CONFIG_PATH,
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_GLEANER_CONFIG_PATH,
     GLEANERIO_GLEANER_IMAGE,
@@ -28,8 +31,17 @@ from lib.env import (
     strict_env,
 )
 
-sources_partitions_def = StaticPartitionsDefinition(["customer1", "customer2"])
+def get_gleaner_config_sources() -> list[GleanerSource]:
+    """Given a config, return the jobs that will need to be run to perform a full geoconnex crawl"""
+    with open(GLEANER_CONFIG_PATH) as f:
+        config = yaml.safe_load(f)
+        all_sources = [site for site in config["sources"]]
+        assert len(all_sources) > 0
+        return all_sources
 
+
+names = [config["name"] for config in get_gleaner_config_sources()]
+sources_partitions_def = StaticPartitionsDefinition(names)
 
 @asset
 def pull_docker_images():
@@ -201,7 +213,8 @@ def nabu_orgs(context: OpExecutionContext):
     partitions_def=sources_partitions_def,
     deps=[nabu_orgs, nabu_prov_object, nabu_prune],
 )
-def geoconnex_source(context: OpExecutionContext):
+def finished_individual_crawl(context: OpExecutionContext):
+    """Dummy asset signifying the geoconnex crawl is completed once the orgs and prov nq files are in the graphdb and the graph is synced with the s3 bucket"""
     pass
 
 
@@ -216,7 +229,7 @@ all_assets = [
     nabu_prov_object,
     nabu_orgs_release,
     nabu_orgs,
-    geoconnex_source,
+    finished_individual_crawl,
 ]
 
 harvest_job = define_asset_job(
