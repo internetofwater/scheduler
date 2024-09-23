@@ -8,19 +8,17 @@ The Geoconnex graph is set up to be crawled at a regular interval. However, to p
 The functionality of this repository is in rapid development. That being said, the general pattern is to generate the necessary Docker stack and configurations using the Python `main.py` CLI, run the docker swarm via the same CLI, and then open the Dagster UI at localhost:3000. 
 
 To launch a run manually, you can go to either the `Jobs` link or the `Asset groups` link. Then click on `Materialize all`.  
-![runs](./image.png)
+![jobs / assets](./images/image.png)
 
 When you bring up the materializes window, You will have the option to select a variety of different sources. For testing purposes it is useful to pick a website with a small amount of data like `hu02` and not crawl the whole graph.
 
-![materialize](image.png)
+![materialize](./images/materialize.png)
 
 After you have materialized it you can then view the run in real time to see the result.
 
-![alt text](./image-1.png)
+![view run](./images/image-1.png)
 
 You can also rerun individual assets by going to the assets tab and then materializing the specific asset with the specific source you want. This is useful for rerunning failed runs without needing to recrawl an entire source, but since crawls are relatively fast, this is usually not necessary either way.
-
-![dagster assets](./image.png)
 
 ## Credit and Refactors from previous versions
 
