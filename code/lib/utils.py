@@ -2,7 +2,6 @@ from datetime import datetime
 import io
 import time
 from typing import Any, List, Optional, Sequence
-
 from dagster import OpExecutionContext, RunFailureSensorContext, get_dagster_logger
 from dagster_docker import DockerRunLauncher
 import docker
@@ -21,7 +20,6 @@ from .env import (
     GLEANER_MINIO_USE_SSL,
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_GLEANER_CONFIG_PATH,
-    GLEANERIO_LOG_PREFIX,
     GLEANERIO_NABU_CONFIG_PATH,
     GLEANERIO_PROVGRAPH_ENDPOINT,
     RELEASE_PATH,
@@ -32,8 +30,9 @@ from docker.types import RestartPolicy, ServiceMode
 from dagster_docker.utils import validate_docker_image
 from dagster._core.utils import parse_env_var
 
-
-def s3loader(data: Any, name: str):
+def s3loader(data: Any, 
+            # path relative from the root bucket. i.e. 'foo/bar/baz.txt' -> gleanerbucket/foo/bar/baz.txt
+             path: str):
     """Load arbitrary data into the s3 bucket"""
     endpoint = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
 
@@ -44,22 +43,22 @@ def s3loader(data: Any, name: str):
         secret_key=GLEANER_MINIO_SECRET_KEY,
     )
 
-    date_string = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-
-    logname = name + "_{}.log".format(date_string)
-    objPrefix = GLEANERIO_LOG_PREFIX + logname
     f = io.BytesIO()
     length = f.write(data)
     f.seek(0)
     client.put_object(
         GLEANER_MINIO_BUCKET,
-        objPrefix,
+        path,
         f,
         length,
         content_type="text/plain",
     )
-    get_dagster_logger().info(f"Log uploaded: {str(objPrefix)}")
+    get_dagster_logger().info(f"Uploaded '{path.split('/')[-1]}'")
 
+def s3_log_loader(data: Any, name: str):
+    date_string = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    filename = name + f"_{date_string}.log"
+    s3loader(data, path = f"scheduler/logs/{filename}")
 
 def _create_service(
     client: docker.DockerClient,
@@ -184,7 +183,7 @@ def run_scheduler_docker_image(
             stdout=True, stderr=True, stream=False, follow=False
         ).decode("latin-1")
         # Send the logs, then check the exit status to throw the error if needed
-        s3loader(str(logs).encode(), container_name)
+        s3_log_loader(str(logs).encode(), container_name)
 
         get_dagster_logger().info("Sent container Logs to s3: ")
 

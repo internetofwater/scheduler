@@ -50,10 +50,8 @@ def strict_get_tag(context: OpExecutionContext, key: str) -> str:
 
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-SUMMARY_PATH = "graphs/summary"
 RELEASE_PATH = "graphs/latest"
 GLEANER_HEADLESS_NETWORK = "headless_gleanerio"
-GLEANERIO_LOG_PREFIX = "scheduler/logs/"
 GLEANER_CONFIG_PATH = "/opt/dagster/app/config/gleanerconfig.yaml"
 if not os.path.exists(GLEANER_CONFIG_PATH):
     raise Exception(
