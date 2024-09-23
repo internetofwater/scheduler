@@ -3,7 +3,7 @@ import io
 import time
 from typing import Any, List, Optional, Sequence
 
-from dagster import OpExecutionContext, get_dagster_logger
+from dagster import OpExecutionContext, RunFailureSensorContext, get_dagster_logger
 from dagster_docker import DockerRunLauncher
 import docker
 import docker.errors
@@ -260,3 +260,9 @@ def post_to_graph(source, path=RELEASE_PATH, extension="nq", url=_graphEndpoint(
         raise Exception(
             f" graph: failed, LOAD from {release_url}: status:{r.status_code}"
         )
+
+def slack_error_fn(context: RunFailureSensorContext) -> str:
+    get_dagster_logger().info("Sending notification to slack")
+    # The make_slack_on_run_failure_sensor automatically sends the job
+    # id and name so you can just send the error. We don't need other data in the string
+    return f"Error: {context.failure_event.message}"

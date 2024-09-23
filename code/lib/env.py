@@ -1,5 +1,7 @@
 import os
 
+from dagster import OpExecutionContext
+
 """
 Runtime config and env vars for dagster; prioritizes strict env vars
 that fail immediately if missing instead of later in the run
@@ -37,6 +39,13 @@ def strict_env(key: str):
         raise Exception(f"Missing {key}")
 
     return val
+
+def strict_get_tag(context: OpExecutionContext, key: str) -> str:
+    """Gets a tag and make sure it exists before running further jobs"""
+    src = context.run_tags[key]
+    if src is None:
+        raise Exception(f"Missing run tag {key}")
+    return src
 
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"

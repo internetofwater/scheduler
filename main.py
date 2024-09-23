@@ -194,13 +194,13 @@ def generate_nabu_config(
 
 
 @app.command()
-def stop_swarm():
+def down():
     """Stop the docker swarm stack"""
     run_command("docker swarm leave --force || true", print_output=True)
 
 
 @app.command()
-def all(
+def up(
     env: Annotated[str, typer.Option(help="File containing your env vars")] = ".env",
 ):
     """Generate all config files and run the docker swarm stack"""
