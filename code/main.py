@@ -31,6 +31,7 @@ from lib.env import (
     strict_env,
 )
 
+
 def get_gleaner_config_sources() -> list[GleanerSource]:
     """Given a config, return the jobs that will need to be run to perform a full geoconnex crawl"""
     with open(GLEANER_CONFIG_PATH) as f:
@@ -42,6 +43,7 @@ def get_gleaner_config_sources() -> list[GleanerSource]:
 
 names = [config["name"] for config in get_gleaner_config_sources()]
 sources_partitions_def = StaticPartitionsDefinition(names)
+
 
 @asset
 def pull_docker_images():
