@@ -126,6 +126,7 @@ services:
   headless:
     # image: chromedp/headless-shell:stable
     # stable after 105 causes "devtool: CreateURL: Using unsafe HTTP verb GET to invoke /json/new. This action supports only PUT verb.",
+    # previous image: chromedp/headless-shell:105.0.5195.127 unclear if we can upgrade since neither seems to work
     image: chromedp/headless-shell:latest
     ports:
       - 9222:9222
