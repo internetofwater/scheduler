@@ -50,7 +50,6 @@ def run_command(command: str, print_output: bool = True) -> CommandResult:
             if print_output:
                 print(f"[{stream_name}] {data.decode()}", end="")
 
-    
     stdout_fd = process.stdout.fileno() if process.stdout is not None else None
     stderr_fd = process.stderr.fileno() if process.stderr is not None else None
 

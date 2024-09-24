@@ -122,7 +122,6 @@ services:
       - headless_gleanerio
       - dagster_network
 
-
   headless:
     # image: chromedp/headless-shell:stable
     # stable after 105 causes "devtool: CreateURL: Using unsafe HTTP verb GET to invoke /json/new. This action supports only PUT verb.",
