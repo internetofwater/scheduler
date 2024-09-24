@@ -270,6 +270,7 @@ all_assets = [
 ]
 
 THREE_MIN = 60 * 3
+
 harvest_job = define_asset_job(
     "harvest_source",
     description="harvest a source for the geoconnex graphdb",

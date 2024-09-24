@@ -175,7 +175,9 @@ def run_scheduler_docker_image(
             for line in container.logs(
                 stdout=True, stderr=True, stream=True, follow=True
             ):
-                get_dagster_logger().debug(line)  # noqa: T201s
+                # NOTE: we can potentially raise an error coming from inside the container here
+                # if it is output via the log (i.e. timeouts)
+                get_dagster_logger().debug(line) 
         except docker.errors.APIError as ex:
             get_dagster_logger().warning(
                 f"Caught potential docker API issue for {container_name}: {ex}"
