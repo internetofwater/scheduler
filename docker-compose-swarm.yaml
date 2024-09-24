@@ -8,6 +8,8 @@ services:
     networks:
       - dagster_network
     env_file: ".env"
+    volumes:
+      - dagster_postgres_data:/var/lib/postgresql/data
 
   dagster_user_code:
     image: dagster_user_code_image
@@ -147,3 +149,4 @@ networks:
 volumes:
   minio_data:
   graphdb_data:
+  dagster_postgres_data:
