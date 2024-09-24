@@ -126,6 +126,8 @@ services:
     # image: chromedp/headless-shell:stable
     # stable after 105 causes "devtool: CreateURL: Using unsafe HTTP verb GET to invoke /json/new. This action supports only PUT verb.",
     # previous image: chromedp/headless-shell:105.0.5195.127 unclear if we can upgrade since neither seems to work
+    # seems like might need to pull this before if on macos since we cant specify platform in docker compose
+    #  docker run -it --platform linux/amd64 -p 9222:9222 --rm --entrypoint /bin/bash chromedp/headless-shell:latest
     image: chromedp/headless-shell:latest
     ports:
       - 9222:9222
