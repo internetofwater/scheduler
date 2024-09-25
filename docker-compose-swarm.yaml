@@ -8,6 +8,8 @@ services:
     networks:
       - dagster_network
     env_file: ".env"
+    volumes:
+      - dagster_postgres_data:/var/lib/postgresql/data
 
   dagster_user_code:
     image: dagster_user_code_image
@@ -60,7 +62,7 @@ services:
       - dagster_postgres
       - dagster_user_code
     env_file: ".env"
-    
+
   minio:
     image: minio/minio
     container_name: minio
@@ -68,6 +70,8 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    volumes:
+      - minio_data:/data
     networks:
       - headless_gleanerio
       - dagster_network
@@ -88,20 +92,20 @@ services:
        "
     networks:
       - dagster_network
-    
+
   createrepositories:
     # Applies migrations aka "repositories" after the database is created
     image: alpine/curl
     depends_on:
       - graphdb
-    # Apply the local config files into the graphdb. We sleep 5 since even after the service is up, the graphdb is not fully ready    
-    entrypoint: > 
-     /bin/sh -c "
-     sleep 5;
-     curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iow-config.ttl'; 
-     curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iowprov-config.ttl'; 
-     sleep infinity"
-    volumes: 
+    # Apply the local config files into the graphdb. We sleep 5 since even after the service is up, the graphdb is not fully ready
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iow-config.ttl'; 
+      curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iowprov-config.ttl'; 
+      sleep infinity"
+    volumes:
       - ./templates:/templates
     networks:
       - dagster_network
@@ -114,6 +118,23 @@ services:
     environment:
       - JAVA_XMX=4g
       - JAVA_XMS=2048m
+    volumes:
+      - graphdb_data:/opt/graphdb/data
+    networks:
+      - headless_gleanerio
+      - dagster_network
+
+  headless:
+    # image: chromedp/headless-shell:stable
+    # stable after 105 causes "devtool: CreateURL: Using unsafe HTTP verb GET to invoke /json/new. This action supports only PUT verb.",
+    # previous image: chromedp/headless-shell:105.0.5195.127 unclear if we can upgrade since neither seems to work
+    # seems like might need to pull this before if on macos since we cant specify platform in docker compose
+    #  docker run -it --platform linux/amd64 -p 9222:9222 --rm --entrypoint /bin/bash chromedp/headless-shell:latest
+    image: chromedp/headless-shell:latest
+    ports:
+      - 9222:9222
+    environment:
+      - SERVICE_PORTS=9222
     networks:
       - headless_gleanerio
       - dagster_network
@@ -122,4 +143,10 @@ networks:
   dagster_network:
     external: true
   headless_gleanerio:
-      external: true
+    name: headless_gleanerio
+    external: true
+
+volumes:
+  minio_data:
+  graphdb_data:
+  dagster_postgres_data:

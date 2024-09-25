@@ -8,6 +8,7 @@ RUN pip install \
     dagster \
     dagster-postgres \
     dagster-docker \
+    dagster-slack \
     # our utilities
     earthcube-utilities \
     minio \
@@ -25,4 +26,9 @@ EXPOSE 4000
 
 # CMD allows this to be overridden from run launchers or executors that want
 # to run other commands against your repository
-CMD [ "dagster", "api","grpc", "-h", "0.0.0.0", "-p", "4000", "--python-file", "/opt/dagster/app/code/main.py", "-d", "/opt/dagster/app/code"]
+
+# User code can be reloaded by using the code-server start command instead of api grpc
+# Everything else should be the same according to: https://github.com/dagster-io/dagster/discussions/14709
+# CMD [ "dagster", "api","grpc", "-h", "0.0.0.0", "-p", "4000", "--python-file", "/opt/dagster/app/code/main.py", "-d", "/opt/dagster/app/code"]
+
+CMD [ "dagster", "code-server","start", "-h", "0.0.0.0", "-p", "4000", "--python-file", "/opt/dagster/app/code/main.py", "-d", "/opt/dagster/app/code"]

@@ -1,5 +1,7 @@
 import os
 
+from dagster import OpExecutionContext
+
 """
 Runtime config and env vars for dagster; prioritizes strict env vars
 that fail immediately if missing instead of later in the run
@@ -30,6 +32,7 @@ def assert_all_vars():
 
 assert_all_vars()
 
+
 def strict_env(key: str):
     val = os.environ.get(key)
     if val is None:
@@ -37,11 +40,18 @@ def strict_env(key: str):
 
     return val
 
+
+def strict_get_tag(context: OpExecutionContext, key: str) -> str:
+    """Gets a tag and make sure it exists before running further jobs"""
+    src = context.run_tags[key]
+    if src is None:
+        raise Exception(f"Missing run tag {key}")
+    return src
+
+
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-SUMMARY_PATH = "graphs/summary"
 RELEASE_PATH = "graphs/latest"
 GLEANER_HEADLESS_NETWORK = "headless_gleanerio"
-GLEANERIO_LOG_PREFIX = "scheduler/logs/"
 GLEANER_CONFIG_PATH = "/opt/dagster/app/config/gleanerconfig.yaml"
 if not os.path.exists(GLEANER_CONFIG_PATH):
     raise Exception(
