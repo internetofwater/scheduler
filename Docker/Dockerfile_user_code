@@ -13,17 +13,19 @@ RUN pip install \
     # our utilities
     minio \
     jinja2 \
+    lxml \
     pyyaml \
     beautifulsoup4
 
 # configs and runtime code
 WORKDIR /opt/dagster/app
 COPY code /opt/dagster/app/code
-COPY templates/gleanerconfig.yaml /opt/dagster/app/templates/gleanerconfig.yaml
-COPY templates/nabuconfig.yaml /opt/dagster/app/templates/nabuconfig.yaml
+COPY templates /opt/dagster/app/templates
 
 # Run dagster gRPC server on port 4000
 EXPOSE 4000
+
+ENV DAGSTER_HOME=/opt/dagster/app
 
 # CMD allows this to be overridden from run launchers or executors that want
 # to run other commands against your repository

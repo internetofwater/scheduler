@@ -221,10 +221,6 @@ def _graphEndpoint():
     return f"{GLEANER_GRAPH_URL}/namespace/{GLEANER_GRAPH_NAMESPACE}/sparql"
 
 
-def _graphSummaryEndpoint():
-    return f"{GLEANER_GRAPH_URL}/namespace/{GLEANER_GRAPH_NAMESPACE}_summary/sparql"
-
-
 def _pythonMinioAddress(url, port=None) -> str:
     """Construct a string for connecting to a minio S3 server"""
     if not url:
@@ -283,31 +279,23 @@ def slack_error_fn(context: RunFailureSensorContext) -> str:
     return f"Error: {context.failure_event.message}"
 
 
-def template_config(base_template_file, out_dir):
-    def get_common_env():
-        """All env vars here are used in templating configs since they are used in both gleaner and nabu configs"""
-        return {
-            "GLEANERIO_MINIO_ADDRESS": strict_env("GLEANERIO_MINIO_ADDRESS"),
-            "MINIO_ACCESS_KEY": strict_env("MINIO_ACCESS_KEY"),
-            "MINIO_SECRET_KEY": strict_env("MINIO_SECRET_KEY"),
-            "GLEANERIO_MINIO_BUCKET": strict_env("GLEANERIO_MINIO_BUCKET"),
-            "GLEANERIO_MINIO_PORT": strict_env("GLEANERIO_MINIO_PORT"),
-            "GLEANERIO_MINIO_USE_SSL": strict_env("GLEANERIO_MINIO_USE_SSL"),
-            "GLEANERIO_DATAGRAPH_ENDPOINT": strict_env("GLEANERIO_DATAGRAPH_ENDPOINT"),
-            "GLEANERIO_GRAPH_URL": strict_env("GLEANERIO_GRAPH_URL"),
-            "GLEANERIO_PROVGRAPH_ENDPOINT": strict_env("GLEANERIO_PROVGRAPH_ENDPOINT"),
-        }
+def template_config(input_template_file: str) -> str:
+    common_variables_for_templating = {
+        "GLEANERIO_MINIO_ADDRESS": strict_env("GLEANERIO_MINIO_ADDRESS"),
+        "MINIO_ACCESS_KEY": strict_env("MINIO_ACCESS_KEY"),
+        "MINIO_SECRET_KEY": strict_env("MINIO_SECRET_KEY"),
+        "GLEANERIO_MINIO_BUCKET": strict_env("GLEANERIO_MINIO_BUCKET"),
+        "GLEANERIO_MINIO_PORT": strict_env("GLEANERIO_MINIO_PORT"),
+        "GLEANERIO_MINIO_USE_SSL": strict_env("GLEANERIO_MINIO_USE_SSL"),
+        "GLEANERIO_DATAGRAPH_ENDPOINT": strict_env("GLEANERIO_DATAGRAPH_ENDPOINT"),
+        "GLEANERIO_GRAPH_URL": strict_env("GLEANERIO_GRAPH_URL"),
+        "GLEANERIO_PROVGRAPH_ENDPOINT": strict_env("GLEANERIO_PROVGRAPH_ENDPOINT"),
+    }
 
-    env = Environment(loader=FileSystemLoader(os.path.dirname(base_template_file)))
-    template = env.get_template(os.path.basename(base_template_file))
+    env = Environment(loader=FileSystemLoader(os.path.dirname(input_template_file)))
+    template = env.get_template(os.path.basename(input_template_file))
 
     # Render the template with the context
-    rendered_content = template.render(**get_common_env())
+    rendered_content = template.render(**common_variables_for_templating)
 
-    # Write the rendered content to the output file
-    output_name = str(os.path.basename(base_template_file)).removesuffix(".j2")
-
-    with open(os.path.join(out_dir, output_name), "w+") as file:
-        file.write(rendered_content)
-
-    return os.path.join(out_dir, output_name)
+    return rendered_content

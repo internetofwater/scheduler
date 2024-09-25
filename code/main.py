@@ -1,12 +1,14 @@
 from datetime import datetime
+from email.mime import base
+from typing import List
 from bs4 import BeautifulSoup
 from dagster import (
+    DynamicPartitionsDefinition,
     RunRequest,
     DefaultScheduleStatus,
     DefaultSensorStatus,
     Definitions,
     OpExecutionContext,
-    StaticPartitionsDefinition,
     asset,
     define_asset_job,
     get_dagster_logger,
@@ -16,12 +18,12 @@ import docker
 import dagster_slack
 import requests
 import yaml
-import os
 from lib.types import GleanerSource
 from lib.utils import (
     remove_non_alphanumeric,
     run_scheduler_docker_image,
     s3loader,
+    s3reader,
     slack_error_fn,
     template_config,
 )
@@ -29,40 +31,28 @@ from lib.utils import (
 from lib.env import (
     GLEANER_GRAPH_URL,
     GLEANERIO_DATAGRAPH_ENDPOINT,
-    GLEANERIO_GLEANER_CONFIG_PATH,
     GLEANERIO_GLEANER_IMAGE,
     GLEANERIO_NABU_CONFIG_PATH,
     GLEANERIO_NABU_IMAGE,
     GLEANERIO_PROVGRAPH_ENDPOINT,
     strict_env,
 )
+sources_partitions_def = DynamicPartitionsDefinition(name="sources_partitions_def")
 
+@asset
+def nabu_config():
+    """The nabuconfig.yaml used for nabu"""
+    get_dagster_logger().info("Creating nabu config")
+    pass
 
-def get_gleaner_config_sources() -> list[GleanerSource]:
-    """Given a config, return the jobs that will need to be run to perform a full geoconnex crawl"""
-    with open(GLEANERIO_GLEANER_CONFIG_PATH) as f:
-        config = yaml.safe_load(f)
-        all_sources = [site for site in config["sources"]]
-        assert len(all_sources) > 0
-        return all_sources
-
-
-names = [config["name"] for config in get_gleaner_config_sources()]
-sources_partitions_def = StaticPartitionsDefinition(names)
-
-
-def make_gleaner_config():
+@asset
+def gleaner_config():
     """The gleanerconfig.yaml used for gleaner"""
-
-    # base is the basename of the gleaner config
-    out_dir = os.path.basename(GLEANERIO_GLEANER_CONFIG_PATH)
-    base = "/opt/dagster/app/templates/"
+    get_dagster_logger().info("Creating gleaner config")
+    input_file = "/opt/dagster/app/templates/gleanerconfig.yaml.j2"
 
     # Fill in the config with the common minio configuration
-    base_config = template_config(base, out_dir)
-
-    with open(base_config, "r") as base_file:
-        base_data = yaml.safe_load(base_file)
+    templated_base = template_config(input_file)
 
     sitemap_url = "https://geoconnex.us/sitemap.xml"
     # Parse the sitemap index for the referenced sitemaps for a config file
@@ -101,18 +91,13 @@ def make_gleaner_config():
         sources.append(data)
 
     # Combine base data with the new sources
-    if isinstance(base_data, dict):
-        base_data["sources"] = sources
+    if isinstance(templated_base, dict):
+        templated_base["sources"] = sources
     else:
-        base_data = {"sources": sources}
+        templated_base = {"sources": sources}
 
-    # Write the combined data to the output YAML file
-    with open(GLEANERIO_GLEANER_CONFIG_PATH, "w") as outfile:
-        yaml.dump(base_data, outfile, default_flow_style=False)
-
-
-def make_nabu_config():
-    pass
+    encoded_as_bytes = yaml.dump(templated_base).encode()
+    s3loader(encoded_as_bytes, "/configs/gleanerconfig.yaml")
 
 
 @asset
@@ -124,13 +109,31 @@ def pull_docker_images():
     client.images.pull(GLEANERIO_NABU_IMAGE)
 
 
-@asset(partitions_def=sources_partitions_def, deps=[pull_docker_images])
-def gleaner(context: OpExecutionContext):
+@asset(deps=[nabu_config, gleaner_config])
+def dagster_partitions():
+    """Partition the sources"""
+    config = s3reader("configs/gleanerconfig.yaml")
+    config = yaml.safe_load(config)
+    # config = yaml.safe_load(gleaner_config)
+    all_sources: List[GleanerSource] = [site for site in config["sources"]]
+    assert len(all_sources) > 0
+
+    for item in all_sources:
+        sources_partitions_def.build_add_request([item["name"]])
+        get_dagster_logger().info(f"Added partition {item['name']}")
+
+
+@asset(partitions_def=sources_partitions_def, deps=[pull_docker_images, dagster_partitions])
+def gleaner(context: OpExecutionContext, gleaner_config: str):
     """Get the jsonld for each site in the gleaner config"""
+    # with the gleaner config to disk as a yaml file
+    with open("gleanerconfig.yaml", "w") as f:
+        yaml.dump(gleaner_config, f)
+
     source = context.partition_key
-    ARGS = ["--cfg", GLEANERIO_GLEANER_CONFIG_PATH, "-source", source, "--rude"]
+    ARGS = ["--cfg", "gleanerconfig.yaml", "-source", source, "--rude"]
     returned_value = run_scheduler_docker_image(
-        context, source, GLEANERIO_GLEANER_IMAGE, ARGS, "gleaner"
+        context, source, gleaner_config, ARGS, "gleaner"
     )
     get_dagster_logger().info(f"Gleaner returned value: '{returned_value}'")
 
@@ -153,12 +156,12 @@ def nabu_release(context: OpExecutionContext):
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_release])
-def nabu_object(context: OpExecutionContext):
+def nabu_object(context: OpExecutionContext, nabu_config: str):
     """Take the nq file from s3 and use the sparql API to upload it into the graph"""
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        nabu_config,
         "object",
         f"/graphs/latest/{source}_release.nq",
         "--endpoint",
@@ -171,12 +174,12 @@ def nabu_object(context: OpExecutionContext):
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_object])
-def nabu_prune(context: OpExecutionContext):
+def nabu_prune(context: OpExecutionContext, nabu_config: str):
     """Synchronize the graph with s3 by adding/removing from the graph"""
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        nabu_config,
         "prune",
         "--prefix",
         "summoned/" + source,
@@ -190,13 +193,13 @@ def nabu_prune(context: OpExecutionContext):
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_prov_release(context):
+def nabu_prov_release(context, nabu_config: str):
     """Construct an nq file from all of the jsonld prov produced by gleaner.
     Used for tracing data lineage"""
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        nabu_config,
         "release",
         "--prefix",
         "prov/" + source,
@@ -208,7 +211,7 @@ def nabu_prov_release(context):
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_release])
-def nabu_prov_clear(context: OpExecutionContext):
+def nabu_prov_clear(context: OpExecutionContext, nabu_config: str):
     """Clears the prov graph before putting the new nq in"""
     source = context.partition_key
     ARGS = [
@@ -225,12 +228,12 @@ def nabu_prov_clear(context: OpExecutionContext):
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_clear])
-def nabu_prov_object(context):
+def nabu_prov_object(context, nabu_config: str):
     """Take the nq file from s3 and use the sparql API to upload it into the prov graph repository"""
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        nabu_config,
         "object",
         f"/graphs/latest/{source}_prov.nq",
         "--endpoint",
@@ -243,13 +246,13 @@ def nabu_prov_object(context):
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_orgs_release(context: OpExecutionContext):
+def nabu_orgs_release(context: OpExecutionContext, nabu_config: str):
     """Construct an nq file for the metadata of all the organizations. Their data is not included in this step.
     This is just flat metadata"""
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        nabu_config,
         "release",
         "--prefix",
         "orgs",
@@ -263,12 +266,12 @@ def nabu_orgs_release(context: OpExecutionContext):
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_orgs_release])
-def nabu_orgs(context: OpExecutionContext):
+def nabu_orgs(context: OpExecutionContext, nabu_config: str):
     """Move the orgs nq file(s) into the graphdb"""
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        nabu_config,
         "prefix",
         "--prefix",
         "orgs",
@@ -322,9 +325,10 @@ def export_graph_as_nquads():
 
 all_assets = [
     # we need this variable since AssetSelection.all() doesn't appear to work
+    pull_docker_images,
     gleaner_config,
     nabu_config,
-    pull_docker_images,
+    dagster_partitions,
     gleaner,
     nabu_object,
     nabu_release,
