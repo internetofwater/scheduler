@@ -78,7 +78,6 @@ def run_docker_stack():
     )
 
 
-
 @app.command()
 def down():
     """Stop the docker swarm stack"""

@@ -2,12 +2,10 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from dagster import (
     RunRequest,
-    DynamicPartitionsDefinition,
     DefaultScheduleStatus,
     DefaultSensorStatus,
     Definitions,
     OpExecutionContext,
-    StaticPartitionMapping,
     StaticPartitionsDefinition,
     asset,
     define_asset_job,
@@ -53,14 +51,14 @@ names = [config["name"] for config in get_gleaner_config_sources()]
 sources_partitions_def = StaticPartitionsDefinition(names)
 
 
-@asset 
+@asset
 def gleaner_config():
     """The gleanerconfig.yaml used for gleaner"""
 
     # base is the basename of the gleaner config
     out_dir = os.path.basename(GLEANERIO_GLEANER_CONFIG_PATH)
     base = "/opt/dagster/app/templates/"
-    
+
     # Fill in the config with the common minio configuration
     base_config = template_config(base, out_dir)
 
@@ -117,6 +115,7 @@ def gleaner_config():
 @asset
 def nabu_config():
     pass
+
 
 @asset
 def pull_docker_images():
