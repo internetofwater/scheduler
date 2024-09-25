@@ -6,7 +6,7 @@ The Geoconnex graph database is made up of the JSON-LD documents from over 200 d
 
 The Geoconnex graph is set up to be crawled at a regular interval by using a [schedule](https://docs.dagster.io/concepts/automation/schedules) cron label. However, to prevent overuse of server resources or spamming target websites, we only allow one source in the job to be crawled at a time. To do this, [we limit concurrency in Dagster](https://docs.dagster.io/guides/limiting-concurrency-in-data-pipelines#limiting-overall-runs) to one job at a time. However, we still use concurrency within the same job when syncing our graph with the S3 bucket or other local operations.
 
-If the **job** for an asset generation fails, a slack notification will be sent. 
+If the **job** for an asset generation fails, a slack notification will be sent.
 
 > (NOTE: asset materialization via the UI is not a job, and thus will not trigger a notification)
 
@@ -68,7 +68,7 @@ Since Dagster uses docs as code, the best way to get the most accurate documenta
 - takes an individual config and puts jsonld for each site inside the s3 bucket specified in the gleaner config
 - `ARGS = ["--cfg", GLEANERIO_GLEANER_CONFIG_PATH, "-source", source, "--rude"]`
 
-### nabu_release  
+### nabu_release
 
 - construct an nq file from all of the jsonld produced by gleaner
 - Example: creates s3:/myminio/iow/graphs/archive/refgages0/summoned\_\_refgages0_2024-07-08-21-49-19_release.nq and copies to s3:/myminio/iow/graphs/latest/refgages0_release.nq
@@ -83,8 +83,8 @@ Since Dagster uses docs as code, the best way to get the most accurate documenta
 ### nabu_prune
 
 - Essentially a diff that upadtes the graph. Looks at the prefix directory path and reconciles the files that exist with what exists in the graph.
-    - s3 is the source of truth
-    - if the graph is missing data it should be added; if it has too much data it should be pruned
+  - s3 is the source of truth
+  - if the graph is missing data it should be added; if it has too much data it should be pruned
 - `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "prune", "--prefix", "summoned/" + source, "--endpoint", GLEANERIO_DATAGRAPH_ENDPOINT]`
 - Example: `nabu --cfg <cfg> prune --prefix "summoned/refgages0 --endpoint iow`
 
