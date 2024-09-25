@@ -1,8 +1,5 @@
 # These are the requirements for the main.py cli which generates all build artifacts that dagster runs
 typer
-beautifulsoup4
-jinja2
 requests
-pyyaml
 lxml
 python-dotenv

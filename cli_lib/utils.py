@@ -1,14 +1,10 @@
 import re
 import os
 import subprocess
-from jinja2 import Environment, FileSystemLoader
 
 import pty
 from collections import namedtuple
 
-
-def remove_non_alphanumeric(string):
-    return re.sub(r"[^a-zA-Z0-9_]+", "", string)
 
 
 def strict_env(env_var: str) -> str:
@@ -69,33 +65,3 @@ def run_command(command: str, print_output: bool = True) -> CommandResult:
 
     return CommandResult("".join(stdout), "".join(stderr), process.returncode)
 
-
-def template_config(base, out_dir):
-    env = Environment(loader=FileSystemLoader(os.path.dirname(base)))
-    template = env.get_template(os.path.basename(base))
-
-    # Render the template with the context
-    rendered_content = template.render(**get_common_env())
-
-    # Write the rendered content to the output file
-    output_name = str(os.path.basename(base)).removesuffix(".j2")
-
-    with open(os.path.join(out_dir, output_name), "w+") as file:
-        file.write(rendered_content)
-
-    return os.path.join(out_dir, output_name)
-
-
-def get_common_env():
-    """All env vars here are used in templating configs since they are used in both gleaner and nabu configs"""
-    return {
-        "GLEANERIO_MINIO_ADDRESS": strict_env("GLEANERIO_MINIO_ADDRESS"),
-        "MINIO_ACCESS_KEY": strict_env("MINIO_ACCESS_KEY"),
-        "MINIO_SECRET_KEY": strict_env("MINIO_SECRET_KEY"),
-        "GLEANERIO_MINIO_BUCKET": strict_env("GLEANERIO_MINIO_BUCKET"),
-        "GLEANERIO_MINIO_PORT": strict_env("GLEANERIO_MINIO_PORT"),
-        "GLEANERIO_MINIO_USE_SSL": strict_env("GLEANERIO_MINIO_USE_SSL"),
-        "GLEANERIO_DATAGRAPH_ENDPOINT": strict_env("GLEANERIO_DATAGRAPH_ENDPOINT"),
-        "GLEANERIO_GRAPH_URL": strict_env("GLEANERIO_GRAPH_URL"),
-        "GLEANERIO_PROVGRAPH_ENDPOINT": strict_env("GLEANERIO_PROVGRAPH_ENDPOINT"),
-    }

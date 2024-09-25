@@ -1,11 +1,14 @@
 from datetime import datetime
+from bs4 import BeautifulSoup
 from dagster import (
     RunRequest,
-    StaticPartitionsDefinition,
+    DynamicPartitionsDefinition,
     DefaultScheduleStatus,
     DefaultSensorStatus,
     Definitions,
     OpExecutionContext,
+    StaticPartitionMapping,
+    StaticPartitionsDefinition,
     asset,
     define_asset_job,
     get_dagster_logger,
@@ -15,16 +18,17 @@ import docker
 import dagster_slack
 import requests
 import yaml
-
+import os
 from lib.types import GleanerSource
 from lib.utils import (
+    remove_non_alphanumeric,
     run_scheduler_docker_image,
     s3loader,
     slack_error_fn,
+    template_config,
 )
 
 from lib.env import (
-    GLEANER_CONFIG_PATH,
     GLEANER_GRAPH_URL,
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_GLEANER_CONFIG_PATH,
@@ -38,7 +42,7 @@ from lib.env import (
 
 def get_gleaner_config_sources() -> list[GleanerSource]:
     """Given a config, return the jobs that will need to be run to perform a full geoconnex crawl"""
-    with open(GLEANER_CONFIG_PATH) as f:
+    with open(GLEANERIO_GLEANER_CONFIG_PATH) as f:
         config = yaml.safe_load(f)
         all_sources = [site for site in config["sources"]]
         assert len(all_sources) > 0
@@ -49,6 +53,71 @@ names = [config["name"] for config in get_gleaner_config_sources()]
 sources_partitions_def = StaticPartitionsDefinition(names)
 
 
+@asset 
+def gleaner_config():
+    """The gleanerconfig.yaml used for gleaner"""
+
+    # base is the basename of the gleaner config
+    out_dir = os.path.basename(GLEANERIO_GLEANER_CONFIG_PATH)
+    base = "/opt/dagster/app/templates/"
+    
+    # Fill in the config with the common minio configuration
+    base_config = template_config(base, out_dir)
+
+    with open(base_config, "r") as base_file:
+        base_data = yaml.safe_load(base_file)
+
+    sitemap_url = "https://geoconnex.us/sitemap.xml"
+    # Parse the sitemap index for the referenced sitemaps for a config file
+    r = requests.get(sitemap_url)
+    xml = r.text
+    sitemapTags = BeautifulSoup(xml, features="xml").find_all("sitemap")
+    Lines: list[str] = [sitemap.findNext("loc").text for sitemap in sitemapTags]
+
+    sources = []
+    names = set()
+    for line in Lines:
+        basename = sitemap_url.removesuffix(".xml")
+        name = (
+            line.removeprefix(basename)
+            .removesuffix(".xml")
+            .removeprefix("/")
+            .removesuffix("/")
+            .replace("/", "_")
+        )
+        name = remove_non_alphanumeric(name)
+        if name in names:
+            print(f"Warning! Skipping duplicate name {name}")
+            continue
+
+        data = {
+            "sourcetype": "sitemap",
+            "name": name,
+            "url": line.strip(),
+            "headless": "false",
+            "pid": "https://gleaner.io/genid/geoconnex",
+            "propername": name,
+            "domain": "https://geoconnex.us",
+            "active": "true",
+        }
+        names.add(name)
+        sources.append(data)
+
+    # Combine base data with the new sources
+    if isinstance(base_data, dict):
+        base_data["sources"] = sources
+    else:
+        base_data = {"sources": sources}
+
+    # Write the combined data to the output YAML file
+    with open(GLEANERIO_GLEANER_CONFIG_PATH, "w") as outfile:
+        yaml.dump(base_data, outfile, default_flow_style=False)
+
+
+@asset
+def nabu_config():
+    pass
+
 @asset
 def pull_docker_images():
     """Set up dagster by pulling both the gleaner and nabu images we will later use"""
@@ -58,7 +127,7 @@ def pull_docker_images():
     client.images.pull(GLEANERIO_NABU_IMAGE)
 
 
-@asset(partitions_def=sources_partitions_def, deps=[pull_docker_images])
+@asset(partitions_def=sources_partitions_def, deps=[pull_docker_images, gleaner_config])
 def gleaner(context: OpExecutionContext):
     """Get the jsonld for each site in the gleaner config"""
     source = context.partition_key
@@ -255,6 +324,9 @@ def export_graph_as_nquads():
 
 
 all_assets = [
+    # we need this variable since AssetSelection.all() doesn't appear to work
+    gleaner_config,
+    nabu_config,
     pull_docker_images,
     gleaner,
     nabu_object,

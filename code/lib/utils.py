@@ -1,11 +1,14 @@
 from datetime import datetime
 import io
+import os
+import re
 import time
 from typing import Any, List, Optional, Sequence
 from dagster import OpExecutionContext, RunFailureSensorContext, get_dagster_logger
 from dagster_docker import DockerRunLauncher
 import docker
 import docker.errors
+from jinja2 import Environment, FileSystemLoader
 from minio import Minio, S3Error
 import requests
 from .env import (
@@ -23,6 +26,7 @@ from .env import (
     GLEANERIO_NABU_CONFIG_PATH,
     GLEANERIO_PROVGRAPH_ENDPOINT,
     RELEASE_PATH,
+    strict_env,
 )
 from docker.types.services import ConfigReference
 from dagster_docker.container_context import DockerContainerContext
@@ -30,6 +34,10 @@ from docker.types import RestartPolicy, ServiceMode
 from dagster_docker.utils import validate_docker_image
 from dagster._core.utils import parse_env_var
 
+
+
+def remove_non_alphanumeric(string):
+    return re.sub(r"[^a-zA-Z0-9_]+", "", string)
 
 def s3loader(
     data: Any,
@@ -273,3 +281,34 @@ def slack_error_fn(context: RunFailureSensorContext) -> str:
     # The make_slack_on_run_failure_sensor automatically sends the job
     # id and name so you can just send the error. We don't need other data in the string
     return f"Error: {context.failure_event.message}"
+
+
+def template_config(base_template_file, out_dir):
+
+    def get_common_env():
+        """All env vars here are used in templating configs since they are used in both gleaner and nabu configs"""
+        return {
+            "GLEANERIO_MINIO_ADDRESS": strict_env("GLEANERIO_MINIO_ADDRESS"),
+            "MINIO_ACCESS_KEY": strict_env("MINIO_ACCESS_KEY"),
+            "MINIO_SECRET_KEY": strict_env("MINIO_SECRET_KEY"),
+            "GLEANERIO_MINIO_BUCKET": strict_env("GLEANERIO_MINIO_BUCKET"),
+            "GLEANERIO_MINIO_PORT": strict_env("GLEANERIO_MINIO_PORT"),
+            "GLEANERIO_MINIO_USE_SSL": strict_env("GLEANERIO_MINIO_USE_SSL"),
+            "GLEANERIO_DATAGRAPH_ENDPOINT": strict_env("GLEANERIO_DATAGRAPH_ENDPOINT"),
+            "GLEANERIO_GRAPH_URL": strict_env("GLEANERIO_GRAPH_URL"),
+            "GLEANERIO_PROVGRAPH_ENDPOINT": strict_env("GLEANERIO_PROVGRAPH_ENDPOINT"),
+        }
+
+    env = Environment(loader=FileSystemLoader(os.path.dirname(base_template_file)))
+    template = env.get_template(os.path.basename(base_template_file))
+
+    # Render the template with the context
+    rendered_content = template.render(**get_common_env())
+
+    # Write the rendered content to the output file
+    output_name = str(os.path.basename(base_template_file)).removesuffix(".j2")
+
+    with open(os.path.join(out_dir, output_name), "w+") as file:
+        file.write(rendered_content)
+
+    return os.path.join(out_dir, output_name)

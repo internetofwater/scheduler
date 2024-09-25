@@ -9,17 +9,18 @@ RUN pip install \
     dagster-postgres \
     dagster-docker \
     dagster-slack \
-    # our utilities
-    earthcube-utilities \
-    minio \
     dagster \
-    pyyaml
+    # our utilities
+    minio \
+    jinja2 \
+    pyyaml \
+    beautifulsoup4
 
 # configs and runtime code
 WORKDIR /opt/dagster/app
 COPY code /opt/dagster/app/code
-COPY build/gleanerconfig.yaml /opt/dagster/app/config/gleanerconfig.yaml
-COPY build/nabuconfig.yaml /opt/dagster/app/config/nabuconfig.yaml
+COPY templates/gleanerconfig.yaml /opt/dagster/app/templates/gleanerconfig.yaml
+COPY templates/nabuconfig.yaml /opt/dagster/app/templates/nabuconfig.yaml
 
 # Run dagster gRPC server on port 4000
 EXPOSE 4000
