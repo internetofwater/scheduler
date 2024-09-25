@@ -45,6 +45,7 @@ This repository is a refactor of the [gleanerio/scheduler](https://github.com/gl
 - We still template the gleanerconfig.yaml and nabuconfig.yaml files
   - This is since there are shared configs that are used by both. i.e. for minio
   - This templating is done before we build the image but in the future could be moved inside Dagster
+  - having it outside docker makes the graph less dynamic and a bit easier to manage inside dagster; this could be iterated on however if we want to automate everything fully
 - Legacy or outdated files were removed. There are files from previous `tutorials` or `deprecated` directories that were kept around only for historical purposes.
 - Configuration specific to other organizations was removed
   - we only use one docker compose file, not any additional organization-specific `compose-override` files like the repository previously had
