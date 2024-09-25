@@ -53,8 +53,7 @@ names = [config["name"] for config in get_gleaner_config_sources()]
 sources_partitions_def = StaticPartitionsDefinition(names)
 
 
-@asset 
-def gleaner_config():
+def make_gleaner_config():
     """The gleanerconfig.yaml used for gleaner"""
 
     # base is the basename of the gleaner config
@@ -114,8 +113,7 @@ def gleaner_config():
         yaml.dump(base_data, outfile, default_flow_style=False)
 
 
-@asset
-def nabu_config():
+def make_nabu_config():
     pass
 
 @asset
@@ -127,7 +125,7 @@ def pull_docker_images():
     client.images.pull(GLEANERIO_NABU_IMAGE)
 
 
-@asset(partitions_def=sources_partitions_def, deps=[pull_docker_images, gleaner_config])
+@asset(partitions_def=sources_partitions_def, deps=[pull_docker_images])
 def gleaner(context: OpExecutionContext):
     """Get the jsonld for each site in the gleaner config"""
     source = context.partition_key
