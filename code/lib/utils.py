@@ -35,9 +35,9 @@ from dagster_docker.utils import validate_docker_image
 from dagster._core.utils import parse_env_var
 
 
-
 def remove_non_alphanumeric(string):
     return re.sub(r"[^a-zA-Z0-9_]+", "", string)
+
 
 def s3loader(
     data: Any,
@@ -284,7 +284,6 @@ def slack_error_fn(context: RunFailureSensorContext) -> str:
 
 
 def template_config(base_template_file, out_dir):
-
     def get_common_env():
         """All env vars here are used in templating configs since they are used in both gleaner and nabu configs"""
         return {

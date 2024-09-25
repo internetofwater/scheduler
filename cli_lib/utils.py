@@ -1,10 +1,8 @@
-import re
 import os
 import subprocess
 
 import pty
 from collections import namedtuple
-
 
 
 def strict_env(env_var: str) -> str:
@@ -64,4 +62,3 @@ def run_command(command: str, print_output: bool = True) -> CommandResult:
         os.close(stderr_fd)
 
     return CommandResult("".join(stdout), "".join(stderr), process.returncode)
-
