@@ -160,7 +160,7 @@ def nabu_prov_clear(context: OpExecutionContext):
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_clear])
 def nabu_prov_object(context):
-    """Take the nq file from s3 and use the sparql API to upload it into the graph"""
+    """Take the nq file from s3 and use the sparql API to upload it into the prov graph repository"""
     source = context.partition_key
     ARGS = [
         "--cfg",
@@ -178,7 +178,7 @@ def nabu_prov_object(context):
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
 def nabu_orgs_release(context: OpExecutionContext):
-    """Construct an nq file for all the organizations. Their data is not included in this step.
+    """Construct an nq file for the metadata of all the organizations. Their data is not included in this step.
     This is just flat metadata"""
     source = context.partition_key
     ARGS = [
