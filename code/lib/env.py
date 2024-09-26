@@ -49,11 +49,8 @@ def strict_get_tag(context: OpExecutionContext, key: str) -> str:
     return src
 
 
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 RELEASE_PATH = "graphs/latest"
 GLEANER_HEADLESS_NETWORK = "headless_gleanerio"
-GLEANERIO_GLEANER_CONFIG_PATH = "/opt/dagster/app/code/gleanerconfig.yaml"
-GLEANERIO_NABU_CONFIG_PATH = "/opt/dagster/app/code/nabuconfig.yaml"
 GLEANER_MINIO_ADDRESS = strict_env("GLEANERIO_MINIO_ADDRESS")
 GLEANER_MINIO_PORT = strict_env("GLEANERIO_MINIO_PORT")
 GLEANER_MINIO_USE_SSL = strict_env("GLEANERIO_MINIO_USE_SSL") in [

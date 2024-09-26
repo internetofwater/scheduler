@@ -9,7 +9,7 @@ from dagster_docker import DockerRunLauncher
 import docker
 import docker.errors
 from jinja2 import Environment, FileSystemLoader
-from minio import Minio, S3Error
+from minio import Minio
 import requests
 from .env import (
     GLEANER_GRAPH_NAMESPACE,
@@ -22,8 +22,6 @@ from .env import (
     GLEANER_MINIO_SECRET_KEY,
     GLEANER_MINIO_USE_SSL,
     GLEANERIO_DATAGRAPH_ENDPOINT,
-    GLEANERIO_GLEANER_CONFIG_PATH,
-    GLEANERIO_NABU_CONFIG_PATH,
     GLEANERIO_PROVGRAPH_ENDPOINT,
     RELEASE_PATH,
     strict_env,
@@ -56,7 +54,7 @@ def s3loader(
 
     f = io.BytesIO()
     length = f.write(data)
-    f.seek(0)
+    f.seek(0)  # Reset the stream position to the beginning for reading
     client.put_object(
         GLEANER_MINIO_BUCKET,
         path,
@@ -67,33 +65,29 @@ def s3loader(
     get_dagster_logger().info(f"Uploaded '{path.split('/')[-1]}'")
 
 
-def s3_log_loader(data: Any, name: str):
-    date_string = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-    filename = name + f"_{date_string}.log"
-    s3loader(data, path=f"scheduler/logs/{filename}")
-
-
 def _create_service(
     client: docker.DockerClient,
     container_context: DockerContainerContext,
     image: str,
     command: Optional[Sequence[str]],
     name="",
-    workingdir="/",
 ):
     """Given a client and image metadata, create a docker service and the associated container"""
 
     env_vars = dict([parse_env_var(env_var) for env_var in container_context.env_vars])
+
     gleanerconfig = client.configs.list(filters={"name": ["gleaner"]})
     nabuconfig = client.configs.list(filters={"name": ["nabu"]})
-    get_dagster_logger().info(f"create docker service for {name}")
+    get_dagster_logger().info(f"creating docker service for {name}")
 
     gleaner = ConfigReference(
-        gleanerconfig[0].id,
-        "gleaner",
-        GLEANERIO_GLEANER_CONFIG_PATH,
+        config_id=gleanerconfig[0].id,
+        config_name="gleaner",
+        filename="gleanerconfig.yaml",
     )
-    nabu = ConfigReference(nabuconfig[0].id, "nabu", GLEANERIO_NABU_CONFIG_PATH)
+    nabu = ConfigReference(
+        config_id=nabuconfig[0].id, config_name="nabu", filename="nabuconfig.yaml"
+    )
 
     service = client.services.create(
         image,
@@ -105,7 +99,6 @@ def _create_service(
         else None,
         restart_policy=RestartPolicy(condition="none"),
         mode=ServiceMode("replicated-job", concurrency=1, replicas=1),
-        workdir=workingdir,
         configs=[gleaner, nabu],
     )
 
@@ -142,7 +135,6 @@ def run_scheduler_docker_image(
 ) -> int:
     """Run a docker image inside the context of dagster"""
     container_name = f"sch_{source}_{action_name}"
-    WorkingDir = "/nabu/" if "nabu" in image_name else "/gleaner/"
 
     get_dagster_logger().info(f"Datagraph value: {GLEANERIO_DATAGRAPH_ENDPOINT}")
     get_dagster_logger().info(f"PROVgraph value: {GLEANERIO_PROVGRAPH_ENDPOINT}")
@@ -162,7 +154,7 @@ def run_scheduler_docker_image(
         op_container_context = DockerContainerContext(
             networks=[GLEANER_HEADLESS_NETWORK],
             container_kwargs={
-                "working_dir": WorkingDir,
+                "working_dir": "/opt/dagster/app",
             },
         )
         container_context = run_container_context.merge(op_container_context)
@@ -176,7 +168,6 @@ def run_scheduler_docker_image(
             image=image_name,
             command=args,
             name=container_name,
-            workingdir=WorkingDir,
         )
 
         try:
@@ -197,8 +188,11 @@ def run_scheduler_docker_image(
         logs = container.logs(
             stdout=True, stderr=True, stream=False, follow=False
         ).decode("latin-1")
-        # Send the logs, then check the exit status to throw the error if needed
-        s3_log_loader(str(logs).encode(), container_name)
+
+        s3loader(
+            data=str(logs).encode(),
+            path=f"scheduler/logs/{container_name}_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.log"
+        )
 
         get_dagster_logger().info("Sent container Logs to s3: ")
 
@@ -231,11 +225,13 @@ def _pythonMinioAddress(url, port=None) -> str:
 
 def s3reader(object_to_get):
     server = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
-    get_dagster_logger().info(f"S3 URL    : {GLEANER_MINIO_ADDRESS}")
-    get_dagster_logger().info(f"S3 PYTHON SERVER : {server}")
-    get_dagster_logger().info(f"S3 PORT   : {GLEANER_MINIO_PORT}")
-    get_dagster_logger().info(f"S3 BUCKET : {GLEANER_MINIO_BUCKET}")
-    get_dagster_logger().debug(f"S3 object : {str(object_to_get)}")
+    logger = get_dagster_logger()
+
+    logger.info(f"S3 URL    : {GLEANER_MINIO_ADDRESS}")
+    logger.info(f"S3 PYTHON SERVER : {server}")
+    logger.info(f"S3 PORT   : {GLEANER_MINIO_PORT}")
+    logger.info(f"S3 BUCKET : {GLEANER_MINIO_BUCKET}")
+    logger.debug(f"S3 object : {str(object_to_get)}")
 
     client = Minio(
         server,
@@ -243,33 +239,15 @@ def s3reader(object_to_get):
         access_key=GLEANER_MINIO_ACCESS_KEY,
         secret_key=GLEANER_MINIO_SECRET_KEY,
     )
+
     try:
-        return client.get_object(GLEANER_MINIO_BUCKET, object_to_get)
-    except S3Error as err:
-        get_dagster_logger().error(f"S3 read error : {err}")
-        raise err
-
-
-def post_to_graph(source, path=RELEASE_PATH, extension="nq", url=_graphEndpoint()):
-    proto = "https" if GLEANER_MINIO_USE_SSL else "http"
-    address = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
-    release_url = f"{proto}://{address}/{GLEANER_MINIO_BUCKET}/{path}/{source}_release.{extension}"
-
-    get_dagster_logger().info(f'graph: insert "{source}" to {url} ')
-    loadfrom = {"update": f"LOAD <{release_url}>"}
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    r = requests.post(url, headers=headers, data=loadfrom)
-    get_dagster_logger().info(f"graph: LOAD from {release_url}: status:{r.status_code}")
-    if r.status_code == 200:
-        get_dagster_logger().info(f"graph load response: {str(r.text)} ")
-        # '<?xml version="1.0"?><data modified="0" milliseconds="7"/>'
-        if "mutationCount=0" in r.text:
-            get_dagster_logger().info("graph: no data inserted")
-    else:
-        get_dagster_logger().info(f"graph: error {str(r.text)}")
-        raise Exception(
-            f" graph: failed, LOAD from {release_url}: status:{r.status_code}"
-        )
+        response = client.get_object(GLEANER_MINIO_BUCKET, object_to_get)
+        # Read the data from the response
+        data = response.read()
+        return data
+    finally:
+        response.close()  # type: ignore
+        response.release_conn()  # type: ignore
 
 
 def slack_error_fn(context: RunFailureSensorContext) -> str:
