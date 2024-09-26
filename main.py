@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import typer
 import sys
 
+
 def strict_env(env_var: str) -> str:
     val = os.environ.get(env_var)
     if val is None:
@@ -16,6 +17,7 @@ def strict_env(env_var: str) -> str:
 
 
 CommandResult = namedtuple("CommandResult", ["stdout", "stderr", "returncode"])
+
 
 def run_command(command: str, print_output: bool = True) -> CommandResult:
     """Given a command string, run it and display the results in the console in realtime"""

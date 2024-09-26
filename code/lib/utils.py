@@ -10,7 +10,6 @@ import docker
 import docker.errors
 from jinja2 import Environment, FileSystemLoader
 from minio import Minio
-import requests
 from .env import (
     GLEANER_GRAPH_NAMESPACE,
     GLEANER_GRAPH_URL,
@@ -23,7 +22,6 @@ from .env import (
     GLEANER_MINIO_USE_SSL,
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_PROVGRAPH_ENDPOINT,
-    RELEASE_PATH,
     strict_env,
 )
 from docker.types.services import ConfigReference
@@ -191,7 +189,7 @@ def run_scheduler_docker_image(
 
         s3loader(
             data=str(logs).encode(),
-            path=f"scheduler/logs/{container_name}_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.log"
+            path=f"scheduler/logs/{container_name}_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.log",
         )
 
         get_dagster_logger().info("Sent container Logs to s3: ")

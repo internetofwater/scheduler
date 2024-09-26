@@ -90,7 +90,6 @@ event_log_storage:
         env: DAGSTER_POSTGRES_DB
       port: 5432
 
-
 local_artifact_storage:
   module: dagster.core.storage.root
   class: LocalArtifactStorage

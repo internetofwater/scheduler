@@ -36,6 +36,7 @@ from lib.env import (
     GLEANERIO_PROVGRAPH_ENDPOINT,
     strict_env,
 )
+
 sources_partitions_def = DynamicPartitionsDefinition(name="sources_partitions_def")
 
 
@@ -48,6 +49,7 @@ def nabu_config():
     encoded_as_bytes = yaml.safe_dump(conf).encode()
     # put configs in s3 for introspection and persistence if we need to run gleaner locally
     s3loader(encoded_as_bytes, "/configs/nabuconfig.yaml")
+
 
 @asset
 def gleaner_config(context: AssetExecutionContext):
@@ -93,16 +95,17 @@ def gleaner_config(context: AssetExecutionContext):
         }
         names.add(name)
         sources.append(data)
-    
+
     # Each source is a partition that can be crawled independently
-    context.instance.add_dynamic_partitions(partitions_def_name= "sources_partitions_def", partition_keys=list(names))
+    context.instance.add_dynamic_partitions(
+        partitions_def_name="sources_partitions_def", partition_keys=list(names)
+    )
 
     templated_base["sources"] = sources
 
     # put configs in s3 for introspection and persistence if we need to run gleaner locally
     encoded_as_bytes = yaml.dump(templated_base).encode()
     s3loader(encoded_as_bytes, "/configs/gleanerconfig.yaml")
-
 
 
 @asset(deps=[gleaner_config, nabu_config])
@@ -113,10 +116,10 @@ def docker_client_environment():
     client.images.pull(GLEANERIO_GLEANER_IMAGE)
     client.images.pull(GLEANERIO_NABU_IMAGE)
     # we create configs as docker config objects so
-    # we can more easily reuse them and not need to worry about 
+    # we can more easily reuse them and not need to worry about
     # navigating / mounting file systems for local config access
     api_client = docker.APIClient(version="1.43")
-    
+
     try:
         gleanerconfig = client.configs.list(filters={"name": ["gleaner"]})
         nabuconfig = client.configs.list(filters={"name": ["nabu"]})
@@ -125,7 +128,9 @@ def docker_client_environment():
         if nabuconfig:
             api_client.remove_config(nabuconfig[0].id)
     except IndexError as e:
-        get_dagster_logger().info(f"No configs found to remove during docker client environment creation: {e}")
+        get_dagster_logger().info(
+            f"No configs found to remove during docker client environment creation: {e}"
+        )
 
     client.configs.create(name="nabu", data=s3reader("configs/nabuconfig.yaml"))
     client.configs.create(name="gleaner", data=s3reader("configs/gleanerconfig.yaml"))
@@ -346,6 +351,7 @@ harvest_job = define_asset_job(
 def crawl_entire_graph_schedule():
     for partition_key in sources_partitions_def.get_partition_keys():
         yield RunRequest(partition_key=partition_key)
+
 
 # expose all the code needed for our dagster repo
 definitions = Definitions(
