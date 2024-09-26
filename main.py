@@ -1,18 +1,72 @@
+from collections import namedtuple
 import os
+import pty
 import shutil
+import subprocess
 from typing import Annotated
-from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-import requests
 import typer
-import yaml
 import sys
-from cli_lib.utils import (
-    remove_non_alphanumeric,
-    strict_env,
-    template_config,
-    run_command,
-)
+
+
+def strict_env(env_var: str) -> str:
+    val = os.environ.get(env_var)
+    if val is None:
+        raise RuntimeError(f"Missing required environment variable: {env_var}")
+    return val
+
+
+CommandResult = namedtuple("CommandResult", ["stdout", "stderr", "returncode"])
+
+
+def run_command(command: str, print_output: bool = True) -> CommandResult:
+    """Given a command string, run it and display the results in the console in realtime"""
+    master_fd, slave_fd = pty.openpty()
+
+    process = subprocess.Popen(
+        command,
+        shell=True,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        close_fds=True,
+        bufsize=1,
+        universal_newlines=True,
+    )
+
+    os.close(slave_fd)
+
+    stdout = []
+    stderr = []
+
+    def read_fd(fd, output_list, stream_name):
+        while True:
+            data = os.read(fd, 1024)
+            if not data:
+                break
+            output_list.append(data.decode())
+            if print_output:
+                print(f"[{stream_name}] {data.decode()}", end="")
+
+    stdout_fd = process.stdout.fileno() if process.stdout is not None else None
+    stderr_fd = process.stderr.fileno() if process.stderr is not None else None
+
+    while process.poll() is None:
+        read_fd(stdout_fd, stdout, "stdout")
+        read_fd(stderr_fd, stderr, "stderr")
+
+    # Read any remaining output after the process ends
+    read_fd(stdout_fd, stdout, "stdout")
+    read_fd(stderr_fd, stderr, "stderr")
+
+    # Close the file descriptors
+    if stdout_fd is not None:
+        os.close(stdout_fd)
+    if stderr_fd is not None:
+        os.close(stderr_fd)
+
+    return CommandResult("".join(stdout), "".join(stderr), process.returncode)
+
 
 app = typer.Typer()
 
@@ -26,7 +80,6 @@ def run_docker_stack():
     # Reset the swarm if it exists
     run_command("docker swarm leave --force || true", print_output=False)
     run_command("docker swarm init")
-    reload_docker_configs()
 
     # Create a network that we can attach to from the swarm
     run_command("docker network create --driver overlay --attachable dagster_network")
@@ -84,115 +137,6 @@ def run_docker_stack():
     )
 
 
-def reload_docker_configs():
-    """Reload the config files present in the docker swarm"""
-    config_paths = {
-        "gleaner": strict_env("GLEANERIO_GLEANER_CONFIG_PATH"),
-        "nabu": strict_env("GLEANERIO_NABU_CONFIG_PATH"),
-    }
-
-    for config in config_paths.values():
-        run_command(f"docker config rm {config}")
-
-    for config_name, config_path in config_paths.items():
-        config_list = run_command("docker config ls", print_output=False).stdout
-        if config_path in config_list:
-            print(f"{config_path} config exists")
-        else:
-            print(f"Creating config {config_name}")
-            if (
-                run_command(
-                    f'docker config create {config_name} "{config_path}"'
-                ).returncode
-                == 0
-            ):
-                print(f"Created config {config_name} {config_path}")
-            else:
-                print(f"ERROR: *** Failed to create {config_name} config.")
-                sys.exit(1)
-
-
-@app.command()
-def generate_gleaner_config(
-    sitemap_url: Annotated[str, typer.Option()] = "https://geoconnex.us/sitemap.xml",
-    base: Annotated[
-        str, typer.Option(help="nabu config to use as source")
-    ] = os.path.join(TEMPLATE_DIR, "gleanerconfig.yaml.j2"),
-    out_dir: Annotated[str, typer.Option(help="Directory for output")] = BUILD_DIR,
-    env: Annotated[str, typer.Option(help="File containing your env vars")] = ".env",
-):
-    """Generate the gleaner config from a remote sitemap"""
-
-    load_dotenv(env)
-
-    # Fill in the config with the common minio configuration
-    base_config = template_config(base, out_dir)
-
-    with open(base_config, "r") as base_file:
-        base_data = yaml.safe_load(base_file)
-
-    # Parse the sitemap index for the referenced sitemaps for a config file
-    r = requests.get(sitemap_url)
-    xml = r.text
-    sitemapTags = BeautifulSoup(xml, features="xml").find_all("sitemap")
-    Lines: list[str] = [sitemap.findNext("loc").text for sitemap in sitemapTags]
-
-    sources = []
-    names = set()
-    for line in Lines:
-        basename = sitemap_url.removesuffix(".xml")
-        name = (
-            line.removeprefix(basename)
-            .removesuffix(".xml")
-            .removeprefix("/")
-            .removesuffix("/")
-            .replace("/", "_")
-        )
-        name = remove_non_alphanumeric(name)
-        if name in names:
-            print(f"Warning! Skipping duplicate name {name}")
-            continue
-
-        data = {
-            "sourcetype": "sitemap",
-            "name": name,
-            "url": line.strip(),
-            "headless": "false",
-            "pid": "https://gleaner.io/genid/geoconnex",
-            "propername": name,
-            "domain": "https://geoconnex.us",
-            "active": "true",
-        }
-        names.add(name)
-        sources.append(data)
-
-    # Combine base data with the new sources
-    if isinstance(base_data, dict):
-        base_data["sources"] = sources
-    else:
-        base_data = {"sources": sources}
-
-    # Write the combined data to the output YAML file
-    with open(os.path.join(BUILD_DIR, "gleanerconfig.yaml"), "w") as outfile:
-        yaml.dump(base_data, outfile, default_flow_style=False)
-
-
-@app.command()
-def generate_nabu_config(
-    base: Annotated[
-        str, typer.Option(help="nabu config to use as source")
-    ] = os.path.join(TEMPLATE_DIR, "nabuconfig.yaml.j2"),
-    out_dir: Annotated[str, typer.Option(help="Directory for output")] = BUILD_DIR,
-    env: Annotated[str, typer.Option(help="File containing your env vars")] = ".env",
-):
-    """Generate the nabu config from the base template"""
-    load_dotenv(env)
-    assert os.environ.get("GLEANERIO_DATAGRAPH_ENDPOINT")
-    assert os.environ.get("GLEANERIO_GRAPH_URL")
-    assert os.environ.get("GLEANERIO_PROVGRAPH_ENDPOINT")
-    template_config(base, out_dir)
-
-
 @app.command()
 def down():
     """Stop the docker swarm stack"""
@@ -216,24 +160,7 @@ def up(
 
     load_dotenv(env)
     run_command("docker swarm leave --force || true", print_output=False)
-    clean()
-    generate_gleaner_config(env=env)
-    generate_nabu_config(env=env)
     run_docker_stack()
-
-
-@app.command()
-def clean():
-    """Delete the contents of the build directory"""
-    if os.path.exists(BUILD_DIR):
-        for name in os.listdir(BUILD_DIR):
-            if name != ".gitkeep" and name != "__init__.py":
-                os.remove(os.path.join(BUILD_DIR, name))
-    else:
-        print("Build directory does not exist")
-        os.mkdir(BUILD_DIR)
-
-    print("Removed contents of the build directory")
 
 
 @app.command()

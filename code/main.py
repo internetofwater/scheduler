@@ -1,7 +1,10 @@
 from datetime import datetime
+from bs4 import BeautifulSoup
 from dagster import (
+    AssetExecutionContext,
+    AssetSelection,
+    DynamicPartitionsDefinition,
     RunRequest,
-    StaticPartitionsDefinition,
     DefaultScheduleStatus,
     DefaultSensorStatus,
     Definitions,
@@ -9,60 +12,135 @@ from dagster import (
     asset,
     define_asset_job,
     get_dagster_logger,
+    load_assets_from_current_module,
     schedule,
 )
 import docker
 import dagster_slack
 import requests
 import yaml
-
-from lib.types import GleanerSource
 from lib.utils import (
+    remove_non_alphanumeric,
     run_scheduler_docker_image,
     s3loader,
+    s3reader,
     slack_error_fn,
+    template_config,
 )
 
 from lib.env import (
-    GLEANER_CONFIG_PATH,
     GLEANER_GRAPH_URL,
     GLEANERIO_DATAGRAPH_ENDPOINT,
-    GLEANERIO_GLEANER_CONFIG_PATH,
     GLEANERIO_GLEANER_IMAGE,
-    GLEANERIO_NABU_CONFIG_PATH,
     GLEANERIO_NABU_IMAGE,
     GLEANERIO_PROVGRAPH_ENDPOINT,
     strict_env,
 )
 
-
-def get_gleaner_config_sources() -> list[GleanerSource]:
-    """Given a config, return the jobs that will need to be run to perform a full geoconnex crawl"""
-    with open(GLEANER_CONFIG_PATH) as f:
-        config = yaml.safe_load(f)
-        all_sources = [site for site in config["sources"]]
-        assert len(all_sources) > 0
-        return all_sources
-
-
-names = [config["name"] for config in get_gleaner_config_sources()]
-sources_partitions_def = StaticPartitionsDefinition(names)
+sources_partitions_def = DynamicPartitionsDefinition(name="sources_partitions_def")
 
 
 @asset
-def pull_docker_images():
+def nabu_config():
+    """The nabuconfig.yaml used for nabu"""
+    get_dagster_logger().info("Creating nabu config")
+    templated_data = template_config("/opt/dagster/app/templates/nabuconfig.yaml.j2")
+    conf = yaml.safe_load(templated_data)
+    encoded_as_bytes = yaml.safe_dump(conf).encode()
+    # put configs in s3 for introspection and persistence if we need to run gleaner locally
+    s3loader(encoded_as_bytes, "/configs/nabuconfig.yaml")
+
+
+@asset
+def gleaner_config(context: AssetExecutionContext):
+    """The gleanerconfig.yaml used for gleaner"""
+    get_dagster_logger().info("Creating gleaner config")
+    input_file = "/opt/dagster/app/templates/gleanerconfig.yaml.j2"
+
+    # Fill in the config with the common minio configuration
+    templated_base = yaml.safe_load(template_config(input_file))
+
+    sitemap_url = "https://geoconnex.us/sitemap.xml"
+    # Parse the sitemap index for the referenced sitemaps for a config file
+    r = requests.get(sitemap_url)
+    xml = r.text
+    sitemapTags = BeautifulSoup(xml, features="xml").find_all("sitemap")
+    Lines: list[str] = [sitemap.findNext("loc").text for sitemap in sitemapTags]
+
+    sources = []
+    names = set()
+    for line in Lines:
+        basename = sitemap_url.removesuffix(".xml")
+        name = (
+            line.removeprefix(basename)
+            .removesuffix(".xml")
+            .removeprefix("/")
+            .removesuffix("/")
+            .replace("/", "_")
+        )
+        name = remove_non_alphanumeric(name)
+        if name in names:
+            print(f"Warning! Skipping duplicate name {name}")
+            continue
+
+        data = {
+            "sourcetype": "sitemap",
+            "name": name,
+            "url": line.strip(),
+            "headless": "false",
+            "pid": "https://gleaner.io/genid/geoconnex",
+            "propername": name,
+            "domain": "https://geoconnex.us",
+            "active": "true",
+        }
+        names.add(name)
+        sources.append(data)
+
+    # Each source is a partition that can be crawled independently
+    context.instance.add_dynamic_partitions(
+        partitions_def_name="sources_partitions_def", partition_keys=list(names)
+    )
+
+    templated_base["sources"] = sources
+
+    # put configs in s3 for introspection and persistence if we need to run gleaner locally
+    encoded_as_bytes = yaml.dump(templated_base).encode()
+    s3loader(encoded_as_bytes, "/configs/gleanerconfig.yaml")
+
+
+@asset(deps=[gleaner_config, nabu_config])
+def docker_client_environment():
     """Set up dagster by pulling both the gleaner and nabu images we will later use"""
     get_dagster_logger().info("Getting docker client and pulling images: ")
     client = docker.DockerClient(version="1.43")
     client.images.pull(GLEANERIO_GLEANER_IMAGE)
     client.images.pull(GLEANERIO_NABU_IMAGE)
+    # we create configs as docker config objects so
+    # we can more easily reuse them and not need to worry about
+    # navigating / mounting file systems for local config access
+    api_client = docker.APIClient(version="1.43")
+
+    try:
+        gleanerconfig = client.configs.list(filters={"name": ["gleaner"]})
+        nabuconfig = client.configs.list(filters={"name": ["nabu"]})
+        if gleanerconfig:
+            api_client.remove_config(gleanerconfig[0].id)
+        if nabuconfig:
+            api_client.remove_config(nabuconfig[0].id)
+    except IndexError as e:
+        get_dagster_logger().info(
+            f"No configs found to remove during docker client environment creation: {e}"
+        )
+
+    client.configs.create(name="nabu", data=s3reader("configs/nabuconfig.yaml"))
+    client.configs.create(name="gleaner", data=s3reader("configs/gleanerconfig.yaml"))
 
 
-@asset(partitions_def=sources_partitions_def, deps=[pull_docker_images])
+@asset(partitions_def=sources_partitions_def, deps=[docker_client_environment])
 def gleaner(context: OpExecutionContext):
     """Get the jsonld for each site in the gleaner config"""
     source = context.partition_key
-    ARGS = ["--cfg", GLEANERIO_GLEANER_CONFIG_PATH, "-source", source, "--rude"]
+    ARGS = ["--cfg", "gleanerconfig.yaml", "-source", source, "--rude"]
     returned_value = run_scheduler_docker_image(
         context, source, GLEANERIO_GLEANER_IMAGE, ARGS, "gleaner"
     )
@@ -76,7 +154,7 @@ def nabu_release(context: OpExecutionContext):
     ARGS = [
         "release",
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        "nabuconfig.yaml",
         "--prefix",
         "summoned/" + source,
     ]
@@ -92,7 +170,7 @@ def nabu_object(context: OpExecutionContext):
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        "nabuconfig.yaml",
         "object",
         f"/graphs/latest/{source}_release.nq",
         "--endpoint",
@@ -110,7 +188,7 @@ def nabu_prune(context: OpExecutionContext):
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        "nabuconfig.yaml",
         "prune",
         "--prefix",
         "summoned/" + source,
@@ -130,7 +208,7 @@ def nabu_prov_release(context):
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        "nabuconfig.yaml",
         "release",
         "--prefix",
         "prov/" + source,
@@ -147,7 +225,7 @@ def nabu_prov_clear(context: OpExecutionContext):
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        "nabuconfig.yaml",
         "clear",
         "--endpoint",
         GLEANERIO_PROVGRAPH_ENDPOINT,
@@ -164,7 +242,7 @@ def nabu_prov_object(context):
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        "nabuconfig.yaml",
         "object",
         f"/graphs/latest/{source}_prov.nq",
         "--endpoint",
@@ -183,7 +261,7 @@ def nabu_orgs_release(context: OpExecutionContext):
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        "nabuconfig.yaml",
         "release",
         "--prefix",
         "orgs",
@@ -202,7 +280,7 @@ def nabu_orgs(context: OpExecutionContext):
     source = context.partition_key
     ARGS = [
         "--cfg",
-        GLEANERIO_NABU_CONFIG_PATH,
+        "nabuconfig.yaml",
         "prefix",
         "--prefix",
         "orgs",
@@ -254,27 +332,13 @@ def export_graph_as_nquads():
     )
 
 
-all_assets = [
-    pull_docker_images,
-    gleaner,
-    nabu_object,
-    nabu_release,
-    nabu_prune,
-    nabu_prov_release,
-    nabu_prov_clear,
-    nabu_prov_object,
-    nabu_orgs_release,
-    nabu_orgs,
-    finished_individual_crawl,
-    export_graph_as_nquads,
-]
-
 THREE_MIN = 60 * 3
 
 harvest_job = define_asset_job(
     "harvest_source",
     description="harvest a source for the geoconnex graphdb",
-    selection=all_assets,
+    selection=AssetSelection.all(),
+    # special tag for dagster that limits max runtime (+ the tick interval)
     tags={"dagster/max_runtime": THREE_MIN},
 )
 
@@ -284,15 +348,15 @@ harvest_job = define_asset_job(
     job=harvest_job,
     default_status=DefaultScheduleStatus.STOPPED,
 )
-def geoconnex_schedule():
+def crawl_entire_graph_schedule():
     for partition_key in sources_partitions_def.get_partition_keys():
         yield RunRequest(partition_key=partition_key)
 
 
 # expose all the code needed for our dagster repo
 definitions = Definitions(
-    assets=all_assets,
-    schedules=[geoconnex_schedule],
+    assets=[*load_assets_from_current_module()],
+    schedules=[crawl_entire_graph_schedule],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(
             channel="#cgs-iow-bots",

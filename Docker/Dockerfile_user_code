@@ -9,20 +9,23 @@ RUN pip install \
     dagster-postgres \
     dagster-docker \
     dagster-slack \
-    # our utilities
-    earthcube-utilities \
-    minio \
     dagster \
-    pyyaml
+    # our utilities
+    minio \
+    jinja2 \
+    lxml \
+    pyyaml \
+    beautifulsoup4
 
 # configs and runtime code
 WORKDIR /opt/dagster/app
 COPY code /opt/dagster/app/code
-COPY build/gleanerconfig.yaml /opt/dagster/app/config/gleanerconfig.yaml
-COPY build/nabuconfig.yaml /opt/dagster/app/config/nabuconfig.yaml
+COPY templates /opt/dagster/app/templates
 
 # Run dagster gRPC server on port 4000
 EXPOSE 4000
+
+ENV DAGSTER_HOME=/opt/dagster/app
 
 # CMD allows this to be overridden from run launchers or executors that want
 # to run other commands against your repository

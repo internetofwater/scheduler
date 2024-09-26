@@ -49,25 +49,8 @@ def strict_get_tag(context: OpExecutionContext, key: str) -> str:
     return src
 
 
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 RELEASE_PATH = "graphs/latest"
 GLEANER_HEADLESS_NETWORK = "headless_gleanerio"
-GLEANER_CONFIG_PATH = "/opt/dagster/app/config/gleanerconfig.yaml"
-if not os.path.exists(GLEANER_CONFIG_PATH):
-    raise Exception(
-        f"Missing gleaner config file: Not located at {GLEANER_CONFIG_PATH}"
-    )
-GLEANERIO_GLEANER_CONFIG_PATH = GLEANER_CONFIG_PATH
-if not os.path.exists(GLEANERIO_GLEANER_CONFIG_PATH):
-    raise Exception(
-        f"Missing gleaner config file: Not located at {GLEANERIO_GLEANER_CONFIG_PATH}"
-    )
-GLEANERIO_NABU_CONFIG_PATH = "/opt/dagster/app/config/nabuconfig.yaml"
-if not os.path.exists(GLEANERIO_NABU_CONFIG_PATH):
-    raise Exception(
-        f"Missing nabu config file: Not located at {GLEANERIO_NABU_CONFIG_PATH}"
-    )
-
 GLEANER_MINIO_ADDRESS = strict_env("GLEANERIO_MINIO_ADDRESS")
 GLEANER_MINIO_PORT = strict_env("GLEANERIO_MINIO_PORT")
 GLEANER_MINIO_USE_SSL = strict_env("GLEANERIO_MINIO_USE_SSL") in [
