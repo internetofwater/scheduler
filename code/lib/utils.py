@@ -75,7 +75,8 @@ def create_service(
 
         containers: list[docker.models.containers.Container] = client.containers.list(
             # unclear why all=True is needed here
-            all=True, filters={"label": f"com.docker.swarm.service.name={name}"}
+            all=True,
+            filters={"label": f"com.docker.swarm.service.name={name}"},
         )
         # Only spawn one container; once it is spawned we are done
         if len(containers) > 0:
@@ -173,6 +174,7 @@ def run_scheduler_docker_image(
         if service:
             service.remove()
             get_dagster_logger().info(f"Removed Service: {service.name}")
+
 
 def slack_error_fn(context: RunFailureSensorContext) -> str:
     get_dagster_logger().info("Sending notification to slack")

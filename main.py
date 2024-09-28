@@ -14,7 +14,9 @@ def strict_env(env_var: str) -> str:
         raise RuntimeError(f"Missing required environment variable: {env_var}")
     return os.environ[env_var]
 
+
 CommandResult = namedtuple("CommandResult", ["stdout", "stderr", "returncode"])
+
 
 def run_command(command: str, print_output: bool = True) -> CommandResult:
     """Given a command string, run it and display the results in the console in realtime"""
