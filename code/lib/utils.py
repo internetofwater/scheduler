@@ -1,25 +1,20 @@
 from datetime import datetime
-import io
 import os
 import re
 import time
-from typing import Any, List, Optional, Sequence
+from typing import List, Optional, Sequence
 from dagster import OpExecutionContext, RunFailureSensorContext, get_dagster_logger
 from dagster_docker import DockerRunLauncher
 import docker
 import docker.errors
+import docker.models
+import docker.models.containers
+import docker.models.services
 from jinja2 import Environment, FileSystemLoader
-from minio import Minio
+
+from .classes import S3
 from .env import (
-    GLEANER_GRAPH_NAMESPACE,
-    GLEANER_GRAPH_URL,
     GLEANER_HEADLESS_NETWORK,
-    GLEANER_MINIO_ACCESS_KEY,
-    GLEANER_MINIO_ADDRESS,
-    GLEANER_MINIO_BUCKET,
-    GLEANER_MINIO_PORT,
-    GLEANER_MINIO_SECRET_KEY,
-    GLEANER_MINIO_USE_SSL,
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_PROVGRAPH_ENDPOINT,
     strict_env,
@@ -35,41 +30,13 @@ def remove_non_alphanumeric(string):
     return re.sub(r"[^a-zA-Z0-9_]+", "", string)
 
 
-def s3loader(
-    data: Any,
-    # path relative from the root bucket. i.e. 'foo/bar/baz.txt' -> gleanerbucket/foo/bar/baz.txt
-    path: str,
-):
-    """Load arbitrary data into the s3 bucket"""
-    endpoint = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
-
-    client = Minio(
-        endpoint,
-        secure=GLEANER_MINIO_USE_SSL,
-        access_key=GLEANER_MINIO_ACCESS_KEY,
-        secret_key=GLEANER_MINIO_SECRET_KEY,
-    )
-
-    f = io.BytesIO()
-    length = f.write(data)
-    f.seek(0)  # Reset the stream position to the beginning for reading
-    client.put_object(
-        GLEANER_MINIO_BUCKET,
-        path,
-        f,
-        length,
-        content_type="text/plain",
-    )
-    get_dagster_logger().info(f"Uploaded '{path.split('/')[-1]}'")
-
-
-def _create_service(
+def create_service(
     client: docker.DockerClient,
     container_context: DockerContainerContext,
     image: str,
     command: Optional[Sequence[str]],
     name="",
-):
+) -> tuple[docker.models.services.Service, docker.models.containers.Container]:
     """Given a client and image metadata, create a docker service and the associated container"""
 
     env_vars = dict([parse_env_var(env_var) for env_var in container_context.env_vars])
@@ -87,25 +54,27 @@ def _create_service(
         config_id=nabuconfig[0].id, config_name="nabu", filename="nabuconfig.yaml"
     )
 
-    service = client.services.create(
+    service: docker.models.services.Service = client.services.create(
         image,
         args=command,
         env=env_vars,
         name=name,
-        networks=container_context.networks
-        if len(container_context.networks)
-        else None,
+        networks=(
+            container_context.networks if len(container_context.networks) else None
+        ),
         restart_policy=RestartPolicy(condition="none"),
         mode=ServiceMode("replicated-job", concurrency=1, replicas=1),
         configs=[gleaner, nabu],
     )
 
-    # If the docker container is not created within 10 seconds, raise an error
     ARBITRARY_SECONDS_TO_WAIT_UNTIL_FAILURE = 10
     for _ in range(0, ARBITRARY_SECONDS_TO_WAIT_UNTIL_FAILURE):
+        # We need to get the handle to the container to stream the logs,
+        # but if the container doesn't exist yet, it won't be in the list so we wait
         get_dagster_logger().debug(str(service.tasks()))
 
-        containers = client.containers.list(
+        containers: list[docker.models.containers.Container] = client.containers.list(
+            # unclear why all=True is needed here
             all=True, filters={"label": f"com.docker.swarm.service.name={name}"}
         )
         # Only spawn one container; once it is spawned we are done
@@ -124,12 +93,9 @@ def _create_service(
 def run_scheduler_docker_image(
     context: OpExecutionContext,
     source: str,  # which organization we are crawling
-    # the name of the docker image to pull and validate
-    image_name: str,
-    # the list of arguments to pass to the gleaner/nabu command
-    args: List[str],
-    # the name of the action to run inside gleaner/nabu
-    action_name: str,
+    image_name: str,  # the name of the docker image to pull and validate
+    args: List[str],  # the list of arguments to pass to the gleaner/nabu command
+    action_name: str,  # the name of the action to run inside gleaner/nabu
 ) -> int:
     """Run a docker image inside the context of dagster"""
     container_name = f"sch_{source}_{action_name}"
@@ -155,13 +121,14 @@ def run_scheduler_docker_image(
                 "working_dir": "/opt/dagster/app",
             },
         )
+        # We merge the two contexts to get the parent env vars in the child
         container_context = run_container_context.merge(op_container_context)
 
         get_dagster_logger().info(
             f"Spinning up {container_name=} with {image_name=}, and {args=}"
         )
-        service, container = _create_service(
-            docker.DockerClient(version="1.43"),
+        service, container = create_service(
+            docker.DockerClient(),
             container_context,
             image=image_name,
             command=args,
@@ -187,9 +154,10 @@ def run_scheduler_docker_image(
             stdout=True, stderr=True, stream=False, follow=False
         ).decode("latin-1")
 
-        s3loader(
+        s3_client = S3()
+        s3_client.load(
             data=str(logs).encode(),
-            path=f"scheduler/logs/{container_name}_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.log",
+            remote_path=f"scheduler/logs/{container_name}_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.log",
         )
 
         get_dagster_logger().info("Sent container Logs to s3: ")
@@ -204,49 +172,7 @@ def run_scheduler_docker_image(
     finally:
         if service:
             service.remove()
-            get_dagster_logger().info(f"Service Remove: {service.name}")
-
-    return 0
-
-
-def _graphEndpoint():
-    return f"{GLEANER_GRAPH_URL}/namespace/{GLEANER_GRAPH_NAMESPACE}/sparql"
-
-
-def _pythonMinioAddress(url, port=None) -> str:
-    """Construct a string for connecting to a minio S3 server"""
-    if not url:
-        raise RuntimeError("Tried to construct minio address with an empty URL")
-    get_dagster_logger().info(f"Sending to data to s3 at: {url=}{port=}")
-    return f"{url}:{port}" if port is not None else url
-
-
-def s3reader(object_to_get):
-    server = _pythonMinioAddress(GLEANER_MINIO_ADDRESS, GLEANER_MINIO_PORT)
-    logger = get_dagster_logger()
-
-    logger.info(f"S3 URL    : {GLEANER_MINIO_ADDRESS}")
-    logger.info(f"S3 PYTHON SERVER : {server}")
-    logger.info(f"S3 PORT   : {GLEANER_MINIO_PORT}")
-    logger.info(f"S3 BUCKET : {GLEANER_MINIO_BUCKET}")
-    logger.debug(f"S3 object : {str(object_to_get)}")
-
-    client = Minio(
-        server,
-        secure=GLEANER_MINIO_USE_SSL,
-        access_key=GLEANER_MINIO_ACCESS_KEY,
-        secret_key=GLEANER_MINIO_SECRET_KEY,
-    )
-
-    try:
-        response = client.get_object(GLEANER_MINIO_BUCKET, object_to_get)
-        # Read the data from the response
-        data = response.read()
-        return data
-    finally:
-        response.close()  # type: ignore
-        response.release_conn()  # type: ignore
-
+            get_dagster_logger().info(f"Removed Service: {service.name}")
 
 def slack_error_fn(context: RunFailureSensorContext) -> str:
     get_dagster_logger().info("Sending notification to slack")
@@ -255,23 +181,26 @@ def slack_error_fn(context: RunFailureSensorContext) -> str:
     return f"Error: {context.failure_event.message}"
 
 
-def template_config(input_template_file: str) -> str:
-    common_variables_for_templating = {
-        "GLEANERIO_MINIO_ADDRESS": strict_env("GLEANERIO_MINIO_ADDRESS"),
-        "MINIO_ACCESS_KEY": strict_env("MINIO_ACCESS_KEY"),
-        "MINIO_SECRET_KEY": strict_env("MINIO_SECRET_KEY"),
-        "GLEANERIO_MINIO_BUCKET": strict_env("GLEANERIO_MINIO_BUCKET"),
-        "GLEANERIO_MINIO_PORT": strict_env("GLEANERIO_MINIO_PORT"),
-        "GLEANERIO_MINIO_USE_SSL": strict_env("GLEANERIO_MINIO_USE_SSL"),
-        "GLEANERIO_DATAGRAPH_ENDPOINT": strict_env("GLEANERIO_DATAGRAPH_ENDPOINT"),
-        "GLEANERIO_GRAPH_URL": strict_env("GLEANERIO_GRAPH_URL"),
-        "GLEANERIO_PROVGRAPH_ENDPOINT": strict_env("GLEANERIO_PROVGRAPH_ENDPOINT"),
+def template_config(input_template_file_path: str) -> str:
+    vars_in_both_nabu_and_gleaner_configs = {
+        var: strict_env(var)
+        for var in [
+            "GLEANERIO_MINIO_ADDRESS",
+            "MINIO_ACCESS_KEY",
+            "MINIO_SECRET_KEY",
+            "GLEANERIO_MINIO_BUCKET",
+            "GLEANERIO_MINIO_PORT",
+            "GLEANERIO_MINIO_USE_SSL",
+            "GLEANERIO_DATAGRAPH_ENDPOINT",
+            "GLEANERIO_GRAPH_URL",
+            "GLEANERIO_PROVGRAPH_ENDPOINT",
+        ]
     }
 
-    env = Environment(loader=FileSystemLoader(os.path.dirname(input_template_file)))
-    template = env.get_template(os.path.basename(input_template_file))
+    env = Environment(
+        loader=FileSystemLoader(os.path.dirname(input_template_file_path))
+    )
+    template = env.get_template(os.path.basename(input_template_file_path))
 
     # Render the template with the context
-    rendered_content = template.render(**common_variables_for_templating)
-
-    return rendered_content
+    return template.render(**vars_in_both_nabu_and_gleaner_configs)

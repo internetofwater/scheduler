@@ -10,14 +10,11 @@ import sys
 
 
 def strict_env(env_var: str) -> str:
-    val = os.environ.get(env_var)
-    if val is None:
+    if env_var not in os.environ:
         raise RuntimeError(f"Missing required environment variable: {env_var}")
-    return val
-
+    return os.environ[env_var]
 
 CommandResult = namedtuple("CommandResult", ["stdout", "stderr", "returncode"])
-
 
 def run_command(command: str, print_output: bool = True) -> CommandResult:
     """Given a command string, run it and display the results in the console in realtime"""
@@ -159,7 +156,6 @@ def up(
             return
 
     load_dotenv(env)
-    run_command("docker swarm leave --force || true", print_output=False)
     run_docker_stack()
 
 

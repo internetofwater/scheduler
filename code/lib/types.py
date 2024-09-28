@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Literal, TypeAlias, TypedDict
 
 
@@ -16,14 +15,6 @@ cli_modes: TypeAlias = Literal[
     "orgs-release",
     "orgs",
 ]
-
-
-@dataclass
-class S3ObjectInfo:
-    """Metadata for uploading into S3"""
-
-    bucket_name: str
-    object_name: str
 
 
 class GleanerSource(TypedDict):
