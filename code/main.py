@@ -153,7 +153,6 @@ def gleaner(context: OpExecutionContext):
     )
     get_dagster_logger().info(f"Gleaner returned value: '{returned_value}'")
 
-
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
 def nabu_release(context: OpExecutionContext):
     """Construct an nq file from all of the jsonld produced by gleaner"""

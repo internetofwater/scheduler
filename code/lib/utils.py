@@ -180,7 +180,11 @@ def slack_error_fn(context: RunFailureSensorContext) -> str:
     get_dagster_logger().info("Sending notification to slack")
     # The make_slack_on_run_failure_sensor automatically sends the job
     # id and name so you can just send the error. We don't need other data in the string
-    return f"Error: {context.failure_event.message}"
+    source_being_crawled = context.partition_key
+    if source_being_crawled:
+        return f"Error for partition: {source_being_crawled}: {context.failure_event.message}"
+    else:
+        return f"Error: {context.failure_event.message}"
 
 
 def template_config(input_template_file_path: str) -> str:
