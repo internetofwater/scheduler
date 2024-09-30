@@ -1,4 +1,0 @@
-# These are the requirements for the main.py cli which spins up the docker stack
-typer
-requests
-python-dotenv
