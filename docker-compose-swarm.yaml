@@ -147,6 +147,7 @@ networks:
     external: true
 
 volumes:
+  # Used for persistence 
   minio_data:
   graphdb_data:
   dagster_postgres_data:
