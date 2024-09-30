@@ -1,12 +1,7 @@
 # How to use this repository
 
-1. `python3 -m venv .venv`
-2. `source .venv/bin/activate`
-3. `pip install -r requirements.txt`
-4. `python3 main.py up`
-5. Navigate to `localhost:3000` to view the dagster UI
-
-You can also quickstart the venv by running `./run.sh`
+- `python3 main.py up`
+- Navigate to `localhost:3000` to view the dagster UI
 
 Tear down the docker swarm stack with `python3 main.py down`
 
