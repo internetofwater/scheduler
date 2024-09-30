@@ -19,11 +19,10 @@ import docker
 import dagster_slack
 import requests
 import yaml
+from lib.classes import S3
 from lib.utils import (
     remove_non_alphanumeric,
     run_scheduler_docker_image,
-    s3loader,
-    s3reader,
     slack_error_fn,
     template_config,
 )
@@ -48,7 +47,11 @@ def nabu_config():
     conf = yaml.safe_load(templated_data)
     encoded_as_bytes = yaml.safe_dump(conf).encode()
     # put configs in s3 for introspection and persistence if we need to run gleaner locally
-    s3loader(encoded_as_bytes, "/configs/nabuconfig.yaml")
+    s3_client = S3()
+    s3_client.load(
+        encoded_as_bytes,
+        "/configs/nabuconfig.yaml",
+    )
 
 
 @asset
@@ -105,12 +108,13 @@ def gleaner_config(context: AssetExecutionContext):
 
     # put configs in s3 for introspection and persistence if we need to run gleaner locally
     encoded_as_bytes = yaml.dump(templated_base).encode()
-    s3loader(encoded_as_bytes, "/configs/gleanerconfig.yaml")
+    s3_client = S3()
+    s3_client.load(encoded_as_bytes, "/configs/gleanerconfig.yaml")
 
 
 @asset(deps=[gleaner_config, nabu_config])
 def docker_client_environment():
-    """Set up dagster by pulling both the gleaner and nabu images we will later use"""
+    """Set up dagster by pulling both the gleaner and nabu images and moving the config files into docker configs"""
     get_dagster_logger().info("Getting docker client and pulling images: ")
     client = docker.DockerClient(version="1.43")
     client.images.pull(GLEANERIO_GLEANER_IMAGE)
@@ -118,7 +122,7 @@ def docker_client_environment():
     # we create configs as docker config objects so
     # we can more easily reuse them and not need to worry about
     # navigating / mounting file systems for local config access
-    api_client = docker.APIClient(version="1.43")
+    api_client = docker.APIClient()
 
     try:
         gleanerconfig = client.configs.list(filters={"name": ["gleaner"]})
@@ -132,8 +136,11 @@ def docker_client_environment():
             f"No configs found to remove during docker client environment creation: {e}"
         )
 
-    client.configs.create(name="nabu", data=s3reader("configs/nabuconfig.yaml"))
-    client.configs.create(name="gleaner", data=s3reader("configs/gleanerconfig.yaml"))
+    s3_client = S3()
+    client.configs.create(name="nabu", data=s3_client.read("configs/nabuconfig.yaml"))
+    client.configs.create(
+        name="gleaner", data=s3_client.read("configs/gleanerconfig.yaml")
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[docker_client_environment])
@@ -158,10 +165,7 @@ def nabu_release(context: OpExecutionContext):
         "--prefix",
         "summoned/" + source,
     ]
-    returned_value = run_scheduler_docker_image(
-        context, source, GLEANERIO_NABU_IMAGE, ARGS, "release"
-    )
-    get_dagster_logger().info(f"nabu release returned value '{returned_value}'")
+    run_scheduler_docker_image(context, source, GLEANERIO_NABU_IMAGE, ARGS, "release")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_release])
@@ -176,10 +180,7 @@ def nabu_object(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    returned_value = run_scheduler_docker_image(
-        context, source, GLEANERIO_NABU_IMAGE, ARGS, "object"
-    )
-    get_dagster_logger().info(f"nabu release returned value '{returned_value}'")
+    run_scheduler_docker_image(context, source, GLEANERIO_NABU_IMAGE, ARGS, "object")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_object])
@@ -195,10 +196,7 @@ def nabu_prune(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    returned_value = run_scheduler_docker_image(
-        context, source, GLEANERIO_NABU_IMAGE, ARGS, "prune"
-    )
-    get_dagster_logger().info(f"nabu prune returned value '{returned_value}'")
+    run_scheduler_docker_image(context, source, GLEANERIO_NABU_IMAGE, ARGS, "prune")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
@@ -213,10 +211,9 @@ def nabu_prov_release(context):
         "--prefix",
         "prov/" + source,
     ]
-    returned_value = run_scheduler_docker_image(
+    run_scheduler_docker_image(
         context, source, GLEANERIO_NABU_IMAGE, ARGS, "prov-release"
     )
-    get_dagster_logger().info(f"nabu prov-release returned value '{returned_value}'")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_release])
@@ -230,10 +227,9 @@ def nabu_prov_clear(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
-    returned_value = run_scheduler_docker_image(
+    run_scheduler_docker_image(
         context, source, GLEANERIO_NABU_IMAGE, ARGS, "prov-clear"
     )
-    get_dagster_logger().info(f"nabu prov-clear returned value '{returned_value}'")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_clear])
@@ -248,10 +244,9 @@ def nabu_prov_object(context):
         "--endpoint",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
-    returned_value = run_scheduler_docker_image(
+    run_scheduler_docker_image(
         context, source, GLEANERIO_NABU_IMAGE, ARGS, "prov-object"
     )
-    get_dagster_logger().info(f"nabu prov-object returned value '{returned_value}'")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
@@ -268,10 +263,9 @@ def nabu_orgs_release(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    returned_value = run_scheduler_docker_image(
+    run_scheduler_docker_image(
         context, source, GLEANERIO_NABU_IMAGE, ARGS, "orgs-release"
     )
-    get_dagster_logger().info(f"nabu orgs-release returned value '{returned_value}'")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_orgs_release])
@@ -287,10 +281,7 @@ def nabu_orgs(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    returned_value = run_scheduler_docker_image(
-        context, source, GLEANERIO_NABU_IMAGE, ARGS, "orgs"
-    )
-    get_dagster_logger().info(f"nabu orgs returned value '{returned_value}'")
+    run_scheduler_docker_image(context, source, GLEANERIO_NABU_IMAGE, ARGS, "orgs")
 
 
 @asset(
@@ -326,7 +317,8 @@ def export_graph_as_nquads():
         get_dagster_logger().error(f"Response: {response.text}")
         raise RuntimeError(f"Export failed, status code: {response.status_code}")
 
-    s3loader(
+    s3_client = S3()
+    s3_client.load(
         response.content,
         f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}",
     )
