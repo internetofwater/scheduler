@@ -50,7 +50,7 @@ def nabu_config():
     s3_client = S3()
     s3_client.load(
         encoded_as_bytes,
-        "/configs/nabuconfig.yaml",
+        "configs/nabuconfig.yaml",
     )
 
 
@@ -109,7 +109,7 @@ def gleaner_config(context: AssetExecutionContext):
     # put configs in s3 for introspection and persistence if we need to run gleaner locally
     encoded_as_bytes = yaml.dump(templated_base).encode()
     s3_client = S3()
-    s3_client.load(encoded_as_bytes, "/configs/gleanerconfig.yaml")
+    s3_client.load(encoded_as_bytes, "configs/gleanerconfig.yaml")
 
 
 @asset(deps=[gleaner_config, nabu_config])
