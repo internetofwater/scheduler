@@ -2,12 +2,13 @@
 
 ---
 minio:
-  address: {{ GLEANERIO_MINIO_ADDRESS}}
-  port: {{ GLEANERIO_MINIO_PORT}}
-  accessKey: {{ MINIO_ACCESS_KEY}}
-  secretKey: {{ MINIO_SECRET_KEY}}
-  ssl: {{ GLEANERIO_MINIO_USE_SSL}}
+  address: {{ GLEANERIO_MINIO_ADDRESS }}
+  port: {{ GLEANERIO_MINIO_PORT }}
+  accessKey: {{ MINIO_ACCESS_KEY }}
+  secretKey: {{ MINIO_SECRET_KEY }}
+  ssl: {{ GLEANERIO_MINIO_USE_SSL }}
   bucket: {{ GLEANERIO_MINIO_BUCKET }}
+  region: {{ GLEANERIO_MINIO_REGION }}
 gleaner:
   runid: {{ GLEANERIO_MINIO_BUCKET }} # this will be the bucket the output is placed in...
   summon: true # do we want to visit the web sites and pull down the files

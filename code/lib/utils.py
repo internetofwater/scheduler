@@ -200,6 +200,7 @@ def template_config(input_template_file_path: str) -> str:
             "GLEANERIO_DATAGRAPH_ENDPOINT",
             "GLEANERIO_GRAPH_URL",
             "GLEANERIO_PROVGRAPH_ENDPOINT",
+            "GLEANERIO_MINIO_REGION",
         ]
     }
 
