@@ -202,6 +202,9 @@ def template_config(input_template_file_path: str) -> str:
             "GLEANERIO_PROVGRAPH_ENDPOINT",
         ]
     }
+    vars_in_both_nabu_and_gleaner_configs.update({
+        "GLEANERIO_MINIO_REGION": os.environ.get("GLEANERIO_MINIO_REGION") or ""
+    })
 
     env = Environment(
         loader=FileSystemLoader(os.path.dirname(input_template_file_path))
