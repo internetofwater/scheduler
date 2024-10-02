@@ -176,7 +176,7 @@ def nabu_object(context: OpExecutionContext):
         "--cfg",
         "nabuconfig.yaml",
         "object",
-        f"/graphs/latest/{source}_release.nq",
+        f"graphs/latest/{source}_release.nq",
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
@@ -240,7 +240,7 @@ def nabu_prov_object(context):
         "--cfg",
         "nabuconfig.yaml",
         "object",
-        f"/graphs/latest/{source}_prov.nq",
+        f"graphs/latest/{source}_prov.nq",
         "--endpoint",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
