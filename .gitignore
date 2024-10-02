@@ -3,8 +3,12 @@ __pycache__/
 *.py[cod]
 secret/**
 venv/**
-.idea/**
+.idea/
 /dagster/.logs_queue/
 /dagster/.telemetry/
 /dagster/.telemetry/
 .env
+.venv/
+
+implnet_*.py
+build/

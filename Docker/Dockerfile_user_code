@@ -1,0 +1,37 @@
+FROM python:3.10-slim
+
+# Checkout and install dagster libraries needed to run the gRPC server
+# exposing your repository to dagster-webserver and dagster-daemon, and to load the DagsterInstance
+
+RUN pip install \
+    # baseline libraries
+    dagster \
+    dagster-postgres \
+    dagster-docker \
+    dagster-slack \
+    dagster \
+    # our utilities
+    minio \
+    jinja2 \
+    lxml \
+    pyyaml \
+    beautifulsoup4
+
+# configs and runtime code
+WORKDIR /opt/dagster/app
+COPY code /opt/dagster/app/code
+COPY templates /opt/dagster/app/templates
+
+# Run dagster gRPC server on port 4000
+EXPOSE 4000
+
+ENV DAGSTER_HOME=/opt/dagster/app
+
+# CMD allows this to be overridden from run launchers or executors that want
+# to run other commands against your repository
+
+# User code can be reloaded by using the code-server start command instead of api grpc
+# Everything else should be the same according to: https://github.com/dagster-io/dagster/discussions/14709
+# CMD [ "dagster", "api","grpc", "-h", "0.0.0.0", "-p", "4000", "--python-file", "/opt/dagster/app/code/main.py", "-d", "/opt/dagster/app/code"]
+
+CMD [ "dagster", "code-server","start", "-h", "0.0.0.0", "-p", "4000", "--python-file", "/opt/dagster/app/code/main.py", "-d", "/opt/dagster/app/code"]

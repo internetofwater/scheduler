@@ -1,0 +1,92 @@
+scheduler:
+  module: dagster.core.scheduler
+  class: DagsterDaemonScheduler
+
+run_queue:
+  max_concurrent_runs: 1
+
+run_monitoring:
+  enabled: true
+  # values below are the defaults, and don't need to be specified except to override them
+  # start_timeout_seconds: 180
+  # cancel_timeout_seconds: 180
+  # max_resume_run_attempts: 3 # experimental if above 0
+
+  # NOTE: Timeouts can be confusing given the fact that polling only occurs
+  # every one hundred twenty seconds by default for some reason; This can be
+  # changed in the future if we want shorter timeouts
+  # poll_interval_seconds: 120
+
+run_launcher:
+  module: dagster_docker
+  class: DockerRunLauncher
+  config:
+    env_vars:
+      - DAGSTER_POSTGRES_USER
+      - DAGSTER_POSTGRES_PASSWORD
+      - DAGSTER_POSTGRES_DB
+      - GLEANERIO_MINIO_ADDRESS
+      - GLEANERIO_MINIO_PORT
+      - GLEANERIO_MINIO_USE_SSL
+      - GLEANERIO_MINIO_BUCKET
+      - GLEANERIO_MINIO_REGION
+      - MINIO_ACCESS_KEY
+      - MINIO_SECRET_KEY
+      - GLEANERIO_HEADLESS_ENDPOINT
+      - GLEANERIO_HEADLESS_NETWORK
+      - GLEANERIO_GRAPH_URL
+      - GLEANERIO_GRAPH_NAMESPACE
+      - GLEANERIO_DATAGRAPH_ENDPOINT
+      - GLEANERIO_PROVGRAPH_ENDPOINT
+      - GLEANERIO_GLEANER_IMAGE
+      - GLEANERIO_NABU_IMAGE
+      - DAGSTER_SLACK_TOKEN
+      - DAGSTER_HOME
+
+    network: dagster_network
+    container_kwargs:
+      volumes: # Make docker client accessible to any launched containers as well
+        - /var/run/docker.sock:/var/run/docker.sock
+        - /tmp/io_manager_storage:/tmp/io_manager_storage
+
+run_storage:
+  module: dagster_postgres.run_storage
+  class: PostgresRunStorage
+  config:
+    postgres_db:
+      hostname: dagster_postgres
+      username:
+        env: DAGSTER_POSTGRES_USER
+      password:
+        env: DAGSTER_POSTGRES_PASSWORD
+      db_name:
+        env: DAGSTER_POSTGRES_DB
+      port: 5432
+
+schedule_storage:
+  module: dagster_postgres.schedule_storage
+  class: PostgresScheduleStorage
+  config:
+    postgres_db:
+      hostname: dagster_postgres
+      username:
+        env: DAGSTER_POSTGRES_USER
+      password:
+        env: DAGSTER_POSTGRES_PASSWORD
+      db_name:
+        env: DAGSTER_POSTGRES_DB
+      port: 5432
+
+event_log_storage:
+  module: dagster_postgres.event_log
+  class: PostgresEventLogStorage
+  config:
+    postgres_db:
+      hostname: dagster_postgres
+      username:
+        env: DAGSTER_POSTGRES_USER
+      password:
+        env: DAGSTER_POSTGRES_PASSWORD
+      db_name:
+        env: DAGSTER_POSTGRES_DB
+      port: 5432

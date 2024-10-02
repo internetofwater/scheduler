@@ -1,14 +1,12 @@
-# Scheduler
+# How to use this repository
 
+- `python3 main.py up`
+- Navigate to `localhost:3000` to view the dagster UI
 
-## About
+Tear down the docker swarm stack with `python3 main.py down`
 
-This repo is focused on the use of Dagster to build out code and Docker containers
-to run the Gleaner and Nabu packages for indexing websites with JSON-LD based
-structured data on the web.
+## Architecture
 
-
-Details of the approach can be found in the [github io](https://earthcube.github.io/scheduler/).
-
-
-
+- an .env file is sourced for all secrets and configuration for dagster
+- these configs and env vars are used inside the user code Docker container
+- containers are built and orchestrated with db resources inside a docker swarm

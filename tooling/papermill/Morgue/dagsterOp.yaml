@@ -1,7 +1,0 @@
-ops:
-  val_resources:
-    config:
-      dg: 
-       - "http://portete.invemar.org.co/chm/api/oih/platformgeo?format=json"
-      sgurl: 'https://raw.githubusercontent.com/iodepo/odis-arch/schema-dev-df/code/notebooks/validation/shapes/oih_search.ttl'
-

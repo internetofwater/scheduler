@@ -1,0 +1,7 @@
+# This file specifies how dagster should load user code
+load_from:
+  # Each entry here corresponds to a service in the docker-compose file that exposes user code.
+  - grpc_server:
+      host: dagster_user_code
+      port: 4000
+      location_name: "harvest.geoconnex.us"

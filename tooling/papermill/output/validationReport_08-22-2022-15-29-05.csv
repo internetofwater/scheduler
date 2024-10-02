@@ -1,3 +1,0 @@
-,path,constraint,severity,message,id,focus
-0,:isAccessibleForFree,shacl:MinCountConstraintComponent,shacl:Warning,It is recommended that a Dataset indicates accessibility for free or otherwise,_:n745851a3815b49c199c3c079de704919b2,<https://www.bco-dmo.org/dataset/472032>
-1,:sameAs,shacl:MinCountConstraintComponent,shacl:Warning,It is recommended that a Dataset includes a sameAs URL,_:n745851a3815b49c199c3c079de704919b3,<https://www.bco-dmo.org/dataset/472032>
