@@ -40,6 +40,7 @@ from lib.env import (
 
 sources_partitions_def = DynamicPartitionsDefinition(name="sources_partitions_def")
 
+
 @asset
 def nabu_config():
     """The nabuconfig.yaml used for nabu"""

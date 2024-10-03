@@ -3,7 +3,7 @@
 
 services:
   dagster_postgres:
-  # store the runtime dagster state
+    # store the runtime dagster state
     image: postgres:11
     container_name: dagster_postgres
     networks:

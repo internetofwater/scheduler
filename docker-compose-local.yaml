@@ -1,6 +1,6 @@
 # A compose file which spins up
 # local versions of services for scheduler
-# useful for local dev or 
+# useful for local dev or
 # less optimized deployment to a simplified cloud environment
 
 services:

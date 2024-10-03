@@ -29,6 +29,7 @@ from dagster._core.utils import parse_env_var
 def remove_non_alphanumeric(string):
     return re.sub(r"[^a-zA-Z0-9_]+", "", string)
 
+
 def create_service(
     client: docker.DockerClient,
     container_context: DockerContainerContext,

@@ -7,6 +7,7 @@ import argparse
 BUILD_DIR = os.path.join(os.path.dirname(__file__), "build")
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
+
 def run_subprocess(command: str):
     """Run a shell command and stream the output in realtime"""
     process = subprocess.Popen(
@@ -108,15 +109,19 @@ def up(local: bool):
         compose_files = "-c docker-compose-core.yaml"
 
     run_subprocess(
-            f"docker stack deploy {compose_files} geoconnex_crawler --detach=false"
-        )
+        f"docker stack deploy {compose_files} geoconnex_crawler --detach=false"
+    )
+
 
 def main():
     parser = argparse.ArgumentParser(description="Docker Swarm Stack Management")
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("down", help="Stop the docker swarm stack")
     subparsers.add_parser("local", help="Spin up the docker swarm stack with local s3")
-    subparsers.add_parser("prod", help="Spin up the docker swarm stack without local s3; requires remote s3 service in .env")
+    subparsers.add_parser(
+        "prod",
+        help="Spin up the docker swarm stack without local s3; requires remote s3 service in .env",
+    )
 
     args = parser.parse_args()
     if args.command == "down":
