@@ -1,0 +1,153 @@
+version: "3.7"
+
+# A full docker swarm configuration for running the geoconnex stack
+services:
+  dagster_postgres:
+    image: postgres:11
+    container_name: dagster_postgres
+    networks:
+      - dagster_network
+    env_file: ".env"
+    volumes:
+      - dagster_postgres_data:/var/lib/postgresql/data
+
+  dagster_user_code:
+    image: dagster_user_code_image
+    container_name: dagster_user_code
+    restart: always
+    environment:
+      DAGSTER_CURRENT_IMAGE: "dagster_user_code_image"
+    volumes:
+      - ./code:/opt/dagster/app/code
+    networks:
+      - dagster_network
+    env_file: ".env"
+
+  dagster_webserver:
+    image: dagster_webserver_image
+    entrypoint:
+      - dagster-webserver
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3000"
+      - -w
+      - workspace.yaml
+    container_name: dagster_webserver
+    ports:
+      - "3000:3000"
+    volumes: # Make docker client accessible so we can terminate containers from the webserver
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/io_manager_storage:/tmp/io_manager_storage
+    networks:
+      - dagster_network
+    depends_on:
+      - dagster_postgres
+      - dagster_user_code
+    env_file: ".env"
+
+  dagster_daemon:
+    image: dagster_daemon_image
+    entrypoint:
+      - dagster-daemon
+      - run
+    container_name: dagster_daemon
+    restart: on-failure
+    volumes: # Make docker client accessible so we can launch containers using host docker
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/io_manager_storage:/tmp/io_manager_storage
+    networks:
+      - dagster_network
+    depends_on:
+      - dagster_postgres
+      - dagster_user_code
+    env_file: ".env"
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - headless_gleanerio
+      - dagster_network
+    env_file: ".env"
+
+  createbuckets:
+    # Creates the buckets on minio for the harvester to move assets into
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+       sleep 10;
+       /usr/bin/mc alias set myminio http://minio:9000 minio_access_key minio_secret_key;
+      /usr/bin/mc mb myminio/gleanerbucket;
+      /usr/bin/mc anonymous set public myminio/gleanerbucket;
+      sleep infinity;
+       "
+    networks:
+      - dagster_network
+
+  createrepositories:
+    # Applies migrations aka "repositories" after the database is created
+    image: alpine/curl
+    depends_on:
+      - graphdb
+    # Apply the local config files into the graphdb. We sleep 5 since even after the service is up, the graphdb is not fully ready
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iow-config.ttl'; 
+      curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iowprov-config.ttl'; 
+      sleep infinity"
+    volumes:
+      - ./templates:/templates
+    networks:
+      - dagster_network
+
+  graphdb:
+    image: khaller/graphdb-free
+    container_name: graphdb
+    ports:
+      - 7200:7200
+    environment:
+      - JAVA_XMX=4g
+      - JAVA_XMS=2048m
+    volumes:
+      - graphdb_data:/opt/graphdb/data
+    networks:
+      - headless_gleanerio
+      - dagster_network
+
+  headless:
+    # image: chromedp/headless-shell:stable
+    # stable after 105 causes "devtool: CreateURL: Using unsafe HTTP verb GET to invoke /json/new. This action supports only PUT verb.",
+    # previous image: chromedp/headless-shell:105.0.5195.127 unclear if we can upgrade since neither seems to work
+    # seems like might need to pull this before if on macos since we cant specify platform in docker compose
+    #  docker run -it --platform linux/amd64 -p 9222:9222 --rm --entrypoint /bin/bash chromedp/headless-shell:latest
+    image: chromedp/headless-shell:latest
+    ports:
+      - 9222:9222
+    environment:
+      - SERVICE_PORTS=9222
+    networks:
+      - headless_gleanerio
+      - dagster_network
+
+networks:
+  dagster_network:
+    external: true
+  headless_gleanerio:
+    name: headless_gleanerio
+    external: true
+
+volumes:
+  # Used for persistence
+  minio_data:
+  graphdb_data:
+  dagster_postgres_data:
