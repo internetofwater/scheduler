@@ -42,7 +42,7 @@ def strict_env(key: str):
 
 
 def strict_get_tag(context: OpExecutionContext, key: str) -> str:
-    """Gets a tag and make sure it exists before running further jobs"""
+    """Gets a tag from a dagster runand ensures it exists before running further jobs"""
     src = context.run_tags[key]
     if src is None:
         raise Exception(f"Missing run tag {key}")
@@ -76,3 +76,4 @@ GLEANERIO_GLEANER_IMAGE = strict_env("GLEANERIO_GLEANER_IMAGE")
 GLEANERIO_NABU_IMAGE = strict_env("GLEANERIO_NABU_IMAGE")
 GLEANERIO_DATAGRAPH_ENDPOINT = strict_env("GLEANERIO_DATAGRAPH_ENDPOINT")
 GLEANERIO_PROVGRAPH_ENDPOINT = strict_env("GLEANERIO_PROVGRAPH_ENDPOINT")
+REMOTE_GLEANER_SITEMAP = strict_env("REMOTE_GLEANER_SITEMAP")

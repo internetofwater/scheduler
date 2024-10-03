@@ -26,9 +26,11 @@ from lib.utils import (
     slack_error_fn,
     template_config,
 )
+from urllib.parse import urlparse
 
 from lib.env import (
     GLEANER_GRAPH_URL,
+    REMOTE_GLEANER_SITEMAP,
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_GLEANER_IMAGE,
     GLEANERIO_NABU_IMAGE,
@@ -37,7 +39,6 @@ from lib.env import (
 )
 
 sources_partitions_def = DynamicPartitionsDefinition(name="sources_partitions_def")
-
 
 @asset
 def nabu_config():
@@ -63,9 +64,7 @@ def gleaner_config(context: AssetExecutionContext):
     # Fill in the config with the common minio configuration
     templated_base = yaml.safe_load(template_config(input_file))
 
-    sitemap_url = "https://geoconnex.us/sitemap.xml"
-    # Parse the sitemap index for the referenced sitemaps for a config file
-    r = requests.get(sitemap_url)
+    r = requests.get(REMOTE_GLEANER_SITEMAP)
     xml = r.text
     sitemapTags = BeautifulSoup(xml, features="xml").find_all("sitemap")
     Lines: list[str] = [sitemap.findNext("loc").text for sitemap in sitemapTags]
@@ -73,7 +72,7 @@ def gleaner_config(context: AssetExecutionContext):
     sources = []
     names = set()
     for line in Lines:
-        basename = sitemap_url.removesuffix(".xml")
+        basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
         name = (
             line.removeprefix(basename)
             .removesuffix(".xml")
@@ -86,6 +85,8 @@ def gleaner_config(context: AssetExecutionContext):
             print(f"Warning! Skipping duplicate name {name}")
             continue
 
+        parsed_url = urlparse(REMOTE_GLEANER_SITEMAP)
+        protocol, hostname = parsed_url.scheme, parsed_url.netloc
         data = {
             "sourcetype": "sitemap",
             "name": name,
@@ -93,7 +94,7 @@ def gleaner_config(context: AssetExecutionContext):
             "headless": "false",
             "pid": "https://gleaner.io/genid/geoconnex",
             "propername": name,
-            "domain": "https://geoconnex.us",
+            "domain": f"{protocol}://{hostname}",
             "active": "true",
         }
         names.add(name)

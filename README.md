@@ -1,6 +1,6 @@
 # How to use this repository
 
-- `python3 main.py up`
+- `python3 main.py local`
 - Navigate to `localhost:3000` to view the dagster UI
 
 Tear down the docker swarm stack with `python3 main.py down`
