@@ -42,6 +42,7 @@ run_launcher:
       - GLEANERIO_NABU_IMAGE
       - DAGSTER_SLACK_TOKEN
       - DAGSTER_HOME
+      - REMOTE_GLEANER_SITEMAP
 
     network: dagster_network
     container_kwargs:

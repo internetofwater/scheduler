@@ -97,12 +97,12 @@ def run_scheduler_docker_image(
     image_name: str,  # the name of the docker image to pull and validate
     args: List[str],  # the list of arguments to pass to the gleaner/nabu command
     action_name: str,  # the name of the action to run inside gleaner/nabu
-) -> int:
-    """Run a docker image inside the context of dagster"""
-    container_name = f"sch_{source}_{action_name}"
+):
+    """Run a docker image inside the dagster docker runtime"""
+    container_name = f"{source}_{action_name}"
 
     get_dagster_logger().info(f"Datagraph value: {GLEANERIO_DATAGRAPH_ENDPOINT}")
-    get_dagster_logger().info(f"PROVgraph value: {GLEANERIO_PROVGRAPH_ENDPOINT}")
+    get_dagster_logger().info(f"Provgraph value: {GLEANERIO_PROVGRAPH_ENDPOINT}")
 
     run_container_context = DockerContainerContext.create_for_run(
         context.dagster_run,
@@ -114,7 +114,7 @@ def run_scheduler_docker_image(
 
     # Create a service var at the beginning of the function so we can check against
     # it during cleanup to see if the service was created.
-    service = None
+    service: Optional[docker.models.services.Service] = None
     try:
         op_container_context = DockerContainerContext(
             networks=[GLEANER_HEADLESS_NETWORK],
@@ -164,11 +164,8 @@ def run_scheduler_docker_image(
         get_dagster_logger().info("Sent container Logs to s3: ")
 
         if exit_status != 0:
-            get_dagster_logger().error(
-                f"Gleaner/Nabu container returned exit code {exit_status}. See logs in S3"
-            )
             raise Exception(
-                f"Gleaner/Nabu container returned exit code {exit_status}. See logs in S3 "
+                f"{container_name} returned exit code '{exit_status}'. See logs in S3"
             )
     finally:
         if service:
@@ -177,7 +174,7 @@ def run_scheduler_docker_image(
 
 
 def slack_error_fn(context: RunFailureSensorContext) -> str:
-    get_dagster_logger().info("Sending notification to slack")
+    get_dagster_logger().info("Sending notification to Slack")
     # The make_slack_on_run_failure_sensor automatically sends the job
     # id and name so you can just send the error. We don't need other data in the string
     source_being_crawled = context.partition_key
@@ -188,6 +185,7 @@ def slack_error_fn(context: RunFailureSensorContext) -> str:
 
 
 def template_config(input_template_file_path: str) -> str:
+    """Fill in a template with shared env vars and return the templated data"""
     vars_in_both_nabu_and_gleaner_configs = {
         var: strict_env(var)
         for var in [

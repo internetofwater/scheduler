@@ -12,7 +12,7 @@ If the **job** for an asset generation fails, a slack notification will be sent.
 
 ## Running Dagster and the Geoconnex crawler
 
-The functionality of this repository is in rapid development. That being said, the general pattern is to generate the necessary Docker stack and configurations using the Python `main.py up` CLI at the root of this repo, run the docker swarm via the same CLI, and then open the Dagster UI at localhost:3000.
+The functionality of this repository is in rapid development. That being said, the general pattern is to generate the necessary Docker stack and configurations using the Python `main.py local` CLI at the root of this repo, run the docker swarm via the same CLI, and then open the Dagster UI at localhost:3000.
 
 > NOTE: You will need to install the proper Python dependencies from `requirements.txt` before running the CLI. Other dependencies for code that is run inside Dagster are handled by Docker.
 

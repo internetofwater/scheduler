@@ -9,6 +9,7 @@ TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
 
 def run_subprocess(command: str):
+    """Run a shell command and stream the output in realtime"""
     process = subprocess.Popen(
         command, shell=True, stdout=sys.stdout, stderr=sys.stderr
     )
@@ -21,10 +22,10 @@ def down():
     run_subprocess("docker swarm leave --force || true")
 
 
-def up(env: str = ".env"):
-    """Generate all config files and run the docker swarm stack"""
+def up(local: bool):
+    """Run the docker swarm stack"""
 
-    if not os.path.exists(env):
+    if not os.path.exists(".env"):
         print("Missing .env file. Do you want to copy .env.example to .env ? (y/n)")
         answer = input().lower()
         if answer == "y" or answer == "yes":
@@ -42,7 +43,7 @@ def up(env: str = ".env"):
         "docker network create --driver overlay --attachable dagster_network"
     )
 
-    # hard code this so we don't need to use dotenv to load it
+    # hard code this so we don't need to use dotenv to load just one env var
     # network_name = strict_env("GLEANERIO_HEADLESS_NETWORK")
     network_name = "headless_gleanerio"
 
@@ -101,8 +102,14 @@ def up(env: str = ".env"):
     run_subprocess(
         "docker build -t dagster_daemon_image -f ./Docker/Dockerfile_dagster ."
     )
+
+    if local:
+        compose_files = "-c docker-compose-core.yaml -c docker-compose-local.yaml"
+    else:
+        compose_files = "-c docker-compose-core.yaml"
+
     run_subprocess(
-        "docker stack deploy -c docker-compose-swarm.yaml geoconnex_crawler --detach=false"
+        f"docker stack deploy {compose_files} geoconnex_crawler --detach=false"
     )
 
 
@@ -110,19 +117,19 @@ def main():
     parser = argparse.ArgumentParser(description="Docker Swarm Stack Management")
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("down", help="Stop the docker swarm stack")
-
-    up_parser = subparsers.add_parser(
-        "up", help="Generate all config files and run the docker swarm stack"
-    )
-    up_parser.add_argument(
-        "--env", type=str, default=".env", help="File containing your env vars"
+    subparsers.add_parser("local", help="Spin up the docker swarm stack with local s3")
+    subparsers.add_parser(
+        "prod",
+        help="Spin up the docker swarm stack without local s3; requires remote s3 service in .env",
     )
 
     args = parser.parse_args()
     if args.command == "down":
         down()
-    elif args.command == "up":
-        up(args.env)
+    elif args.command == "local":
+        up(local=True)
+    elif args.command == "prod":
+        up(local=False)
     else:
         parser.print_help()
 
