@@ -91,7 +91,6 @@ def up(local: bool, debug: bool):
 
     # Needed for a docker issue on MacOS; sometimes this dir isn't present
     os.makedirs("/tmp/io_manager_storage", exist_ok=True)
-
     return_val = run_subprocess(
         f"docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code . --build-arg DAGSTER_DEBUG={"true" if debug else "false"}"
     )
@@ -110,11 +109,10 @@ def up(local: bool, debug: bool):
     if return_val != 0:
         sys.exit(1)
 
-    if local:
+    if local and not debug:
+        compose_files = "-c docker-compose-user-code.yaml -c docker-compose-local.yaml -c docker-compose-separated-dagster.yaml"
+    elif local and debug:
         compose_files = "-c docker-compose-user-code.yaml -c docker-compose-local.yaml"
-        if not debug:
-            compose_files += " -c docker-compose-separated-dagster.yaml"
-
     else:
         compose_files = (
             "-c docker-compose-user-code.yaml -c docker-compose-separated-dagster.yaml"
@@ -143,7 +141,6 @@ def main():
         "prod",
         help="Spin up the docker swarm stack without local s3; requires remote s3 service in .env",
     )
-
     args = parser.parse_args()
     if args.command == "down":
         down()

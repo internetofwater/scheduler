@@ -23,4 +23,6 @@ EXPOSE 5678
 ENV DAGSTER_HOME=/opt/dagster/app
 
 COPY Docker/entrypoint.sh /opt/dagster/app/entrypoint.sh
-ENTRYPOINT ["/opt/dagster/app/entrypoint.sh"]
+
+# This needs to be a CMD and not an ENTRYPOINT for some reason; it appears that docker swarm might pass implicit arguments and thus not work if it is an ENTRYPOINT
+CMD [ "/opt/dagster/app/entrypoint.sh" ]
