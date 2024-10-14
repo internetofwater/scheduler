@@ -10,7 +10,7 @@ services:
     container_name: dagster_postgres
     networks:
       - dagster_network
-    env_file: ".env"
+    env_file: "../.env"
     volumes:
       - dagster_postgres_data:/var/lib/postgresql/data
 
@@ -23,7 +23,7 @@ services:
       - -p
       - "3000"
       - -w
-      - workspace.yaml
+      - "workspace.yaml"
     container_name: dagster_webserver
     ports:
       - "3000:3000"
@@ -35,7 +35,7 @@ services:
     depends_on:
       - dagster_postgres
       - dagster_user_code
-    env_file: ".env"
+    env_file: "../.env"
 
   dagster_daemon:
     image: dagster_daemon_image
@@ -52,11 +52,13 @@ services:
     depends_on:
       - dagster_postgres
       - dagster_user_code
-    env_file: ".env"
+    env_file: "../.env"
 
 networks:
   dagster_network:
     external: true
+    driver: overlay
+    
 
 volumes:
   dagster_postgres_data:

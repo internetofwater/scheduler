@@ -11,10 +11,10 @@ services:
     environment:
       DAGSTER_CURRENT_IMAGE: "dagster_user_code_image"
     volumes:
-      - ./code:/opt/dagster/app/code
+      - ../code:/opt/dagster/app/code
     networks:
       - dagster_network
-    env_file: ".env"
+    env_file: "../.env"
     ports:
       - "5678:5678" # expose this for debugging
       - "5482:5482" # expose this for the dagster dev web server if ran via dagster dev
@@ -31,11 +31,9 @@ services:
     environment:
       - SERVICE_PORTS=9222
     networks:
-      - headless_gleanerio
       - dagster_network
 
 networks:
   dagster_network:
     external: true
-  headless_gleanerio:
-    external: true
+    driver: overlay

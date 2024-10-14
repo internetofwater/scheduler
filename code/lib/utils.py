@@ -117,7 +117,7 @@ def run_scheduler_docker_image(
     service: Optional[docker.models.services.Service] = None
     try:
         op_container_context = DockerContainerContext(
-            networks=[GLEANER_HEADLESS_NETWORK],
+            networks=[GLEANER_HEADLESS_NETWORK, "dagster_network"],
             container_kwargs={
                 "working_dir": "/opt/dagster/app",
             },

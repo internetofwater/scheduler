@@ -1,6 +1,7 @@
 from datetime import datetime
 from bs4 import BeautifulSoup
 from dagster import (
+    AssetCheckResult,
     AssetExecutionContext,
     AssetSelection,
     DynamicPartitionsDefinition,
@@ -10,6 +11,7 @@ from dagster import (
     Definitions,
     OpExecutionContext,
     asset,
+    asset_check,
     define_asset_job,
     get_dagster_logger,
     load_assets_from_current_module,
@@ -30,6 +32,7 @@ from urllib.parse import urlparse
 
 from lib.env import (
     GLEANER_GRAPH_URL,
+    GLEANER_HEADLESS_ENDPOINT,
     REMOTE_GLEANER_SITEMAP,
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_GLEANER_IMAGE,
@@ -142,6 +145,21 @@ def docker_client_environment():
     client.configs.create(name="nabu", data=s3_client.read("configs/nabuconfig.yaml"))
     client.configs.create(
         name="gleaner", data=s3_client.read("configs/gleanerconfig.yaml")
+    )
+
+
+@asset_check(asset=docker_client_environment)
+def can_contact_headless():
+    """Check that we can contact the headless server"""
+    TWO_SECONDS = 2
+    result = requests.get(GLEANER_HEADLESS_ENDPOINT, timeout=TWO_SECONDS)
+    return AssetCheckResult(
+        passed=result.status_code == 200,
+        metadata={
+            "status_code": result.status_code,
+            "text": result.text,
+            "endpoint": GLEANER_HEADLESS_ENDPOINT,
+        },
     )
 
 
@@ -351,6 +369,7 @@ def crawl_entire_graph_schedule():
 definitions = Definitions(
     assets=[*load_assets_from_current_module()],
     schedules=[crawl_entire_graph_schedule],
+    asset_checks=[can_contact_headless],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(
             channel="#cgs-iow-bots",
