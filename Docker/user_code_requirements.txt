@@ -1,0 +1,11 @@
+# Core dagster dependencies
+dagster
+dagster-postgres
+dagster-docker
+# Addon code dependencies
+dagster-slack
+minio
+jinja2
+lxml
+pyyaml
+beautifulsoup4

@@ -22,7 +22,7 @@ def down():
     run_subprocess("docker swarm leave --force || true")
 
 
-def up(local: bool):
+def up(local: bool, debug: bool):
     """Run the docker swarm stack"""
 
     if not os.path.exists(".env"):
@@ -92,21 +92,33 @@ def up(local: bool):
     # Needed for a docker issue on MacOS; sometimes this dir isn't present
     os.makedirs("/tmp/io_manager_storage", exist_ok=True)
 
-    # Build then deploy the docker swarm stack
-    run_subprocess(
-        "docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code ."
+    return_val = run_subprocess(
+        f"docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code . --build-arg DAGSTER_DEBUG={"true" if debug else "false"}"
     )
-    run_subprocess(
+    if return_val != 0:
+        sys.exit(1)
+
+    return_val = run_subprocess(
         "docker build -t dagster_webserver_image -f ./Docker/Dockerfile_dagster ."
     )
-    run_subprocess(
+    if return_val != 0:
+        sys.exit(1)
+
+    return_val = run_subprocess(
         "docker build -t dagster_daemon_image -f ./Docker/Dockerfile_dagster ."
     )
+    if return_val != 0:
+        sys.exit(1)
 
     if local:
-        compose_files = "-c docker-compose-core.yaml -c docker-compose-local.yaml"
+        compose_files = "-c docker-compose-user-code.yaml -c docker-compose-local.yaml"
+        if not debug:
+            compose_files += " -c docker-compose-separated-dagster.yaml"
+
     else:
-        compose_files = "-c docker-compose-core.yaml"
+        compose_files = (
+            "-c docker-compose-user-code.yaml -c docker-compose-separated-dagster.yaml"
+        )
 
     run_subprocess(
         f"docker stack deploy {compose_files} geoconnex_crawler --detach=false"
@@ -117,7 +129,16 @@ def main():
     parser = argparse.ArgumentParser(description="Docker Swarm Stack Management")
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("down", help="Stop the docker swarm stack")
-    subparsers.add_parser("local", help="Spin up the docker swarm stack with local s3")
+
+    local_parser = subparsers.add_parser(
+        "local", help="Spin up the docker swarm stack with local s3"
+    )
+    local_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enables a debugger for Dagster. Requires the vscode debugger to be running.",
+    )
+
     subparsers.add_parser(
         "prod",
         help="Spin up the docker swarm stack without local s3; requires remote s3 service in .env",
@@ -127,9 +148,9 @@ def main():
     if args.command == "down":
         down()
     elif args.command == "local":
-        up(local=True)
+        up(local=True, debug=args.debug)
     elif args.command == "prod":
-        up(local=False)
+        up(local=False, debug=False)
     else:
         parser.print_help()
 
