@@ -17,7 +17,8 @@
       ],
       "justMyCode": true,
       "subProcess": true,
-      "preLaunchTask": "Run Dagster in Debug Mode"
+      "preLaunchTask": "Run Dagster in Debug Mode",
+      "postDebugTask": "Stop Dagster"
     }
   ]
 }
