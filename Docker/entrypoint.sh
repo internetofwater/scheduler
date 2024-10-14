@@ -16,4 +16,3 @@ else
   echo "Starting dagster code server"
   exec dagster code-server start -h 0.0.0.0 -p 4000 --python-file /opt/dagster/app/code/main.py -d /opt/dagster/app/code
 fi
-
