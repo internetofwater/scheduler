@@ -40,5 +40,3 @@ networks:
   headless_gleanerio:
     name: headless_gleanerio
     external: true
-
-

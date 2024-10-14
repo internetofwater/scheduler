@@ -1,23 +1,23 @@
 {
-    "version": "0.2.0",
-    "configurations": [
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Dagster inside Docker Container",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
         {
-            "name": "Debug Dagster inside Docker Container",
-            "type": "debugpy",
-            "request": "attach",
-            "connect": {
-                "host": "localhost",
-                "port": 5678
-            },
-            "pathMappings": [
-                {
-                    "localRoot": "${workspaceFolder}/code",
-                    "remoteRoot": "/opt/dagster/app/code"
-                }
-            ],
-            "justMyCode": true,
-            "subProcess": true,
-            "preLaunchTask": "Run Dagster in Debug Mode"
+          "localRoot": "${workspaceFolder}/code",
+          "remoteRoot": "/opt/dagster/app/code"
         }
-    ]
+      ],
+      "justMyCode": true,
+      "subProcess": true,
+      "preLaunchTask": "Run Dagster in Debug Mode"
+    }
+  ]
 }

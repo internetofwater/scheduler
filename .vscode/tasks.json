@@ -1,23 +1,19 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "Run Dagster in Debug Mode",
-            "type": "shell",
-            "command": "python3",
-            "args": [
-                "main.py",
-                "local",
-                "--debug"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": [],
-            "runOptions": {
-                "runOn": "folderOpen"
-            }
-        }
-    ]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Dagster in Debug Mode",
+      "type": "shell",
+      "command": "python3",
+      "args": ["main.py", "local", "--debug"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    }
+  ]
 }

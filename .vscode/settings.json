@@ -1,11 +1,11 @@
 {
-    "[python]": {
-        "editor.formatOnSave": true,
-        "editor.codeActionsOnSave": {
-            "source.fixAll": "always"
-        },
-        "editor.defaultFormatter": "charliermarsh.ruff"
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "always"
     },
-    "python.analysis.typeCheckingMode": "standard",
-    "editor.formatOnType": true,
+    "editor.defaultFormatter": "charliermarsh.ruff"
+  },
+  "python.analysis.typeCheckingMode": "standard",
+  "editor.formatOnType": true
 }
