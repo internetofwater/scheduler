@@ -69,7 +69,6 @@ networks:
   dagster_network:
     external: true
   headless_gleanerio:
-    name: headless_gleanerio
     external: true
 
 # Used for persistence
