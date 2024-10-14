@@ -12,7 +12,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio_data:/data
+      - scheduler_minio_data:/data
     networks:
       - headless_gleanerio
       - dagster_network
@@ -74,5 +74,5 @@ networks:
 
 # Used for persistence
 volumes:
-  minio_data:
+  scheduler_minio_data:
   graphdb_data:
