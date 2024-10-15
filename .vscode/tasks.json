@@ -19,7 +19,7 @@
     {
       "label": "Open Browser",
       "type": "shell",
-      "command": "open",  // Replace with "start" for Windows or "xdg-open" for Linux
+      "command": "open", // Replace with "start" for Windows or "xdg-open" for Linux
       "args": ["http://localhost:5482"],
       "problemMatcher": []
     },

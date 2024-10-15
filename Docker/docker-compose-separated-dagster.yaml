@@ -58,7 +58,6 @@ networks:
   dagster_network:
     external: true
     driver: overlay
-    
 
 volumes:
   dagster_postgres_data:

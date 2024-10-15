@@ -69,7 +69,6 @@ networks:
     external: true
     driver: overlay
 
-
 # Used for persistence
 volumes:
   scheduler_minio_data:

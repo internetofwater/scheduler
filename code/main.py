@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 from typing import Tuple
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 from dagster import (
     AssetCheckResult,
