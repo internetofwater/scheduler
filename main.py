@@ -7,6 +7,11 @@ import argparse
 BUILD_DIR = os.path.join(os.path.dirname(__file__), "build")
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
+"""
+This file is the CLI for managing the docker swarm stack.
+You should not need to run any docker commands directly if you are using this CLI.
+"""
+
 
 def run_subprocess(command: str):
     """Run a shell command and stream the output in realtime"""
@@ -14,7 +19,8 @@ def run_subprocess(command: str):
         command, shell=True, stdout=sys.stdout, stderr=sys.stderr
     )
     process.communicate()
-    return process.returncode
+    if process.returncode != 0:
+        sys.exit(process.returncode)
 
 
 def down():
@@ -43,80 +49,25 @@ def up(local: bool, debug: bool):
         "docker network create --driver overlay --attachable dagster_network"
     )
 
-    # hard code this so we don't need to use dotenv to load just one env var
-    # network_name = strict_env("GLEANERIO_HEADLESS_NETWORK")
-    network_name = "headless_gleanerio"
-
-    network_list = subprocess.check_output("docker network ls", shell=True).decode(
-        "utf-8"
-    )
-    swarm_state = (
-        subprocess.check_output(
-            "docker info --format '{{.Swarm.LocalNodeState}}'", shell=True
-        )
-        .decode("utf-8")
-        .strip()
-    )
-
-    if network_name in network_list:
-        print(f"{network_name} network exists")
-        if swarm_state == "inactive":
-            print("Network is not swarm")
-        else:
-            print("Network is swarm")
-    else:
-        print("Creating network")
-        if swarm_state == "inactive":
-            if (
-                run_subprocess(
-                    f"docker network create -d bridge --attachable {network_name}"
-                )
-                == 0
-            ):
-                print(f"Created network {network_name}")
-            else:
-                print("ERROR: *** Failed to create local network.")
-                sys.exit(1)
-        else:
-            if (
-                run_subprocess(
-                    f"docker network create -d overlay --attachable {network_name}"
-                )
-                == 0
-            ):
-                print(f"Created network {network_name}")
-            else:
-                print("ERROR: *** Failed to create swarm network.")
-                sys.exit(1)
-
     # Needed for a docker issue on MacOS; sometimes this dir isn't present
     os.makedirs("/tmp/io_manager_storage", exist_ok=True)
-    return_val = run_subprocess(
+    run_subprocess(
         f"docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code . --build-arg DAGSTER_DEBUG={"true" if debug else "false"}"
     )
-    if return_val != 0:
-        sys.exit(1)
 
-    return_val = run_subprocess(
+    run_subprocess(
         "docker build -t dagster_webserver_image -f ./Docker/Dockerfile_dagster ."
     )
-    if return_val != 0:
-        sys.exit(1)
-
-    return_val = run_subprocess(
+    run_subprocess(
         "docker build -t dagster_daemon_image -f ./Docker/Dockerfile_dagster ."
     )
-    if return_val != 0:
-        sys.exit(1)
 
     if local and not debug:
-        compose_files = "-c docker-compose-user-code.yaml -c docker-compose-local.yaml -c docker-compose-separated-dagster.yaml"
+        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
     elif local and debug:
-        compose_files = "-c docker-compose-user-code.yaml -c docker-compose-local.yaml"
+        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml"
     else:
-        compose_files = (
-            "-c docker-compose-user-code.yaml -c docker-compose-separated-dagster.yaml"
-        )
+        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
 
     run_subprocess(
         f"docker stack deploy {compose_files} geoconnex_crawler --detach=false"
@@ -124,12 +75,19 @@ def up(local: bool, debug: bool):
 
 
 def main():
+    # make sure the user is in the same directory as this file
+    file_dir = os.path.dirname(os.path.abspath(__file__))
+    if file_dir != os.getcwd():
+        raise RuntimeError(
+            "Must run from same directory as the cli in order for paths to be correct"
+        )
+
     parser = argparse.ArgumentParser(description="Docker Swarm Stack Management")
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("down", help="Stop the docker swarm stack")
 
     local_parser = subparsers.add_parser(
-        "local", help="Spin up the docker swarm stack with local s3"
+        "local", help="Spin up the docker swarm stack with local s3 and graphdb"
     )
     local_parser.add_argument(
         "--debug",
@@ -139,7 +97,7 @@ def main():
 
     subparsers.add_parser(
         "prod",
-        help="Spin up the docker swarm stack without local s3; requires remote s3 service in .env",
+        help="Spin up the docker swarm stack with remote s3 and graphdb",
     )
     args = parser.parse_args()
     if args.command == "down":

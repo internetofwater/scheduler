@@ -4,8 +4,9 @@ dagster-postgres
 dagster-docker
 # Addon code dependencies
 dagster-slack
-minio
-jinja2
-lxml
-pyyaml
-beautifulsoup4
+minio 
+jinja2 # used for templating common variables into gleaner/nabu configs
+lxml # used for parsing sitemaps
+pyyaml # used for processing gleaner/nabu configs
+beautifulsoup4 # used for parsing sitemaps
+aiohttp 

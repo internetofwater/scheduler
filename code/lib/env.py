@@ -18,7 +18,7 @@ def assert_all_vars():
         "MINIO_SECRET_KEY",
         "MINIO_ACCESS_KEY",
         "GLEANERIO_MINIO_BUCKET",
-        "GLEANERIO_HEADLESS_ENDPOINT",
+        "GLEANER_HEADLESS_ENDPOINT",  # note this is named differently, confusingly so does not have the IO
         "GLEANERIO_GRAPH_URL",
         "GLEANERIO_GRAPH_NAMESPACE",
     ]
@@ -68,7 +68,7 @@ MINIO_OPTIONS = {
     "secret_key": GLEANER_MINIO_SECRET_KEY,
 }
 
-GLEANER_HEADLESS_ENDPOINT = strict_env("GLEANERIO_HEADLESS_ENDPOINT")
+GLEANER_HEADLESS_ENDPOINT = strict_env("GLEANER_HEADLESS_ENDPOINT")
 # using GLEANER, even though this is a nabu property... same prefix seems easier
 GLEANER_GRAPH_URL = strict_env("GLEANERIO_GRAPH_URL")
 GLEANER_GRAPH_NAMESPACE = strict_env("GLEANERIO_GRAPH_NAMESPACE")

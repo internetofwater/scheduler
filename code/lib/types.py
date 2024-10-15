@@ -31,3 +31,13 @@ class GleanerSource(TypedDict):
     propername: str
     sourcetype: str
     url: str
+
+
+class GleanerConfig(TypedDict):
+    """Represents the entire gleaner yaml config file"""
+
+    sources: list[GleanerSource]
+    context: dict
+    gleaner: dict
+    millers: dict
+    minio: dict

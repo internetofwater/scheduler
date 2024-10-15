@@ -14,15 +14,15 @@ services:
     volumes:
       - scheduler_minio_data:/data
     networks:
-      - headless_gleanerio
       - dagster_network
-    env_file: ".env"
+    env_file: "../.env"
 
   createbuckets:
     # Creates the buckets on minio for the harvester to move assets into
     image: minio/mc
     depends_on:
       - minio
+    # Use dummy creds since this is not to be used in production
     entrypoint: >
       /bin/sh -c "
        sleep 10;
@@ -47,7 +47,7 @@ services:
       curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iowprov-config.ttl'; 
       sleep infinity"
     volumes:
-      - ./templates:/templates
+      - ../templates:/templates
     networks:
       - dagster_network
 
@@ -62,14 +62,12 @@ services:
     volumes:
       - graphdb_data:/opt/graphdb/data
     networks:
-      - headless_gleanerio
       - dagster_network
 
 networks:
   dagster_network:
     external: true
-  headless_gleanerio:
-    external: true
+    driver: overlay
 
 # Used for persistence
 volumes:

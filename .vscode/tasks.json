@@ -13,7 +13,15 @@
       "problemMatcher": [],
       "runOptions": {
         "runOn": "folderOpen"
-      }
+      },
+      "dependsOn": "Open Browser"
+    },
+    {
+      "label": "Open Browser",
+      "type": "shell",
+      "command": "open", // Replace with "start" for Windows or "xdg-open" for Linux
+      "args": ["http://localhost:5482"],
+      "problemMatcher": []
     },
     {
       "label": "Stop Dagster",
@@ -24,7 +32,7 @@
         "kind": "build",
         "isDefault": true
       },
-      "problemMatcher": [],
+      "problemMatcher": []
     }
   ]
 }
