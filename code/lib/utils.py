@@ -11,10 +11,10 @@ import docker.models
 import docker.models.containers
 import docker.models.services
 from jinja2 import Environment, FileSystemLoader
+import jinja2
 
 from .classes import S3
 from .env import (
-    GLEANER_HEADLESS_NETWORK,
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_PROVGRAPH_ENDPOINT,
     strict_env,
@@ -117,7 +117,7 @@ def run_scheduler_docker_image(
     service: Optional[docker.models.services.Service] = None
     try:
         op_container_context = DockerContainerContext(
-            networks=[GLEANER_HEADLESS_NETWORK, "dagster_network"],
+            networks=["dagster_network"],
             container_kwargs={
                 "working_dir": "/opt/dagster/app",
             },
@@ -199,11 +199,13 @@ def template_config(input_template_file_path: str) -> str:
             "GLEANERIO_GRAPH_URL",
             "GLEANERIO_PROVGRAPH_ENDPOINT",
             "GLEANERIO_MINIO_REGION",
+            "GLEANER_HEADLESS_ENDPOINT",
         ]
     }
 
     env = Environment(
-        loader=FileSystemLoader(os.path.dirname(input_template_file_path))
+        loader=FileSystemLoader(os.path.dirname(input_template_file_path)),
+        undefined=jinja2.StrictUndefined,
     )
     template = env.get_template(os.path.basename(input_template_file_path))
 

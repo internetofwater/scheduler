@@ -1,4 +1,7 @@
+import asyncio
 from datetime import datetime
+from typing import Tuple
+from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
 from dagster import (
     AssetCheckResult,
@@ -14,6 +17,7 @@ from dagster import (
     asset_check,
     define_asset_job,
     get_dagster_logger,
+    load_asset_checks_from_current_module,
     load_assets_from_current_module,
     schedule,
 )
@@ -95,6 +99,8 @@ def gleaner_config(context: AssetExecutionContext):
             "sourcetype": "sitemap",
             "name": name,
             "url": line.strip(),
+            # Headless should be false by default since most sites don't use it.
+            # If gleaner cannot extract JSON-LD it will fallback to headless mode
             "headless": "false",
             "pid": "https://gleaner.io/genid/geoconnex",
             "propername": name,
@@ -115,6 +121,42 @@ def gleaner_config(context: AssetExecutionContext):
     encoded_as_bytes = yaml.dump(templated_base).encode()
     s3_client = S3()
     s3_client.load(encoded_as_bytes, "configs/gleanerconfig.yaml")
+
+
+@asset_check(asset=gleaner_config)
+def gleaner_links_are_valid():
+    """Check if all the links in the gleaner config are valid and validate all 'loc' tags in the XML at each UR"""
+    s3_client = S3()
+    config = s3_client.read("configs/gleanerconfig.yaml")
+    yaml_config = yaml.safe_load(config)
+
+    dead_links: list[dict[str, Tuple[int, str]]] = []
+
+    async def validate_url(url: str):
+        async with ClientSession() as session:
+            resp = await session.get(url)
+
+            if resp.status != 200:
+                content = await resp.text()
+                get_dagster_logger().error(
+                    f"URL {url} returned status code {resp.status} with content: {content}"
+                )
+                dead_links.append({url: (resp.status, content)})
+
+    async def main(urls):
+        tasks = [validate_url(url) for url in urls]
+        results = await asyncio.gather(*tasks)
+        return results
+
+    urls = [source["url"] for source in yaml_config["sources"]]
+    asyncio.run(main(urls))
+
+    return AssetCheckResult(
+        passed=len(dead_links) == 0,
+        metadata={
+            "failed_urls": list(dead_links),
+        },
+    )
 
 
 @asset(deps=[gleaner_config, nabu_config])
@@ -152,7 +194,10 @@ def docker_client_environment():
 def can_contact_headless():
     """Check that we can contact the headless server"""
     TWO_SECONDS = 2
-    result = requests.get(GLEANER_HEADLESS_ENDPOINT, timeout=TWO_SECONDS)
+    # the Host header needs to be set for Chromium due to an upstream security requirement
+    result = requests.get(
+        GLEANER_HEADLESS_ENDPOINT, timeout=TWO_SECONDS, headers={"Host": "localhost"}
+    )
     return AssetCheckResult(
         passed=result.status_code == 200,
         metadata={
@@ -367,9 +412,9 @@ def crawl_entire_graph_schedule():
 
 # expose all the code needed for our dagster repo
 definitions = Definitions(
-    assets=[*load_assets_from_current_module()],
+    assets=load_assets_from_current_module(),
     schedules=[crawl_entire_graph_schedule],
-    asset_checks=[can_contact_headless],
+    asset_checks=load_asset_checks_from_current_module(),
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(
             channel="#cgs-iow-bots",

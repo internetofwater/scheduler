@@ -49,39 +49,6 @@ def up(local: bool, debug: bool):
         "docker network create --driver overlay --attachable dagster_network"
     )
 
-    # hard code this so we don't need to use dotenv to load just one env var
-    # network_name = strict_env("GLEANERIO_HEADLESS_NETWORK")
-    network_name = "headless_gleanerio"
-
-    network_list = subprocess.check_output("docker network ls", shell=True).decode(
-        "utf-8"
-    )
-    swarm_state = (
-        subprocess.check_output(
-            "docker info --format '{{.Swarm.LocalNodeState}}'", shell=True
-        )
-        .decode("utf-8")
-        .strip()
-    )
-
-    if network_name in network_list:
-        print(f"{network_name} network exists")
-        if swarm_state == "inactive":
-            print("Network is not swarm")
-        else:
-            print("Network is swarm")
-    else:
-        print("Creating network")
-        if swarm_state == "inactive":
-            run_subprocess(
-                f"docker network create -d bridge --attachable {network_name}"
-            )
-
-        else:
-            run_subprocess(
-                f"docker network create -d overlay --attachable {network_name}"
-            )
-
     # Needed for a docker issue on MacOS; sometimes this dir isn't present
     os.makedirs("/tmp/io_manager_storage", exist_ok=True)
     run_subprocess(
