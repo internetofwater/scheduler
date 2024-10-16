@@ -52,7 +52,7 @@ def up(local: bool, debug: bool):
     # Needed for a docker issue on MacOS; sometimes this dir isn't present
     os.makedirs("/tmp/io_manager_storage", exist_ok=True)
     run_subprocess(
-        f"docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code . --build-arg DAGSTER_DEBUG={"true" if debug else "false"}"
+        f"docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code . --build-arg DAGSTER_DEBUG={'true' if debug else 'false'}"
     )
 
     run_subprocess(
