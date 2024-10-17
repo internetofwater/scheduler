@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+import json
 from typing import Tuple
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup
@@ -37,6 +38,9 @@ from urllib.parse import urlparse
 from lib.env import (
     GLEANER_GRAPH_URL,
     GLEANER_HEADLESS_ENDPOINT,
+    GLEANER_MINIO_ADDRESS,
+    GLEANER_MINIO_BUCKET,
+    GLEANER_MINIO_PORT,
     REMOTE_GLEANER_SITEMAP,
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_GLEANER_IMAGE,
@@ -132,7 +136,9 @@ def gleaner_links_are_valid():
 
     dead_links: list[dict[str, Tuple[int, str]]] = []
 
-    async def validate_url(url: str):
+    semaphore = asyncio.Semaphore(100)
+
+    async def validate_url(url: str, descend: bool):
         async with ClientSession() as session:
             resp = await session.get(url)
 
@@ -143,18 +149,43 @@ def gleaner_links_are_valid():
                 )
                 dead_links.append({url: (resp.status, content)})
 
+            if not descend:
+                return
+
+            xml = await resp.text()
+            soup = BeautifulSoup(xml, "xml")
+            del xml
+            loc_tags = soup.find_all("loc")
+            soup.decompose()
+            tasks = [
+                validate_url(
+                    tag.text,
+                    descend=False,
+                )
+                for tag in loc_tags
+            ]
+            asyncio.gather(*tasks)
+
     async def main(urls):
-        tasks = [validate_url(url) for url in urls]
-        results = await asyncio.gather(*tasks)
-        return results
+        async with semaphore:
+            tasks = [validate_url(url, descend=True) for url in urls]
+            results = await asyncio.gather(*tasks)
+            return results
 
     urls = [source["url"] for source in yaml_config["sources"]]
     asyncio.run(main(urls))
 
+    client = S3()
+    client.load(
+        json.dumps(dead_links).encode(),
+        "scheduler/dead_links.yaml",
+    )
+
     return AssetCheckResult(
         passed=len(dead_links) == 0,
         metadata={
-            "failed_urls": list(dead_links),
+            "num_failed_urls": len(dead_links),
+            "path_to_metadata": f"{GLEANER_MINIO_ADDRESS}/{GLEANER_MINIO_PORT}/{GLEANER_MINIO_BUCKET}/scheduler/dead_links.yaml",
         },
     )
 
