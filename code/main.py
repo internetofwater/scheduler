@@ -164,7 +164,7 @@ def gleaner_links_are_valid():
                 )
                 for tag in loc_tags
             ]
-            asyncio.gather(*tasks)
+            await asyncio.gather(*tasks)
 
     async def main(urls):
         async with semaphore:
