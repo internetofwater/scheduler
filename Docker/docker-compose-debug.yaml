@@ -1,5 +1,5 @@
 # If the user spins up the docker stack with the --debug
-# flag from main.py, additional ports should be 
+# flag from main.py, additional ports should be
 # exposed. We do not want to expose these by default
 # For security reasons. However, we need them for debugging
 
