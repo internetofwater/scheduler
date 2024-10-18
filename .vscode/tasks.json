@@ -10,6 +10,7 @@
         "kind": "build",
         "isDefault": true
       },
+      "isBackground": true,
       "problemMatcher": [],
       "runOptions": {
         "runOn": "folderOpen"
@@ -20,7 +21,7 @@
       "label": "Open Browser",
       "type": "shell",
       "command": "open", // Replace with "start" for Windows or "xdg-open" for Linux
-      "args": ["http://localhost:5482"],
+      "args": ["http://localhost:3000"],
       "problemMatcher": []
     },
     {

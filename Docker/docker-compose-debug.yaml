@@ -1,0 +1,10 @@
+# If the user spins up the docker stack with the --debug
+# flag from main.py, additional ports should be
+# exposed. We do not want to expose these by default
+# For security reasons. However, we need them for debugging
+
+services:
+  dagster_user_code:
+    ports:
+      - "${DAGSTER_DEBUGPY_PORT}" # expose the debugpy port only if it is set
+      - "${DAGSTER_DEBUG_UI}" # expose the UI port only if it is set
