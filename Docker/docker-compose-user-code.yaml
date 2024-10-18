@@ -15,9 +15,6 @@ services:
     networks:
       - dagster_network
     env_file: "../.env"
-    ports:
-      - "5678:5678" # expose this for debugging
-      - "5482:5482" # expose this for the dagster dev web server if ran via dagster dev
 
   headless:
     # image: chromedp/headless-shell:stable

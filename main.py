@@ -63,14 +63,16 @@ def up(local: bool, debug: bool):
     )
 
     if local and not debug:
-        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
+        compose_args = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
     elif local and debug:
-        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml"
+        os.environ["DAGSTER_DEBUG_UI"] = "3000:3000"
+        os.environ["DAGSTER_DEBUGPY_PORT"] = "5678:5678"
+        compose_args = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml -c ./Docker/docker-compose-debug.yaml"
     else:
-        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
+        compose_args = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
 
     run_subprocess(
-        f"docker stack deploy {compose_files} geoconnex_crawler --detach=false"
+        f"docker stack deploy {compose_args} geoconnex_crawler --detach=false"
     )
 
 
