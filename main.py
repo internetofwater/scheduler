@@ -74,6 +74,20 @@ def up(local: bool, debug: bool):
     )
 
 
+def refresh():
+    """Rebuild the user code for dagster, but not anything else"""
+
+    # Rebuild the user code Docker image
+    run_subprocess(
+        "docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code ."
+    )
+
+    # Update the running service with the new image
+    run_subprocess(
+        "docker service update --image dagster_user_code_image geoconnex_crawler_dagster_user_code"
+    )
+
+
 def main():
     # make sure the user is in the same directory as this file
     file_dir = os.path.dirname(os.path.abspath(__file__))
@@ -96,6 +110,11 @@ def main():
     )
 
     subparsers.add_parser(
+        "refresh",
+        help="Rebuild and reload the user code for dagster without touching other services",
+    )
+
+    subparsers.add_parser(
         "prod",
         help="Spin up the docker swarm stack with remote s3 and graphdb",
     )
@@ -106,6 +125,8 @@ def main():
         up(local=True, debug=args.debug)
     elif args.command == "prod":
         up(local=False, debug=False)
+    elif args.command == "refresh":
+        refresh()
     else:
         parser.print_help()
 
