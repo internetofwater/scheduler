@@ -63,14 +63,30 @@ def up(local: bool, debug: bool):
     )
 
     if local and not debug:
-        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
+        compose_args = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
     elif local and debug:
-        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml"
+        os.environ["DAGSTER_DEBUG_UI"] = "3000:3000"
+        os.environ["DAGSTER_DEBUGPY_PORT"] = "5678:5678"
+        compose_args = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml -c ./Docker/docker-compose-debug.yaml"
     else:
-        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
+        compose_args = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
 
     run_subprocess(
-        f"docker stack deploy {compose_files} geoconnex_crawler --detach=false"
+        f"docker stack deploy {compose_args} geoconnex_crawler --detach=false"
+    )
+
+
+def refresh():
+    """Rebuild the user code for dagster, but not anything else"""
+
+    # Rebuild the user code Docker image
+    run_subprocess(
+        "docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code ."
+    )
+
+    # Update the running service with the new image
+    run_subprocess(
+        "docker service update --image dagster_user_code_image geoconnex_crawler_dagster_user_code"
     )
 
 
@@ -96,6 +112,11 @@ def main():
     )
 
     subparsers.add_parser(
+        "refresh",
+        help="Rebuild and reload the user code for dagster without touching other services",
+    )
+
+    subparsers.add_parser(
         "prod",
         help="Spin up the docker swarm stack with remote s3 and graphdb",
     )
@@ -106,6 +127,8 @@ def main():
         up(local=True, debug=args.debug)
     elif args.command == "prod":
         up(local=False, debug=False)
+    elif args.command == "refresh":
+        refresh()
     else:
         parser.print_help()
 

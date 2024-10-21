@@ -12,3 +12,5 @@ venv/**
 
 implnet_*.py
 build/
+
+test_*config.yaml
