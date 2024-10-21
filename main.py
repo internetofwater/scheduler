@@ -6,6 +6,7 @@ import argparse
 
 BUILD_DIR = os.path.join(os.path.dirname(__file__), "build")
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
+DOCKER_DIR = os.path.join(os.path.dirname(__file__), "docker")
 
 """
 This file is the CLI for managing the docker swarm stack.
@@ -25,7 +26,9 @@ def run_subprocess(command: str):
 
 def down():
     """Stop the docker swarm stack"""
-    run_subprocess("docker swarm leave --force || true")
+    run_subprocess(
+        f"docker compose -f {os.path.join(DOCKER_DIR, 'docker-compose.yaml')} down"
+    )
 
 
 def up(local: bool, debug: bool):
@@ -41,36 +44,20 @@ def up(local: bool, debug: bool):
             return
 
     # Reset the swarm if it exists
-    run_subprocess("docker swarm leave --force || true")
-    run_subprocess("docker swarm init")
-
-    # Create a network that we can attach to from the swarm
-    run_subprocess(
-        "docker network create --driver overlay --attachable dagster_network"
-    )
-
     # Needed for a docker issue on MacOS; sometimes this dir isn't present
     os.makedirs("/tmp/io_manager_storage", exist_ok=True)
-    run_subprocess(
-        f"docker build -t dagster_user_code_image -f ./Docker/Dockerfile_user_code . --build-arg DAGSTER_DEBUG={'true' if debug else 'false'}"
-    )
-
-    run_subprocess(
-        "docker build -t dagster_webserver_image -f ./Docker/Dockerfile_dagster ."
-    )
-    run_subprocess(
-        "docker build -t dagster_daemon_image -f ./Docker/Dockerfile_dagster ."
-    )
 
     if local and not debug:
-        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
+        compose_args = (
+            "--profile local --profile separated_dagster_services --profile user_code"
+        )
     elif local and debug:
-        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-local.yaml"
+        compose_args = "--profile local --profile user_code --debug"
     else:
-        compose_files = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
+        compose_args = "--profile separated_dagster --profile user_code"
 
     run_subprocess(
-        f"docker stack deploy {compose_files} geoconnex_crawler --detach=false"
+        f"DAGSTER_DEBUG={'true' if debug else 'false'} docker compose -f {os.path.join(DOCKER_DIR, 'docker-compose.yaml')} {compose_args} up"
     )
 
 

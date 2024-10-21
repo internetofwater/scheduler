@@ -59,9 +59,7 @@ def create_service(
         args=command,
         env=env_vars,
         name=name,
-        networks=(
-            container_context.networks if len(container_context.networks) else None
-        ),
+        networks=("dagster_network",),
         restart_policy=RestartPolicy(condition="none"),
         mode=ServiceMode("replicated-job", concurrency=1, replicas=1),
         configs=[gleaner, nabu],

@@ -14,7 +14,8 @@ ENV DAGSTER_DEBUG=$DAGSTER_DEBUG
 # configs and runtime code
 WORKDIR /opt/dagster/app
 COPY code /opt/dagster/app/code
-COPY templates /opt/dagster/app/templates
+COPY templates/ /opt/dagster/app/templates
+COPY dagster.yaml /opt/dagster/app/dagster.yaml
 
 # Expose the necessary ports
 EXPOSE 4000
