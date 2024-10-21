@@ -1,5 +1,4 @@
 services:
-
   minio:
     image: minio/minio
     container_name: minio
@@ -69,7 +68,7 @@ services:
       - dagster_network
     profiles:
       - local
-  
+
   dagster_user_code:
     image: dagster_user_code_image
     container_name: dagster_user_code
@@ -107,21 +106,20 @@ services:
     profiles:
       - user_code
 
-
   dagster_postgres:
-      # store the runtime dagster state
-      image: postgres:11
-      container_name: dagster_postgres
-      networks:
-        - dagster_network
-      build:
-        context: ../
-        dockerfile: Docker/Dockerfile_dagster
-      env_file: "../.env"
-      volumes:
-        - dagster_postgres_data:/var/lib/postgresql/data
-      profiles:
-        - separated_dagster_services
+    # store the runtime dagster state
+    image: postgres:11
+    container_name: dagster_postgres
+    networks:
+      - dagster_network
+    build:
+      context: ../
+      dockerfile: Docker/Dockerfile_dagster
+    env_file: "../.env"
+    volumes:
+      - dagster_postgres_data:/var/lib/postgresql/data
+    profiles:
+      - separated_dagster_services
 
   dagster_webserver:
     image: dagster_webserver_image
@@ -135,8 +133,8 @@ services:
       - "workspace.yaml"
     container_name: dagster_webserver
     build:
-        context: ../
-        dockerfile: Docker/Dockerfile_dagster
+      context: ../
+      dockerfile: Docker/Dockerfile_dagster
     ports:
       - "3000:3000"
     volumes: # Make docker client accessible so we can terminate containers from the webserver
@@ -149,7 +147,7 @@ services:
       - dagster_user_code
     env_file: "../.env"
     profiles:
-        - separated_dagster_services
+      - separated_dagster_services
 
   dagster_daemon:
     image: dagster_daemon_image
@@ -164,14 +162,14 @@ services:
     networks:
       - dagster_network
     build:
-        context: ../
-        dockerfile: Docker/Dockerfile_dagster
+      context: ../
+      dockerfile: Docker/Dockerfile_dagster
     depends_on:
       - dagster_postgres
       - dagster_user_code
     env_file: "../.env"
     profiles:
-        - separated_dagster_services
+      - separated_dagster_services
 
 # Used for persistence
 volumes:
