@@ -42,13 +42,13 @@ def up(local: bool, debug: bool):
         if not sys.stdin.isatty():
             print("y")
             shutil.copy(".env.example", ".env")
-            return
-        answer = input().lower()
-        if answer == "y" or answer == "yes":
-            shutil.copy(".env.example", ".env")
         else:
-            print("Missing .env file. Exiting")
-            return
+            answer = input().lower()
+            if answer == "y" or answer == "yes":
+                shutil.copy(".env.example", ".env")
+            else:
+                print("Missing .env file. Exiting")
+                return
 
     # Reset the swarm if it exists
     run_subprocess("docker swarm leave --force || true")
