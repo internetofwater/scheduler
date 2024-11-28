@@ -112,7 +112,7 @@ def test():
     containerName = containerName.strip()  # Container name sometimes has extra \n
 
     # If we are in CI/CD we need to skip the interactive / terminal flags
-    if sys.stdin.isatty():
+    if not sys.stdin.isatty():
         run_subprocess(f"docker exec {containerName} pytest")
     else:
         run_subprocess(f"docker exec -it {containerName} pytest")
