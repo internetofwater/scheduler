@@ -9,14 +9,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Checkout the repository
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      # Checkout the repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    # Set up Docker
-    - name: Set up Docker
-      uses: docker/setup-buildx-action@v2
+      # Set up Docker
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
 
-    # Run the Python script that handles the build and execution
-    - name: Run Python Script
-      run: python3 main.py local && python3 main.py test
+      # Run the Python script that handles the build and execution
+      - name: Run Python Script
+        run: python3 main.py local && python3 main.py test
