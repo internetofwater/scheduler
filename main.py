@@ -38,6 +38,11 @@ def up(local: bool, debug: bool):
 
     if not os.path.exists(".env"):
         print("Missing .env file. Do you want to copy .env.example to .env ? (y/n)")
+        # check if you are running in a terminal or in CI/CD
+        if not sys.stdin.isatty():
+            print("y")
+            shutil.copy(".env.example", ".env")
+            return
         answer = input().lower()
         if answer == "y" or answer == "yes":
             shutil.copy(".env.example", ".env")
