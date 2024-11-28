@@ -8,4 +8,3 @@ def test_materialize_configs():
         selection=["nabu_config", "gleaner_config", "docker_client_environment"],
     )
     assert result.success
-
