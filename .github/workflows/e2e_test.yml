@@ -1,4 +1,4 @@
-name: Run Python Script in Docker
+name: E2E Dagster build
 
 on:
   push:
@@ -18,5 +18,5 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       # Run the Python script that handles the build and execution
-      - name: Run Python Script
+      - name: Launch Docker Stack and run tests
         run: python3 main.py local && python3 main.py test

@@ -40,7 +40,6 @@ def up(local: bool, debug: bool):
         print("Missing .env file. Do you want to copy .env.example to .env ? (y/n)")
         # check if you are running in a terminal or in CI/CD
         if not sys.stdin.isatty():
-            print("y")
             shutil.copy(".env.example", ".env")
         else:
             answer = input().lower()
@@ -110,8 +109,13 @@ def test():
     )
     if not containerName:
         raise RuntimeError("Could not find the user code container to run pytest")
-    containerName = containerName.strip()
-    run_subprocess(f"docker exec -it {containerName} pytest")
+    containerName = containerName.strip()  # Container name sometimes has extra \n
+
+    # If we are in CI/CD we need to skip the interactive / terminal flags
+    if sys.stdin.isatty():
+        run_subprocess(f"docker exec {containerName} pytest")
+    else:
+        run_subprocess(f"docker exec -it {containerName} pytest")
 
 
 def main():
