@@ -2,7 +2,7 @@ import io
 from typing import Any
 from dagster import get_dagster_logger
 from minio import Minio
-from urllib3 import HTTPResponse
+from urllib3 import BaseHTTPResponse
 from .env import (
     GLEANER_MINIO_SECRET_KEY,
     GLEANER_MINIO_ACCESS_KEY,
@@ -42,8 +42,8 @@ class S3:
         logger.info(f"S3 SERVER : {self.endpoint}")
         logger.info(f"S3 PORT   : {GLEANER_MINIO_PORT}")
         logger.info(f"S3 BUCKET : {GLEANER_MINIO_BUCKET}")
-        logger.debug(f"S3 object path : {remote_path}")
-        response: HTTPResponse = self.client.get_object(
+        logger.debug(f"S3 object path : {remote_path}∂")
+        response: BaseHTTPResponse = self.client.get_object(
             GLEANER_MINIO_BUCKET, remote_path
         )
         data = response.read()

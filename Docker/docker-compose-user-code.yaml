@@ -11,7 +11,13 @@ services:
     environment:
       DAGSTER_CURRENT_IMAGE: "dagster_user_code_image"
     volumes:
-      - ../code:/opt/dagster/app/code
+      - ../userCode:/opt/dagster/app/userCode
+      # When materialized via the UI, dagster runs the 
+      # user code inside the webserver container
+      # However, if we are just running pytest we need to have direct
+      # access to the docker sock inside the user code container
+      - /var/run/docker.sock:/var/run/docker.sock 
+      
     networks:
       - dagster_network
     env_file: "../.env"

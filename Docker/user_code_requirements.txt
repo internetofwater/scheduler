@@ -10,3 +10,4 @@ lxml # used for parsing sitemaps
 pyyaml # used for processing gleaner/nabu configs
 beautifulsoup4 # used for parsing sitemaps
 aiohttp 
+pytest
