@@ -23,6 +23,7 @@ from dagster import (
 )
 import docker
 import dagster_slack
+import docker.errors
 import requests
 import yaml
 from .lib.classes import S3
@@ -174,23 +175,36 @@ def docker_client_environment():
     # navigating / mounting file systems for local config access
     api_client = docker.APIClient()
 
-    try:
-        gleanerconfig = client.configs.list(filters={"name": ["gleaner"]})
-        nabuconfig = client.configs.list(filters={"name": ["nabu"]})
-        if gleanerconfig:
-            api_client.remove_config(gleanerconfig[0].id)
-        if nabuconfig:
-            api_client.remove_config(nabuconfig[0].id)
-    except IndexError as e:
-        get_dagster_logger().info(
-            f"No configs found to remove during docker client environment creation: {e}"
-        )
+    # At the start of the pipeline, remove any existing configs
+    # and try to regenerate a new one
+    # since we don't want old/stale configs to be used
 
-    s3_client = S3()
-    client.configs.create(name="nabu", data=s3_client.read("configs/nabuconfig.yaml"))
-    client.configs.create(
-        name="gleaner", data=s3_client.read("configs/gleanerconfig.yaml")
-    )
+    # However, if another container is using the config it will fail and throw an error
+    # Instead of using a mutex and trying to synchronize access,
+    # we just assume that a config that is in use is not stale.
+    configs = {
+        "gleaner": "configs/gleanerconfig.yaml",
+        "nabu": "configs/nabuconfig.yaml",
+    }
+
+    for config_name, config_file in configs.items():
+        try:
+            config = client.configs.list(filters={"name": [config_name]})
+            if config:
+                api_client.remove_config(config[0].id)
+        except docker.errors.APIError as e:
+            get_dagster_logger().info(
+                f"Skipped removing {config_name} config during docker client environment creation since it is likely in use. Underlying skipped exception was {e}"
+            )
+        except IndexError as e:
+            get_dagster_logger().info(f"No config found for {config_name}: {e}")
+
+        try:
+            client.configs.create(name=config_name, data=S3().read(config_file))
+        except docker.errors.APIError as e:
+            get_dagster_logger().info(
+                f"Skipped creating {config_name} config during docker client environment creation since it is likely in use. Underlying skipped exception was {e}"
+            )
 
 
 @asset_check(asset=docker_client_environment)
