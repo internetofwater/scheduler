@@ -56,7 +56,7 @@ This repository is a refactor of the [gleanerio/scheduler](https://github.com/gl
 
 ## Gleaner and Nabu Notes
 
-The current pipeline for gleaner/nabu operations in Dagster is as follows. All of the steps are inside Dagster [here](../code/main.py) with each being a separate asset.
+The current pipeline for gleaner/nabu operations in Dagster is as follows. All of the steps are inside Dagster [here](../userCode/main.py) with each being a separate asset.
 
 Since Dagster uses docs as code, the best way to get the most accurate documentation is by opening up the local UI and looking at the asset description; this will source our code and the associated comments.
 

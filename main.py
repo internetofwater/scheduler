@@ -13,14 +13,19 @@ You should not need to run any docker commands directly if you are using this CL
 """
 
 
-def run_subprocess(command: str):
+def run_subprocess(command: str, returnStdoutInsteadOfPrint: bool = False):
     """Run a shell command and stream the output in realtime"""
     process = subprocess.Popen(
-        command, shell=True, stdout=sys.stdout, stderr=sys.stderr
+        command,
+        shell=True,
+        stdout=subprocess.PIPE if returnStdoutInsteadOfPrint else sys.stdout,
+        stderr=sys.stderr,
     )
-    process.communicate()
+    stdout, _ = process.communicate()
     if process.returncode != 0:
         sys.exit(process.returncode)
+
+    return stdout.decode("utf-8") if returnStdoutInsteadOfPrint else None
 
 
 def down():
@@ -33,12 +38,16 @@ def up(local: bool, debug: bool):
 
     if not os.path.exists(".env"):
         print("Missing .env file. Do you want to copy .env.example to .env ? (y/n)")
-        answer = input().lower()
-        if answer == "y" or answer == "yes":
+        # check if you are running in a terminal or in CI/CD
+        if not sys.stdin.isatty():
             shutil.copy(".env.example", ".env")
         else:
-            print("Missing .env file. Exiting")
-            return
+            answer = input().lower()
+            if answer == "y" or answer == "yes":
+                shutil.copy(".env.example", ".env")
+            else:
+                print("Missing .env file. Exiting")
+                return
 
     # Reset the swarm if it exists
     run_subprocess("docker swarm leave --force || true")
@@ -90,7 +99,29 @@ def refresh():
     )
 
 
+def test():
+    """Run pytest inside the user code container"""
+
+    # get the name of the container
+    containerName = run_subprocess(
+        "docker ps --filter name=geoconnex_crawler_dagster_user_code --format '{{.Names}}'",
+        returnStdoutInsteadOfPrint=True,
+    )
+    if not containerName:
+        raise RuntimeError("Could not find the user code container to run pytest")
+    containerName = containerName.strip()  # Container name sometimes has extra \n
+
+    # If we are in CI/CD we need to skip the interactive / terminal flags
+    if not sys.stdin.isatty():
+        run_subprocess(f"docker exec {containerName} pytest")
+    else:
+        run_subprocess(f"docker exec -it {containerName} pytest")
+
+
 def main():
+    # set DOCKER_CLI_HINTS false to avoid the advertisement message after every docker cmd
+    os.environ["DOCKER_CLI_HINTS"] = "false"
+
     # make sure the user is in the same directory as this file
     file_dir = os.path.dirname(os.path.abspath(__file__))
     if file_dir != os.getcwd():
@@ -120,6 +151,9 @@ def main():
         "prod",
         help="Spin up the docker swarm stack with remote s3 and graphdb",
     )
+
+    subparsers.add_parser("test", help="Run pytest inside the user code container")
+
     args = parser.parse_args()
     if args.command == "down":
         down()
@@ -129,6 +163,8 @@ def main():
         up(local=False, debug=False)
     elif args.command == "refresh":
         refresh()
+    elif args.command == "test":
+        test()
     else:
         parser.print_help()
 

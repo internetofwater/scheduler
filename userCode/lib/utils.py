@@ -63,6 +63,10 @@ def create_service(
             container_context.networks if len(container_context.networks) else None
         ),
         restart_policy=RestartPolicy(condition="none"),
+        # Replicated jobs terminate after run
+        # TODO: There is still a potential error here. If a container fails,
+        # the job finishes but still appears in the swarm stack
+        # This might cause an issue
         mode=ServiceMode("replicated-job", concurrency=1, replicas=1),
         configs=[gleaner, nabu],
     )

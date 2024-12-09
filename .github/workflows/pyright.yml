@@ -1,0 +1,25 @@
+name: Pyright Type Checks
+
+on:
+  push:
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          cache: "pip"
+
+      - run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r Docker/user_code_requirements.txt
+
+      - run: echo "$PWD/.venv/bin" >> $GITHUB_PATH
+
+      - uses: jakebailey/pyright-action@v2
+        with:
+          pylance-version: latest-release

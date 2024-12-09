@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 from typing import Tuple
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
 from dagster import (
     AssetCheckResult,
@@ -23,10 +23,11 @@ from dagster import (
 )
 import docker
 import dagster_slack
+import docker.errors
 import requests
 import yaml
-from lib.classes import S3
-from lib.utils import (
+from .lib.classes import S3
+from .lib.utils import (
     remove_non_alphanumeric,
     run_scheduler_docker_image,
     slack_error_fn,
@@ -34,7 +35,7 @@ from lib.utils import (
 )
 from urllib.parse import urlparse
 
-from lib.env import (
+from .lib.env import (
     GLEANER_GRAPH_URL,
     GLEANER_HEADLESS_ENDPOINT,
     REMOTE_GLEANER_SITEMAP,
@@ -133,7 +134,9 @@ def gleaner_links_are_valid():
     dead_links: list[dict[str, Tuple[int, str]]] = []
 
     async def validate_url(url: str):
-        async with ClientSession() as session:
+        # Geoconnex links generally take at absolute max 8 seconds if it is very large sitemap
+        # If it is above 12 seconds that is a good signal that something is wrong
+        async with ClientSession(timeout=ClientTimeout(total=12)) as session:
             resp = await session.get(url)
 
             if resp.status != 200:
@@ -164,6 +167,7 @@ def docker_client_environment():
     """Set up dagster by pulling both the gleaner and nabu images and moving the config files into docker configs"""
     get_dagster_logger().info("Getting docker client and pulling images: ")
     client = docker.DockerClient(version="1.43")
+    # check if the docker socket is available
     client.images.pull(GLEANERIO_GLEANER_IMAGE)
     client.images.pull(GLEANERIO_NABU_IMAGE)
     # we create configs as docker config objects so
@@ -171,23 +175,36 @@ def docker_client_environment():
     # navigating / mounting file systems for local config access
     api_client = docker.APIClient()
 
-    try:
-        gleanerconfig = client.configs.list(filters={"name": ["gleaner"]})
-        nabuconfig = client.configs.list(filters={"name": ["nabu"]})
-        if gleanerconfig:
-            api_client.remove_config(gleanerconfig[0].id)
-        if nabuconfig:
-            api_client.remove_config(nabuconfig[0].id)
-    except IndexError as e:
-        get_dagster_logger().info(
-            f"No configs found to remove during docker client environment creation: {e}"
-        )
+    # At the start of the pipeline, remove any existing configs
+    # and try to regenerate a new one
+    # since we don't want old/stale configs to be used
 
-    s3_client = S3()
-    client.configs.create(name="nabu", data=s3_client.read("configs/nabuconfig.yaml"))
-    client.configs.create(
-        name="gleaner", data=s3_client.read("configs/gleanerconfig.yaml")
-    )
+    # However, if another container is using the config it will fail and throw an error
+    # Instead of using a mutex and trying to synchronize access,
+    # we just assume that a config that is in use is not stale.
+    configs = {
+        "gleaner": "configs/gleanerconfig.yaml",
+        "nabu": "configs/nabuconfig.yaml",
+    }
+
+    for config_name, config_file in configs.items():
+        try:
+            config = client.configs.list(filters={"name": [config_name]})
+            if config:
+                api_client.remove_config(config[0].id)
+        except docker.errors.APIError as e:
+            get_dagster_logger().info(
+                f"Skipped removing {config_name} config during docker client environment creation since it is likely in use. Underlying skipped exception was {e}"
+            )
+        except IndexError as e:
+            get_dagster_logger().info(f"No config found for {config_name}: {e}")
+
+        try:
+            client.configs.create(name=config_name, data=S3().read(config_file))
+        except docker.errors.APIError as e:
+            get_dagster_logger().info(
+                f"Skipped creating {config_name} config during docker client environment creation since it is likely in use. Underlying skipped exception was {e}"
+            )
 
 
 @asset_check(asset=docker_client_environment)
@@ -422,8 +439,6 @@ definitions = Definitions(
             text_fn=slack_error_fn,
             default_status=DefaultSensorStatus.RUNNING,
             monitor_all_code_locations=True,
-            monitor_all_repositories=True,
-            monitored_jobs=[harvest_job],
         )
     ],
     # Commented out but can uncomment if we want to send other slack msgs
