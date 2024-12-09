@@ -12,9 +12,6 @@
       },
       "isBackground": true,
       "problemMatcher": [],
-      "runOptions": {
-        "runOn": "folderOpen"
-      },
       "dependsOn": "Open Browser"
     },
     {
