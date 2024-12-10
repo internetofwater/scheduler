@@ -37,13 +37,15 @@ def up(local: bool, debug: bool):
     """Run the docker swarm stack"""
 
     if not os.path.exists(".env"):
-        print("Missing .env file. Do you want to copy .env.example to .env ? (y/n)")
         # check if you are running in a terminal or in CI/CD
         if not sys.stdin.isatty():
             shutil.copy(".env.example", ".env")
         else:
-            answer = input().lower()
+            answer = input(
+                "Missing .env file. Do you want to copy .env.example to .env ? (y/n)"
+            ).lower()
             if answer == "y" or answer == "yes":
+                print("Copying .env.example to .env")
                 shutil.copy(".env.example", ".env")
             else:
                 print("Missing .env file. Exiting")

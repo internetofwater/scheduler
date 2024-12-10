@@ -4,8 +4,13 @@ on:
   push:
   workflow_dispatch: # Allows manual triggering of the workflow
 
+# Cancel previous runs for the same branch so we don't have multiple long running tests due to pre-commit
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  setup-docker-and-run:
+  setup-docker-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,5 +23,22 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       # Run the Python script that handles the build and execution
-      - name: Launch Docker Stack and run tests
-        run: python3 main.py local && python3 main.py test
+      - name: Launch Docker Stack
+        run: python3 main.py local
+
+      # Docker stack does not allow for waiting based on a healthcheck so we need to wait manually here
+      - name: Wait for MinIO
+        run: |
+          for i in {1..30}; do
+            if curl -fs http://localhost:9001/minio/health/live; then
+              echo "MinIO is up!"
+              exit 0
+            fi
+            echo "Waiting for MinIO to be ready..."
+            sleep 5
+          done
+          echo "Failed to connect to MinIO after 30 attempts."
+          exit 1
+
+      - name: Run pytest
+        run: python3 main.py test
