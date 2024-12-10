@@ -22,7 +22,7 @@ jobs:
         run: python3 main.py local
 
       - name: Wait for minio
-        run: python3 main.py wait_for "http://localhost:9001/minio/health/live" 
+        run: python3 main.py wait_for "http://localhost:9001/minio/health/live"
 
       - name: Run pytest
         run: python3 main.py test
