@@ -138,8 +138,8 @@ def wait_for_response(url: str):
             if response.status_code == 200:
                 print(f"Got 200 response from {url} after {counter} seconds")
             return
-        except requests.exceptions.ConnectionError:
-            pass
+        except requests.exceptions.ConnectionError as e:
+            print("Minio not ready yet. Got error:", e.with_traceback(None))
         time.sleep(1)
         counter += 1
     raise RuntimeError(

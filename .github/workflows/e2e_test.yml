@@ -18,9 +18,10 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       # Run the Python script that handles the build and execution
-      - name: Launch Docker Stack and run tests
+      - name: Launch Docker Stack
         run: python3 main.py local
 
+      # Needs to be done in CI since docker stack does not support conditional waits
       - name: Wait for minio
         run: python3 main.py wait_for "http://localhost:9001/minio/health/live"
 
