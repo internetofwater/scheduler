@@ -129,6 +129,7 @@ def wait_for_response(url: str):
     docker stack does not support conditional waits and the dockerfile logic
     would be otherwise messy
     """
+    print("Waiting for response from " + url)
     TIMEOUT_SEC = 180
     counter = 0
     while True and counter < TIMEOUT_SEC:
