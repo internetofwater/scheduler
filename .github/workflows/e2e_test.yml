@@ -4,6 +4,11 @@ on:
   push:
   workflow_dispatch: # Allows manual triggering of the workflow
 
+# Cancel previous runs for the same branch so we don't have multiple long running tests due to pre-commit
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   setup-docker-and-test:
     runs-on: ubuntu-latest
