@@ -19,4 +19,4 @@ jobs:
 
       # Run the Python script that handles the build and execution
       - name: Launch Docker Stack and run tests
-        run: python3 main.py local && python3 main.py test
+        run: python3 main.py local && python3 main.py wait_for "https://localhost:9001/minio/health/live" && python3 main.py test

@@ -3,6 +3,9 @@ import shutil
 import subprocess
 import sys
 import argparse
+import time
+
+import requests
 
 BUILD_DIR = os.path.join(os.path.dirname(__file__), "build")
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
@@ -118,6 +121,25 @@ def test():
         run_subprocess(f"docker exec -it {containerName} pytest")
 
 
+def wait_for_response(url: str):
+    """
+    Wait for a response from the given url. This is needed to test code in CI/CD since
+    docker stack does not support conditional waits and the dockerfile logic
+    would be otherwise messy
+    """
+    TIMEOUT_SEC = 30
+    while True and TIMEOUT_SEC > 0:
+        response = requests.get(url)
+        if response.status_code == 200:
+            print("Got 200 response from " + url)
+            return
+        time.sleep(1)
+        TIMEOUT_SEC -= 1
+    raise RuntimeError(
+        f"Timed out after {TIMEOUT_SEC} seconds waiting for response from " + url
+    )
+
+
 def main():
     # set DOCKER_CLI_HINTS false to avoid the advertisement message after every docker cmd
     os.environ["DOCKER_CLI_HINTS"] = "false"
@@ -153,6 +175,11 @@ def main():
     )
 
     subparsers.add_parser("test", help="Run pytest inside the user code container")
+    wait_for_parser = subparsers.add_parser(
+        "wait_for",
+        help="Wait for a 200 response from the given url. Helpful for CI/CD scripts",
+    )
+    wait_for_parser.add_argument("url", help="The url to wait for")
 
     args = parser.parse_args()
     if args.command == "down":
@@ -165,6 +192,8 @@ def main():
         refresh()
     elif args.command == "test":
         test()
+    elif args.command == "wait_for":
+        wait_for_response(args.url)
     else:
         parser.print_help()
 
