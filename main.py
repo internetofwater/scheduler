@@ -123,12 +123,16 @@ def test():
         run_subprocess(f"docker exec -it {containerName} pytest")
 
 
-def wait_for_response(url: str):
+def wait_for_response(name: str):
     """
     Wait for a response from the given url. This is needed to test code in CI/CD since
     docker stack does not support conditional waits and the dockerfile logic
     would be otherwise messy
     """
+    url = None
+    if name == "minio":
+        url = "http://localhost:9001/minio/health/live"
+
     print(f"Waiting for response from {url}")
     TIMEOUT_SEC = 60
 
@@ -188,9 +192,9 @@ def main():
     subparsers.add_parser("test", help="Run pytest inside the user code container")
     wait_for_parser = subparsers.add_parser(
         "wait_for",
-        help="Wait for a 200 response from the given url. Helpful for CI/CD scripts",
+        help="Wait for a 200 response from the given service. Helpful for CI/CD scripts",
     )
-    wait_for_parser.add_argument("url", help="The url to wait for")
+    wait_for_parser.add_argument("service", help="The service to wait for")
 
     args = parser.parse_args()
     if args.command == "down":
@@ -204,7 +208,7 @@ def main():
     elif args.command == "test":
         test()
     elif args.command == "wait_for":
-        wait_for_response(args.url)
+        wait_for_response(args.service)
     else:
         parser.print_help()
 
