@@ -19,7 +19,19 @@ jobs:
 
       # Run the Python script that handles the build and execution
       - name: Launch Docker Stack
-        run: python3 main.py local && python3 main.py wait_for "http://localhost:9001/minio/health/live"
+        run: python3 main.py local
+
+      - name: Wait for MinIO
+        run: |
+          for i in {1..30}; do
+            if curl -fs http://localhost:9001/minio/health/live; then
+              echo "MinIO is up!"
+              break
+            fi
+            echo "Waiting for MinIO to be ready..."
+            sleep 5
+          done
+      
 
       - name: Run pytest
         run: python3 main.py test
