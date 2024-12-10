@@ -127,14 +127,18 @@ def wait_for_response(url: str):
     docker stack does not support conditional waits and the dockerfile logic
     would be otherwise messy
     """
-    TIMEOUT_SEC = 30
-    while True and TIMEOUT_SEC > 0:
-        response = requests.get(url)
-        if response.status_code == 200:
-            print("Got 200 response from " + url)
+    TIMEOUT_SEC = 180
+    counter = 0
+    while True and counter < TIMEOUT_SEC:
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                print(f"Got 200 response from {url} after {counter} seconds")
             return
+        except requests.exceptions.ConnectionError:
+            pass
         time.sleep(1)
-        TIMEOUT_SEC -= 1
+        counter += 1
     raise RuntimeError(
         f"Timed out after {TIMEOUT_SEC} seconds waiting for response from " + url
     )
