@@ -39,7 +39,6 @@ jobs:
           done
           echo "Failed to connect to MinIO after 30 attempts."
           exit 1
-      
 
       - name: Run pytest
         run: python3 main.py test
