@@ -16,12 +16,6 @@ services:
     networks:
       - dagster_network
     env_file: "../.env"
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
 
   createbuckets:
     # Creates the buckets on minio for the harvester to move assets into
