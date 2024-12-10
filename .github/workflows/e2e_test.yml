@@ -21,16 +21,19 @@ jobs:
       - name: Launch Docker Stack
         run: python3 main.py local
 
+      # Docker stack does not allow for waiting based on a healthcheck so we need to wait manually here
       - name: Wait for MinIO
         run: |
           for i in {1..30}; do
             if curl -fs http://localhost:9001/minio/health/live; then
               echo "MinIO is up!"
-              break
+              exit 0
             fi
             echo "Waiting for MinIO to be ready..."
             sleep 5
           done
+          echo "Failed to connect to MinIO after 30 attempts."
+          exit 1
       
 
       - name: Run pytest

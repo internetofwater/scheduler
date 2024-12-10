@@ -3,9 +3,6 @@ import shutil
 import subprocess
 import sys
 import argparse
-from urllib import error
-from urllib3.util.retry import Retry
-from urllib3 import PoolManager
 
 BUILD_DIR = os.path.join(os.path.dirname(__file__), "build")
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
@@ -123,34 +120,6 @@ def test():
         run_subprocess(f"docker exec -it {containerName} pytest")
 
 
-def wait_for_response(url: str):
-    """
-    Wait for a response from the given url. This is needed to test code in CI/CD since
-    docker stack does not support conditional waits and the dockerfile logic
-    would be otherwise messy
-    """
-    print(f"Waiting for response from {url}")
-    TIMEOUT_SEC = 60
-
-    # Set up retries with urllib3
-    retries = Retry(
-        total=TIMEOUT_SEC,  # Total retry time in seconds
-        backoff_factor=1,  # Wait 1s, 2s, 4s, etc. between retries
-        status_forcelist=[500, 502, 503, 504],  # Retry on server errors
-    )
-
-    # Create a PoolManager with retry configuration
-    http = PoolManager(retries=retries, timeout=TIMEOUT_SEC)
-
-    try:
-        response = http.request("GET", url)
-        if response.status == 200:
-            print(f"Got 200 response from {url}")
-    except error.URLError as e:
-        print(f"Timed out after {TIMEOUT_SEC} seconds waiting for response from {url}")
-        raise RuntimeError(f"Request failed: {e}")
-
-
 def main():
     # set DOCKER_CLI_HINTS false to avoid the advertisement message after every docker cmd
     os.environ["DOCKER_CLI_HINTS"] = "false"
@@ -186,11 +155,6 @@ def main():
     )
 
     subparsers.add_parser("test", help="Run pytest inside the user code container")
-    wait_for_parser = subparsers.add_parser(
-        "wait_for",
-        help="Wait for a 200 response from the given service. Helpful for CI/CD scripts",
-    )
-    wait_for_parser.add_argument("service", help="The service to wait for")
 
     args = parser.parse_args()
     if args.command == "down":
@@ -203,8 +167,6 @@ def main():
         refresh()
     elif args.command == "test":
         test()
-    elif args.command == "wait_for":
-        wait_for_response(args.service)
     else:
         parser.print_help()
 
