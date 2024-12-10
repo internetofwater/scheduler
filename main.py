@@ -3,9 +3,9 @@ import shutil
 import subprocess
 import sys
 import argparse
-import time
-
-import requests
+from urllib import error
+from urllib3.util.retry import Retry
+from urllib3 import PoolManager
 
 BUILD_DIR = os.path.join(os.path.dirname(__file__), "build")
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
@@ -129,22 +129,26 @@ def wait_for_response(url: str):
     docker stack does not support conditional waits and the dockerfile logic
     would be otherwise messy
     """
-    print("Waiting for response from " + url)
-    TIMEOUT_SEC = 180
-    counter = 0
-    while True and counter < TIMEOUT_SEC:
-        try:
-            response = requests.get(url)
-            if response.status_code == 200:
-                print(f"Got 200 response from {url} after {counter} seconds")
-            return
-        except requests.exceptions.ConnectionError as e:
-            print("Minio not ready yet. Got error:", e.with_traceback(None))
-        time.sleep(1)
-        counter += 1
-    raise RuntimeError(
-        f"Timed out after {TIMEOUT_SEC} seconds waiting for response from " + url
+    print(f"Waiting for response from {url}")
+    TIMEOUT_SEC = 60
+
+    # Set up retries with urllib3
+    retries = Retry(
+        total=TIMEOUT_SEC,  # Total retry time in seconds
+        backoff_factor=1,  # Wait 1s, 2s, 4s, etc. between retries
+        status_forcelist=[500, 502, 503, 504],  # Retry on server errors
     )
+
+    # Create a PoolManager with retry configuration
+    http = PoolManager(retries=retries, timeout=TIMEOUT_SEC)
+
+    try:
+        response = http.request("GET", url)
+        if response.status == 200:
+            print(f"Got 200 response from {url}")
+    except error.URLError as e:
+        print(f"Timed out after {TIMEOUT_SEC} seconds waiting for response from {url}")
+        raise RuntimeError(f"Request failed: {e}")
 
 
 def main():
