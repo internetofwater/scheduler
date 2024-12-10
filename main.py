@@ -123,16 +123,12 @@ def test():
         run_subprocess(f"docker exec -it {containerName} pytest")
 
 
-def wait_for_response(name: str):
+def wait_for_response(url: str):
     """
     Wait for a response from the given url. This is needed to test code in CI/CD since
     docker stack does not support conditional waits and the dockerfile logic
     would be otherwise messy
     """
-    url = None
-    if name == "minio":
-        url = "http://localhost:9001/minio/health/live"
-
     print(f"Waiting for response from {url}")
     TIMEOUT_SEC = 60
 
