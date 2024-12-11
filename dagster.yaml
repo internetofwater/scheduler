@@ -11,7 +11,7 @@ run_monitoring:
   # start_timeout_seconds: 180
   # cancel_timeout_seconds: 180
   # Reasonable approximation for the max amount of time it would take to crawl a sitemap of the max possible size (4 hours)
-  max_runtime_seconds: 14400
+  max_runtime_seconds: 18000
   # max_resume_run_attempts: 3 # experimental if above 0
 
   # NOTE: Timeouts can be confusing given the fact that polling only occurs
