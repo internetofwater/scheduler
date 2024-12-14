@@ -47,6 +47,7 @@ run_launcher:
 
     network: dagster_network
     container_kwargs:
+      auto_remove: True
       volumes: # Make docker client accessible to any launched containers as well
         - /var/run/docker.sock:/var/run/docker.sock
         - /tmp/io_manager_storage:/tmp/io_manager_storage
