@@ -3,6 +3,9 @@ FROM python:3.10-slim
 COPY Docker/user_code_requirements.txt user_code_requirements.txt
 RUN pip install -r user_code_requirements.txt
 
+COPY Docker/installRclone.py installRclone.py
+RUN python installRclone.py
+
 ARG DAGSTER_DEBUG
 # dependencies needed for dagster dev
 RUN if [ "$DAGSTER_DEBUG" = "true" ]; then pip install debugpy dagster-webserver; fi

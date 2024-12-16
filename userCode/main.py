@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from dagster import (
     AssetCheckResult,
     AssetExecutionContext,
+    AssetKey,
     AssetSelection,
     DynamicPartitionsDefinition,
     RunRequest,
@@ -376,8 +377,27 @@ def finished_individual_crawl(context: OpExecutionContext):
 
 
 @asset(deps=[finished_individual_crawl])
-def export_graph_as_nquads():
+def export_graph_as_nquads(context: OpExecutionContext):
     """Export the graphdb to nquads"""
+    # In order to get all partition keys on a dynamic object, you need to pass in the run instance https://github.com/dagster-io/dagster/discussions/14715
+    instance = context.instance
+    all_partitions = sources_partitions_def.get_partition_keys(
+        dynamic_partitions_store=instance
+    )
+    # Check if all partitions of finished_individual_crawl are materialized
+    materialized_partitions = context.instance.get_materialized_partitions(
+        asset_key=AssetKey("finished_individual_crawl")
+    )
+
+    if len(all_partitions) != len(materialized_partitions):
+        get_dagster_logger().warning(
+            "Not all partitions of finished_individual_crawl are materialized, so nq generation will be skipped"
+        )
+        return
+    else:
+        get_dagster_logger().info(
+            "All partitions of finished_individual_crawl are detected as having been materialized"
+        )
 
     # Define the repository name and endpoint
     endpoint = f"{GLEANER_GRAPH_URL}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}/statements?infer=false"
