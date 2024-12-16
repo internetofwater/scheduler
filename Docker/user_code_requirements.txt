@@ -5,6 +5,7 @@ dagster-docker
 # Addon code dependencies
 dagster-slack
 minio 
+requests
 jinja2 # used for templating common variables into gleaner/nabu configs
 lxml # used for parsing sitemaps
 pyyaml # used for processing gleaner/nabu configs

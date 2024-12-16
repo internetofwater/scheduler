@@ -1,11 +1,15 @@
 FROM python:3.10-slim
 
+# Base requirements
 COPY Docker/user_code_requirements.txt user_code_requirements.txt
 RUN pip install -r user_code_requirements.txt
 
-COPY Docker/installRclone.py installRclone.py
-RUN python installRclone.py
+# install rclone
+RUN apt-get -y update; apt-get -y install curl unzip
+COPY Docker/rclone.sh rclone.sh
+RUN bash rclone.sh
 
+# Check if we are debugging
 ARG DAGSTER_DEBUG
 # dependencies needed for dagster dev
 RUN if [ "$DAGSTER_DEBUG" = "true" ]; then pip install debugpy dagster-webserver; fi
@@ -21,7 +25,7 @@ COPY templates /opt/dagster/app/templates
 
 # Expose the necessary ports
 EXPOSE 4000
-
+# Set the home variable so the code locations are loaded properly
 ENV DAGSTER_HOME=/opt/dagster/app
 
 COPY Docker/entrypoint.sh /opt/dagster/app/entrypoint.sh

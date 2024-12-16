@@ -1,0 +1,16 @@
+[lakefs]
+type = s3
+provider = Other
+env_auth = false
+access_key_id = {{ RCLONE_ACCESS_KEY_ID}}
+secret_access_key = {{ RCLONE_SECRET_ACCESS_KEY}}
+endpoint = {{ RCLONE_ENDPOINT_URL }}
+
+[minio]
+type = s3
+provider = Minio
+env_auth = false
+access_key_id = {{ MINIO_ACCESS_KEY }}
+secret_access_key = {{ MINIO_SECRET_KEY }}
+endpoint = {{ GLEANERIO_MINIO_ADDRESS }}:{{ GLEANERIO_MINIO_PORT }}
+
