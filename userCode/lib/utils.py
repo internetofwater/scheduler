@@ -236,6 +236,7 @@ def template_gleaner_or_nabu(input_template_file_path: str) -> str:
             "GLEANERIO_PROVGRAPH_ENDPOINT",
             "GLEANERIO_MINIO_REGION",
             "GLEANER_HEADLESS_ENDPOINT",
+            "GLEANER_THREADS",
         ]
     }
 

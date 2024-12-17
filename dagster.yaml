@@ -47,6 +47,7 @@ run_launcher:
       - LAKEFS_ENDPOINT_URL
       - LAKEFS_ACCESS_KEY_ID
       - LAKEFS_SECRET_ACCESS_KEY
+      - GLEANER_THREADS
 
     network: dagster_network
     container_kwargs:

@@ -24,6 +24,7 @@ def assert_all_vars():
         "LAKEFS_ENDPOINT_URL",
         "LAKEFS_ACCESS_KEY_ID",
         "LAKEFS_SECRET_ACCESS_KEY",
+        "GLEANER_THREADS",
     ]
     errors = ""
     for var in vars:

@@ -135,6 +135,10 @@ def gleaner_config(context: AssetExecutionContext):
 
     templated_base["sources"] = sources
 
+    get_dagster_logger().info(
+        f"Generated the following gleaner config: {yaml.dump(templated_base)}"
+    )
+
     # put configs in s3 for introspection and persistence if we need to run gleaner locally
     encoded_as_bytes = yaml.dump(templated_base).encode()
     s3_client = S3()
