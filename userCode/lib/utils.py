@@ -2,8 +2,13 @@ from datetime import datetime
 import os
 import re
 import time
-from typing import List, Optional, Sequence
-from dagster import OpExecutionContext, RunFailureSensorContext, get_dagster_logger
+from typing import List, Optional, Sequence, Union
+from dagster import (
+    AssetKey,
+    OpExecutionContext,
+    RunFailureSensorContext,
+    get_dagster_logger,
+)
 from dagster_docker import DockerRunLauncher
 import docker
 import docker.errors
@@ -12,12 +17,14 @@ import docker.models.containers
 import docker.models.services
 from jinja2 import Environment, FileSystemLoader
 import jinja2
+from .dagster_env import sources_partitions_def
 
 from .classes import S3
 from .env import (
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_PROVGRAPH_ENDPOINT,
     strict_env,
+    strict_env_int,
 )
 from docker.types.services import ConfigReference
 from dagster_docker.container_context import DockerContainerContext
@@ -188,9 +195,35 @@ def slack_error_fn(context: RunFailureSensorContext) -> str:
         return f"Error: {context.failure_event.message}"
 
 
-def template_config(input_template_file_path: str) -> str:
+def template_rclone(input_template_file_path: str) -> str:
     """Fill in a template with shared env vars and return the templated data"""
-    vars_in_both_nabu_and_gleaner_configs = {
+    vars_in_rclone_config = {
+        var: strict_env(var)
+        for var in [
+            "LAKEFS_ENDPOINT_URL",
+            "LAKEFS_ACCESS_KEY_ID",
+            "LAKEFS_SECRET_ACCESS_KEY",
+            "GLEANERIO_MINIO_ADDRESS",
+            "GLEANERIO_MINIO_PORT",
+            "GLEANERIO_MINIO_USE_SSL",
+            "GLEANERIO_MINIO_BUCKET",
+            "MINIO_SECRET_KEY",
+            "MINIO_ACCESS_KEY",
+        ]
+    }
+    env = Environment(
+        loader=FileSystemLoader(os.path.dirname(input_template_file_path)),
+        undefined=jinja2.StrictUndefined,
+    )
+    template = env.get_template(os.path.basename(input_template_file_path))
+
+    # Render the template with the context
+    return template.render(**vars_in_rclone_config)
+
+
+def template_gleaner_or_nabu(input_template_file_path: str) -> str:
+    """Fill in a template with shared env vars and return the templated data"""
+    vars_in_both_nabu_and_gleaner_configs: dict[str, Union[str, int]] = {
         var: strict_env(var)
         for var in [
             "GLEANERIO_MINIO_ADDRESS",
@@ -207,6 +240,10 @@ def template_config(input_template_file_path: str) -> str:
         ]
     }
 
+    # certain config values should be an integer
+    ints = strict_env_int("GLEANER_THREADS")
+    vars_in_both_nabu_and_gleaner_configs["GLEANER_THREADS"] = ints
+
     env = Environment(
         loader=FileSystemLoader(os.path.dirname(input_template_file_path)),
         undefined=jinja2.StrictUndefined,
@@ -215,3 +252,28 @@ def template_config(input_template_file_path: str) -> str:
 
     # Render the template with the context
     return template.render(**vars_in_both_nabu_and_gleaner_configs)
+
+
+def all_dependencies_materialized(
+    context: OpExecutionContext, dependency_asset_key: str
+) -> bool:
+    """Check if all partitions of a given asset are materialized"""
+    instance = context.instance
+    all_partitions = sources_partitions_def.get_partition_keys(
+        dynamic_partitions_store=instance
+    )
+    # Check if all partitions of finished_individual_crawl are materialized
+    materialized_partitions = context.instance.get_materialized_partitions(
+        asset_key=AssetKey(dependency_asset_key)
+    )
+
+    if len(all_partitions) != len(materialized_partitions):
+        get_dagster_logger().warning(
+            f"Not all partitions of {dependency_asset_key} are materialized, so nq generation will be skipped"
+        )
+        return False
+    else:
+        get_dagster_logger().info(
+            f"All partitions of {dependency_asset_key} are detected as having been materialized"
+        )
+        return True

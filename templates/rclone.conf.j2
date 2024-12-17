@@ -1,0 +1,17 @@
+[lakefs]
+type = s3
+provider = Other
+env_auth = false
+access_key_id = {{ LAKEFS_ACCESS_KEY_ID}}
+secret_access_key = {{ LAKEFS_SECRET_ACCESS_KEY}}
+endpoint = {{ LAKEFS_ENDPOINT_URL }}
+no_check_bucket = true
+
+[minio]
+type = s3
+provider = Minio
+env_auth = false
+access_key_id = {{ MINIO_ACCESS_KEY }}
+secret_access_key = {{ MINIO_SECRET_KEY }}
+# Must be http since minio is not configured to use https
+endpoint = http://{{ GLEANERIO_MINIO_ADDRESS }}:{{ GLEANERIO_MINIO_PORT }}

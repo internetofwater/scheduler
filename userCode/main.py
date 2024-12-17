@@ -1,13 +1,12 @@
 import asyncio
 from datetime import datetime
-from typing import Tuple
+from typing import Optional, Tuple
 from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
 from dagster import (
     AssetCheckResult,
     AssetExecutionContext,
     AssetSelection,
-    DynamicPartitionsDefinition,
     RunRequest,
     DefaultScheduleStatus,
     DefaultSensorStatus,
@@ -26,15 +25,20 @@ import dagster_slack
 import docker.errors
 import requests
 import yaml
-from .lib.classes import S3
+
+from userCode.lib.lakefsUtils import merge_into_main
+
+from .lib.classes import S3, FileTransferer
 from .lib.utils import (
+    all_dependencies_materialized,
     remove_non_alphanumeric,
     run_scheduler_docker_image,
     slack_error_fn,
-    template_config,
+    template_gleaner_or_nabu,
+    template_rclone,
 )
 from urllib.parse import urlparse
-
+from .lib.dagster_env import sources_partitions_def
 from .lib.env import (
     GLEANER_GRAPH_URL,
     GLEANER_HEADLESS_ENDPOINT,
@@ -46,14 +50,14 @@ from .lib.env import (
     strict_env,
 )
 
-sources_partitions_def = DynamicPartitionsDefinition(name="sources_partitions_def")
-
 
 @asset
 def nabu_config():
     """The nabuconfig.yaml used for nabu"""
     get_dagster_logger().info("Creating nabu config")
-    templated_data = template_config("/opt/dagster/app/templates/nabuconfig.yaml.j2")
+    templated_data = template_gleaner_or_nabu(
+        "/opt/dagster/app/templates/nabuconfig.yaml.j2"
+    )
     conf = yaml.safe_load(templated_data)
     encoded_as_bytes = yaml.safe_dump(conf).encode()
     # put configs in s3 for introspection and persistence if we need to run gleaner locally
@@ -65,13 +69,21 @@ def nabu_config():
 
 
 @asset
+def rclone_config() -> str:
+    """Create the rclone config by templating the rclone.conf.j2 template"""
+    get_dagster_logger().info("Creating rclone config")
+    templated_conf: str = template_rclone("/opt/dagster/app/templates/rclone.conf.j2")
+    return templated_conf
+
+
+@asset
 def gleaner_config(context: AssetExecutionContext):
     """The gleanerconfig.yaml used for gleaner"""
     get_dagster_logger().info("Creating gleaner config")
     input_file = "/opt/dagster/app/templates/gleanerconfig.yaml.j2"
 
     # Fill in the config with the common minio configuration
-    templated_base = yaml.safe_load(template_config(input_file))
+    templated_base = yaml.safe_load(template_gleaner_or_nabu(input_file))
 
     r = requests.get(REMOTE_GLEANER_SITEMAP)
     xml = r.text
@@ -80,6 +92,11 @@ def gleaner_config(context: AssetExecutionContext):
 
     sources = []
     names = set()
+
+    assert (
+        len(Lines) > 0
+    ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+
     for line in Lines:
         basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
         name = (
@@ -117,6 +134,10 @@ def gleaner_config(context: AssetExecutionContext):
     )
 
     templated_base["sources"] = sources
+
+    get_dagster_logger().info(
+        f"Generated the following gleaner config: {yaml.dump(templated_base)}"
+    )
 
     # put configs in s3 for introspection and persistence if we need to run gleaner locally
     encoded_as_bytes = yaml.dump(templated_base).encode()
@@ -162,7 +183,7 @@ def gleaner_links_are_valid():
     )
 
 
-@asset(deps=[gleaner_config, nabu_config])
+@asset(deps=[gleaner_config, nabu_config, rclone_config])
 def docker_client_environment():
     """Set up dagster by pulling both the gleaner and nabu images and moving the config files into docker configs"""
     get_dagster_logger().info("Getting docker client and pulling images: ")
@@ -376,8 +397,11 @@ def finished_individual_crawl(context: OpExecutionContext):
 
 
 @asset(deps=[finished_individual_crawl])
-def export_graph_as_nquads():
+def export_graph_as_nquads(context: OpExecutionContext) -> Optional[str]:
     """Export the graphdb to nquads"""
+
+    if not all_dependencies_materialized(context, "finished_individual_crawl"):
+        return
 
     # Define the repository name and endpoint
     endpoint = f"{GLEANER_GRAPH_URL}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}/statements?infer=false"
@@ -400,10 +424,34 @@ def export_graph_as_nquads():
         raise RuntimeError(f"Export failed, status code: {response.status_code}")
 
     s3_client = S3()
-    s3_client.load(
-        response.content,
-        f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}",
+    filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}"
+    s3_client.load(response.content, filename)
+    return filename
+
+
+@asset()
+def nquads_to_renci(
+    context: OpExecutionContext,
+    rclone_config: str,
+    export_graph_as_nquads: Optional[str],  # contains the path to the nquads
+):
+    """Upload the nquads to the renci bucket in lakefs"""
+    if (
+        not all_dependencies_materialized(context, "finished_individual_crawl")
+        or not export_graph_as_nquads
+    ):
+        get_dagster_logger().warning(
+            "Skipping rclone copy as all dependencies are not materialized"
+        )
+        return
+
+    client = FileTransferer(rclone_config)
+    client.copy_to_lakefs(
+        destination_branch="develop",
+        destination_filename="iow-dump.nq",
+        path_to_file=export_graph_as_nquads,
     )
+    merge_into_main(branch="develop")
 
 
 harvest_job = define_asset_job(

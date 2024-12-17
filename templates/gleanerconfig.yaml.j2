@@ -22,7 +22,7 @@ contextmaps:
 summoner:
   after: ""      # "21 May 20 10:00 UTC"   
   mode: full  # full || diff:  If diff compare what we have currently in gleaner to sitemap, get only new, delete missing
-  threads: 5
+  threads: {{ GLEANER_THREADS }}
   delay:  # milliseconds (1000 = 1 second) to delay between calls (will FORCE threads to 1) 
   headless: {{ GLEANER_HEADLESS_ENDPOINT }}  # URL for headless see docs/headless
 millers:

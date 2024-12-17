@@ -1,6 +1,6 @@
 import os
 
-from dagster import OpExecutionContext
+from dagster import OpExecutionContext, get_dagster_logger
 
 """
 Runtime config and env vars for dagster; prioritizes strict env vars
@@ -21,11 +21,19 @@ def assert_all_vars():
         "GLEANER_HEADLESS_ENDPOINT",  # note this is named differently, confusingly so does not have the IO
         "GLEANERIO_GRAPH_URL",
         "GLEANERIO_GRAPH_NAMESPACE",
+        "LAKEFS_ENDPOINT_URL",
+        "LAKEFS_ACCESS_KEY_ID",
+        "LAKEFS_SECRET_ACCESS_KEY",
+        "GLEANER_THREADS",
     ]
     errors = ""
     for var in vars:
         if os.environ.get(var) is None:
             errors += f"Missing {var}, "
+        elif os.environ.get(var) == "unset":
+            get_dagster_logger().warning(
+                f"Unset env var: {var}. This is likely a secret key. It is ok to ignore this warning if you do not intend on using private API endpoints, i.e. in CI/CD"
+            )
     if errors:
         raise Exception(errors)
 
@@ -33,7 +41,17 @@ def assert_all_vars():
 assert_all_vars()
 
 
+def strict_env_int(key: str):
+    """Get an env var and ensure it is an int"""
+    val = os.environ.get(key)
+    if val is None:
+        raise Exception(f"Missing {key}")
+
+    return int(val)
+
+
 def strict_env(key: str):
+    """Get an env var and ensure it is a string"""
     val = os.environ.get(key)
     if val is None:
         raise Exception(f"Missing {key}")
@@ -77,3 +95,6 @@ GLEANERIO_NABU_IMAGE = strict_env("GLEANERIO_NABU_IMAGE")
 GLEANERIO_DATAGRAPH_ENDPOINT = strict_env("GLEANERIO_DATAGRAPH_ENDPOINT")
 GLEANERIO_PROVGRAPH_ENDPOINT = strict_env("GLEANERIO_PROVGRAPH_ENDPOINT")
 REMOTE_GLEANER_SITEMAP = strict_env("REMOTE_GLEANER_SITEMAP")
+LAKEFS_ENDPOINT_URL = strict_env("LAKEFS_ENDPOINT_URL")
+LAKEFS_ACCESS_KEY_ID = strict_env("LAKEFS_ACCESS_KEY_ID")
+LAKEFS_SECRET_ACCESS_KEY = strict_env("LAKEFS_SECRET_ACCESS_KEY")

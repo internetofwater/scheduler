@@ -2,12 +2,15 @@
 dagster
 dagster-postgres
 dagster-docker
+
 # Addon code dependencies
-dagster-slack
-minio 
+dagster-slack # ping slack channel on failures
+minio  # manipulate s3 for scheduler backups
+requests # used for testing and fetching without needing async
 jinja2 # used for templating common variables into gleaner/nabu configs
 lxml # used for parsing sitemaps
 pyyaml # used for processing gleaner/nabu configs
 beautifulsoup4 # used for parsing sitemaps
-aiohttp 
-pytest
+aiohttp # perform async fetch requests 
+pytest # test the pipeline
+lakefs # use to connect to the Renci lakefs cluster
