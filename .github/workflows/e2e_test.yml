@@ -40,5 +40,6 @@ jobs:
           echo "Failed to connect to MinIO after 30 attempts."
           exit 1
 
-      - name: Run pytest
-        run: python3 main.py test
+      - name: Run tests that don't require secrets
+      # for the time being, skip tests that require secrets in CI/CD
+        run: python3 main.py test -- -m "not requires_secret"

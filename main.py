@@ -1,4 +1,5 @@
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -129,10 +130,17 @@ def test(*args):
         raise RuntimeError("Could not find the user code container to run pytest")
     containerName = containerName.strip()
 
-    # Prepare the pytest command
-    pytest_command = f"pytest -vvvxs {' '.join(args)}"
+    # Properly quote arguments to preserve double quotes. pytest requires double quotes around marks
+    # in order to work properly. i.e. -m "not requires_secret"
+    quoted_args = " ".join(
+        shlex.quote(arg) if " " not in arg else f'"{arg}"' for arg in args
+    )
+
+    pytest_command = f"pytest userCode/ -vvvxs {quoted_args}"
+
+    print(pytest_command)
     if not sys.stdin.isatty():
-        run_subprocess(f"docker exec {containerName} {pytest_command}")
+        run_subprocess(f'docker exec {containerName} "{pytest_command}"')
     else:
         run_subprocess(f"docker exec -it {containerName} {pytest_command}")
 
