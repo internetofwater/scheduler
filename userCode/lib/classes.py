@@ -114,20 +114,22 @@ class FileTransferer:
 
         return stdout, stderr
 
-    def copy_to_lakefs(self, path_to_file: str, branch_name: str = "develop"):
+    def copy_to_lakefs(self, path_to_file: str, destination_branch: str = "develop"):
         """
         Copy a file from minio to lakefs
 
-        path_to_file must be a path relative to the minio bucket
+        path_to_file must be a path relative to the bucket name within minio
         i.e. copy(test_dir/test_file.json) will copy from `gleanerbucket/test_dir/test_file.json`
+
+        destination_branch is the name of the lakefs branch to copy the file to
         """
 
         get_dagster_logger().info(f"Uploading {path_to_file} to {LAKEFS_ENDPOINT_URL}")
 
-        new_branch = create_branch_if_not_exists(branch_name)
+        new_branch = create_branch_if_not_exists(destination_branch)
 
         self._run_subprocess(
-            f"rclone copy minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{branch_name} -v"
+            f"rclone copy minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch} -v"
         )
 
         if list(new_branch.uncommitted()):

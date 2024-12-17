@@ -138,7 +138,7 @@ def test(*args):
 
     print(f"Running pytest cmd: '{pytest_command}'")
     if not sys.stdin.isatty():
-        run_subprocess(f'docker exec {containerName} "{pytest_command}"')
+        run_subprocess(f"docker exec {containerName} {pytest_command}")
     else:
         run_subprocess(f"docker exec -it {containerName} {pytest_command}")
 

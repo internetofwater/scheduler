@@ -86,7 +86,7 @@ def test_rclone_s3_to_lakefs():
     result = materialize_to_memory(assets=[rclone_config])
     assert result.success
     rclone_client = FileTransferer(config_data=result.output_for_node("rclone_config"))
-    rclone_client.copy_to_lakefs(filename, branch_name="test_branch_for_CI")
+    rclone_client.copy_to_lakefs(filename, destination_branch="test_branch_for_CI")
 
     stagingBranch = lakefs.repository(
         "geoconnex", client=rclone_client.lakefs_client
