@@ -2,12 +2,13 @@ import io
 from pathlib import Path
 import subprocess
 import sys
-from typing import Any, Optional
+from typing import Any
 from dagster import get_dagster_logger
-import lakefs
 from minio import Minio
 from urllib3 import BaseHTTPResponse
 from lakefs.client import Client
+
+from userCode.lib.lakefsUtils import create_branch_if_not_exists
 from .env import (
     GLEANER_MINIO_SECRET_KEY,
     GLEANER_MINIO_ACCESS_KEY,
@@ -113,35 +114,7 @@ class FileTransferer:
 
         return stdout, stderr
 
-    def create_branch_if_not_exists(self, branch_name: str) -> lakefs.Branch:
-        """Create a branch on the lakefs cluster if it doesn't exist"""
-        branches = list(
-            lakefs.repository("geoconnex", client=self.lakefs_client).branches()
-        )
-
-        for branch in branches:
-            if branch.id == branch_name:
-                return branch
-
-        stagingBranch = (
-            lakefs.repository("geoconnex", client=self.lakefs_client)
-            .branch("staging")
-            .create(source_reference="main")
-        )
-
-        return stagingBranch
-
-    def get_branch(self, branch_name: str) -> Optional[lakefs.Branch]:
-        """Get a reference to a branch on the lakefs cluster"""
-        branches = list(
-            lakefs.repository("geoconnex", client=self.lakefs_client).branches()
-        )
-
-        for branch in branches:
-            if branch.id == branch_name:
-                return branch
-
-    def copy(self, path_to_file: str):
+    def copy_to_lakefs(self, path_to_file: str):
         """
         Copy a file from minio to lakefs
 
@@ -151,12 +124,12 @@ class FileTransferer:
 
         get_dagster_logger().info(f"Uploading {path_to_file} to {LAKEFS_ENDPOINT_URL}")
 
-        branch_name = "staging"  # name of the branch where we want to put new files before adding them into main
+        branch_name = "develop"  # name of the branch where we want to put new files before adding them into main
 
-        new_branch = self.create_branch_if_not_exists(branch_name)
+        new_branch = create_branch_if_not_exists(branch_name)
 
         self._run_subprocess(
-            f"rclone copy minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{branch_name}/{path_to_file} -v"
+            f"rclone copy minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{branch_name} -v"
         )
 
         if list(new_branch.uncommitted()):
@@ -167,5 +140,6 @@ class FileTransferer:
             get_dagster_logger().info(result)
         else:
             get_dagster_logger().warning(
-                "The lakefs client copied a file but no new changes were detected on the remote lakefs cluster. This is a sign that either the file was already present or something may be wrong"
+                """"The lakefs client copied a file but no new changes were detected on the remote lakefs cluster. 
+                This is a sign that either the file was already present or something may be wrong"""
             )

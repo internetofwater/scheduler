@@ -2,13 +2,18 @@ import os
 from dagster import materialize_to_memory
 import requests
 import pytest
-from userCode.lib.classes import S3, FileTransferer
+from userCode.lib.classes import (
+    S3,
+    FileTransferer,
+)
+from userCode.lib.lakefsUtils import create_branch_if_not_exists, get_branch
 from userCode.lib.env import (
     LAKEFS_ACCESS_KEY_ID,
     LAKEFS_ENDPOINT_URL,
     LAKEFS_SECRET_ACCESS_KEY,
     strict_env,
 )
+from userCode.lib.lakefsUtils import delete_file_on_main
 from userCode.main import rclone_config
 
 
@@ -69,20 +74,28 @@ def test_rclone_s3_to_lakefs():
     """Make sure you can transfer a json file from s3 to lakefs"""
     client = S3()
     arbitary_dummy_data = b"TEST_S3_DATA_THAT_SHOULD_GET_UPLOADED"
-    client.load(arbitary_dummy_data, "test_file.json")
+    filename = "test__dummy_file.json"
+    client.load(arbitary_dummy_data, filename)
 
-    assert client.read("test_file.json") == arbitary_dummy_data
+    assert client.read(filename) == arbitary_dummy_data
 
     result = materialize_to_memory(assets=[rclone_config])
     assert result.success
     rclone_client = FileTransferer(config_data=result.output_for_node("rclone_config"))
-    rclone_client.copy("test_file.json")
+    rclone_client.copy_to_lakefs(filename)
+    # clean up
+    delete_file_on_main(f"{filename}")
 
-    # test_file = (
-    #     lakefs.repository("geoconnex", client=rclone_client.lakefs_client)
-    #     .branch("main")
-    #     .object("test_file.json")
-    # )
-    # assert test_file.exists()
-    # test_file.delete()
-    # assert test_file.exists() is False
+
+@pytest.mark.requires_secret
+def test_branch_ops():
+    create_branch_if_not_exists("dummy_empty_test_branch")
+    branch = get_branch("dummy_empty_test_branch")
+    assert branch
+    branch.delete()
+    assert not get_branch("dummy_empty_test_branch")
+
+
+# def test_move():
+#     move_file("develop", "iow-dump.nq/iow-dump.nq", "iow-dump.nq")
+#     merge_into_main("develop")

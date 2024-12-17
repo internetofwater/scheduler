@@ -434,7 +434,7 @@ def nquads_to_renci(
         return
 
     client = FileTransferer(rclone_config)
-    client.copy(export_graph_as_nquads)
+    client.copy_to_lakefs(export_graph_as_nquads)
 
 
 harvest_job = define_asset_job(
