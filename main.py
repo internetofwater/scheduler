@@ -118,7 +118,7 @@ def refresh():
     )
 
 
-def test(*args):
+def test(skip_secrets: bool, *args):
     """Run pytest inside the user code container with optional arguments"""
 
     # Get the name of the container
@@ -132,13 +132,18 @@ def test(*args):
 
     # Properly quote arguments to preserve double quotes. pytest requires double quotes around marks
     # in order to work properly. i.e. -m "not requires_secret"
+    if skip_secrets:
+        args = list(args) + ["-m", "not requires_secret"]
+        # args could duplicate skip-secrets arg so we need to filter it out
+        args = list(filter(lambda arg: "skip-secrets" not in arg, args))
+
     quoted_args = " ".join(
         shlex.quote(arg) if " " not in arg else f'"{arg}"' for arg in args
     )
 
     pytest_command = f"pytest userCode/ -vvvxs {quoted_args}"
 
-    print(pytest_command)
+    print(f"Running pytest cmd: '{pytest_command}'")
     if not sys.stdin.isatty():
         run_subprocess(f'docker exec {containerName} "{pytest_command}"')
     else:
@@ -189,6 +194,12 @@ def main():
         help="Additional arguments to pass to pytest (e.g., -- -k 'special_fn')",
     )
 
+    test_parser.add_argument(
+        "--skip-secrets",
+        action="store_true",
+        help="Skip tests that require secrets",
+    )
+
     subparsers.add_parser(
         "login", help="Log into the user code container (interactive shell)"
     )
@@ -203,7 +214,7 @@ def main():
     elif args.command == "refresh":
         refresh()
     elif args.command == "test":
-        test(*args.pytest_args)
+        test(args.skip_secrets, *args.pytest_args)
     elif args.command == "login":
         login()
     else:

@@ -42,4 +42,4 @@ jobs:
 
       - name: Run tests that don't require secrets
         # for the time being, skip tests that require secrets in CI/CD
-        run: python3 main.py test -- -m \"not requires_secret\"
+        run: python3 main.py test --skip-secrets
