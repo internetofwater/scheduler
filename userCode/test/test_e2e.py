@@ -10,7 +10,7 @@ from userCode.main import definitions, sources_partitions_def
 from dagster import AssetsDefinition, AssetSpec, SourceAsset
 
 
-def test_materialize_configs():
+def test_materialize_ref_hu02():
     instance = DagsterInstance.ephemeral()
 
     assets = load_assets_from_modules([main])
@@ -34,10 +34,10 @@ def test_materialize_configs():
     all_partitions = sources_partitions_def.get_partition_keys(
         dynamic_partitions_store=instance
     )
-    assert len(all_partitions) > 0
+    assert len(all_partitions) > 0, "Partitions were not generated"
 
     result = resolved_job.execute_in_process(
         instance=instance, partition_key="ref_hu02_hu02__0"
     )
 
-    assert result.success
+    assert result.success, "Job execution failed for partition 'ref_hu02_hu02__0'"
