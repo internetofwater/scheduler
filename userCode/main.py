@@ -26,6 +26,8 @@ import docker.errors
 import requests
 import yaml
 
+from userCode.lib.lakefsUtils import merge_into_main
+
 from .lib.classes import S3, FileTransferer
 from .lib.utils import (
     all_dependencies_materialized,
@@ -435,6 +437,7 @@ def nquads_to_renci(
 
     client = FileTransferer(rclone_config)
     client.copy_to_lakefs(export_graph_as_nquads)
+    merge_into_main(branch="develop")
 
 
 harvest_job = define_asset_job(

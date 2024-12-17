@@ -114,7 +114,7 @@ class FileTransferer:
 
         return stdout, stderr
 
-    def copy_to_lakefs(self, path_to_file: str):
+    def copy_to_lakefs(self, path_to_file: str, branch_name: str = "develop"):
         """
         Copy a file from minio to lakefs
 
@@ -123,8 +123,6 @@ class FileTransferer:
         """
 
         get_dagster_logger().info(f"Uploading {path_to_file} to {LAKEFS_ENDPOINT_URL}")
-
-        branch_name = "develop"  # name of the branch where we want to put new files before adding them into main
 
         new_branch = create_branch_if_not_exists(branch_name)
 
@@ -136,8 +134,6 @@ class FileTransferer:
             new_branch.commit(
                 message=f"Adding {path_to_file} automatically from the geoconnex scheduler"
             )
-            result = new_branch.merge_into("main")
-            get_dagster_logger().info(result)
         else:
             get_dagster_logger().warning(
                 """"The lakefs client copied a file but no new changes were detected on the remote lakefs cluster. 

@@ -1,6 +1,6 @@
 import os
 
-from dagster import OpExecutionContext
+from dagster import OpExecutionContext, get_dagster_logger
 
 """
 Runtime config and env vars for dagster; prioritizes strict env vars
@@ -29,6 +29,10 @@ def assert_all_vars():
     for var in vars:
         if os.environ.get(var) is None:
             errors += f"Missing {var}, "
+        elif os.environ.get(var) == "unset":
+            get_dagster_logger().warning(
+                f"Unset env var: {var}. This is likely a secret key. It is ok to ignore this warning if you do not intend on using private API endpoints, i.e. in CI/CD"
+            )
     if errors:
         raise Exception(errors)
 

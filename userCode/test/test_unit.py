@@ -1,5 +1,6 @@
 import os
 from dagster import materialize_to_memory
+import lakefs
 import requests
 import pytest
 from userCode.lib.classes import (
@@ -13,7 +14,6 @@ from userCode.lib.env import (
     LAKEFS_SECRET_ACCESS_KEY,
     strict_env,
 )
-from userCode.lib.lakefsUtils import delete_file_on_main
 from userCode.main import rclone_config
 
 
@@ -53,7 +53,9 @@ def test_rclone_config_location():
     assert location.parent.exists()
 
 
-@pytest.mark.requires_secret
+@pytest.mark.skipif(
+    LAKEFS_SECRET_ACCESS_KEY == "unset", reason="secret access key is not set"
+)
 def test_access_lakefs_repo():
     """Make sure that the geoconnex repo exists on the remote"""
     response = requests.get(
@@ -69,7 +71,9 @@ def test_access_lakefs_repo():
     assert json["read_only"] is False
 
 
-@pytest.mark.requires_secret
+@pytest.mark.skipif(
+    LAKEFS_SECRET_ACCESS_KEY == "unset", reason="secret access key is not set"
+)
 def test_rclone_s3_to_lakefs():
     """Make sure you can transfer a json file from s3 to lakefs"""
     client = S3()
@@ -82,20 +86,27 @@ def test_rclone_s3_to_lakefs():
     result = materialize_to_memory(assets=[rclone_config])
     assert result.success
     rclone_client = FileTransferer(config_data=result.output_for_node("rclone_config"))
-    rclone_client.copy_to_lakefs(filename)
-    # clean up
-    delete_file_on_main(f"{filename}")
+    rclone_client.copy_to_lakefs(filename, branch_name="test_branch_for_CI")
+
+    stagingBranch = lakefs.repository(
+        "geoconnex", client=rclone_client.lakefs_client
+    ).branch("test_branch_for_CI")
+
+    stagingBranch.object(filename).delete()
+
+    stagingBranch.commit(
+        message=f"Cleaning up after CI/CD tests and deleting {filename}"
+    )
+
+    stagingBranch.delete()
 
 
-@pytest.mark.requires_secret
+@pytest.mark.skipif(
+    LAKEFS_SECRET_ACCESS_KEY == "unset", reason="secret access key is not set"
+)
 def test_branch_ops():
     create_branch_if_not_exists("dummy_empty_test_branch")
     branch = get_branch("dummy_empty_test_branch")
     assert branch
     branch.delete()
     assert not get_branch("dummy_empty_test_branch")
-
-
-# def test_move():
-#     move_file("develop", "iow-dump.nq/iow-dump.nq", "iow-dump.nq")
-#     merge_into_main("develop")
