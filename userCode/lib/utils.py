@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 import re
 import time
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Union
 from dagster import (
     AssetKey,
     OpExecutionContext,
@@ -24,6 +24,7 @@ from .env import (
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_PROVGRAPH_ENDPOINT,
     strict_env,
+    strict_env_int,
 )
 from docker.types.services import ConfigReference
 from dagster_docker.container_context import DockerContainerContext
@@ -222,7 +223,7 @@ def template_rclone(input_template_file_path: str) -> str:
 
 def template_gleaner_or_nabu(input_template_file_path: str) -> str:
     """Fill in a template with shared env vars and return the templated data"""
-    vars_in_both_nabu_and_gleaner_configs = {
+    vars_in_both_nabu_and_gleaner_configs: dict[str, Union[str, int]] = {
         var: strict_env(var)
         for var in [
             "GLEANERIO_MINIO_ADDRESS",
@@ -236,9 +237,12 @@ def template_gleaner_or_nabu(input_template_file_path: str) -> str:
             "GLEANERIO_PROVGRAPH_ENDPOINT",
             "GLEANERIO_MINIO_REGION",
             "GLEANER_HEADLESS_ENDPOINT",
-            "GLEANER_THREADS",
         ]
     }
+
+    # certain config values should be an integer
+    ints = strict_env_int("GLEANER_THREADS")
+    vars_in_both_nabu_and_gleaner_configs["GLEANER_THREADS"] = ints
 
     env = Environment(
         loader=FileSystemLoader(os.path.dirname(input_template_file_path)),

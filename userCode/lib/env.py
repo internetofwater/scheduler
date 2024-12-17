@@ -41,7 +41,17 @@ def assert_all_vars():
 assert_all_vars()
 
 
+def strict_env_int(key: str):
+    """Get an env var and ensure it is an int"""
+    val = os.environ.get(key)
+    if val is None:
+        raise Exception(f"Missing {key}")
+
+    return int(val)
+
+
 def strict_env(key: str):
+    """Get an env var and ensure it is a string"""
     val = os.environ.get(key)
     if val is None:
         raise Exception(f"Missing {key}")
