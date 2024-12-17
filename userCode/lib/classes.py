@@ -2,11 +2,12 @@ import io
 from pathlib import Path
 import subprocess
 import sys
-from typing import Any
+from typing import Any, Optional
 from dagster import get_dagster_logger
+import lakefs
 from minio import Minio
 from urllib3 import BaseHTTPResponse
-
+from lakefs.client import Client
 from .env import (
     GLEANER_MINIO_SECRET_KEY,
     GLEANER_MINIO_ACCESS_KEY,
@@ -14,7 +15,9 @@ from .env import (
     GLEANER_MINIO_ADDRESS,
     GLEANER_MINIO_PORT,
     GLEANER_MINIO_USE_SSL,
-    RCLONE_ENDPOINT_URL,
+    LAKEFS_ACCESS_KEY_ID,
+    LAKEFS_ENDPOINT_URL,
+    LAKEFS_SECRET_ACCESS_KEY,
 )
 
 
@@ -58,9 +61,15 @@ class S3:
         return data
 
 
-class RClone:
+class FileTransferer:
+    """Helper class to transfer files from minio to lakefs using rclone"""
+
     @classmethod
-    def get_config_path(cls) -> Path:
+    def get_rclone_config_path(cls) -> Path:
+        """
+        Get the path to the rclone clone config file on the host.
+        This is needed since rclone configs can be present in multiple locations
+        """
         # Run the command and capture its output
         result = subprocess.run(
             ["rclone", "config", "file"],
@@ -77,31 +86,86 @@ class RClone:
         raise RuntimeError("Error finding rclone config file path:", result.stderr)
 
     def __init__(self, config_data: str):
-        rclone_conf_location = self.get_config_path()
+        rclone_conf_location = self.get_rclone_config_path()
         with open(str(rclone_conf_location), "w") as f:
             f.write(config_data)
 
+        self.lakefs_client = Client(
+            host=LAKEFS_ENDPOINT_URL,
+            username=LAKEFS_ACCESS_KEY_ID,
+            password=LAKEFS_SECRET_ACCESS_KEY,
+        )
+
     def _run_subprocess(self, command: str):
         """Run a shell command and stream the output in realtime"""
+
         process = subprocess.Popen(
             command,
             shell=True,
-            stdout=sys.stdout,
+            stdout=subprocess.PIPE,
             stderr=sys.stderr,
         )
         stdout, stderr = process.communicate()
         if process.returncode != 0:
             sys.exit(
-                f"{command} failed with exit code {process.returncode} {stderr=} {stdout=}"
+                f"Error, returned code: {process.returncode} with output: {stderr}"
             )
 
-        return process.returncode, stdout, stderr
+        return stdout, stderr
 
-    def copy(self, path_to_file: str):
-        get_dagster_logger().info(f"Uploading {path_to_file} to {RCLONE_ENDPOINT_URL}")
-        returncode = self._run_subprocess(
-            f"rclone copy minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/main/{path_to_file}"
+    def create_branch_if_not_exists(self, branch_name: str) -> lakefs.Branch:
+        """Create a branch on the lakefs cluster if it doesn't exist"""
+        branches = list(
+            lakefs.repository("geoconnex", client=self.lakefs_client).branches()
         )
 
-        if returncode != 0:
-            raise Exception(f"Error copying {path_to_file} to {RCLONE_ENDPOINT_URL}.")
+        for branch in branches:
+            if branch.id == branch_name:
+                return branch
+
+        stagingBranch = (
+            lakefs.repository("geoconnex", client=self.lakefs_client)
+            .branch("staging")
+            .create(source_reference="main")
+        )
+
+        return stagingBranch
+
+    def get_branch(self, branch_name: str) -> Optional[lakefs.Branch]:
+        """Get a reference to a branch on the lakefs cluster"""
+        branches = list(
+            lakefs.repository("geoconnex", client=self.lakefs_client).branches()
+        )
+
+        for branch in branches:
+            if branch.id == branch_name:
+                return branch
+
+    def copy(self, path_to_file: str):
+        """
+        Copy a file from minio to lakefs
+
+        path_to_file must be a path relative to the minio bucket
+        i.e. copy(test_dir/test_file.json) will copy from `gleanerbucket/test_dir/test_file.json`
+        """
+
+        get_dagster_logger().info(f"Uploading {path_to_file} to {LAKEFS_ENDPOINT_URL}")
+
+        branch_name = "staging"  # name of the branch where we want to put new files before adding them into main
+
+        new_branch = self.create_branch_if_not_exists(branch_name)
+
+        self._run_subprocess(
+            f"rclone copy minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{branch_name}/{path_to_file} -v"
+        )
+
+        if list(new_branch.uncommitted()):
+            new_branch.commit(
+                message=f"Adding {path_to_file} automatically from the geoconnex scheduler"
+            )
+            result = new_branch.merge_into("main")
+            get_dagster_logger().info(result)
+        else:
+            get_dagster_logger().warning(
+                "The lakefs client copied a file but no new changes were detected on the remote lakefs cluster. This is a sign that either the file was already present or something may be wrong"
+            )

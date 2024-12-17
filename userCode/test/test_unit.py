@@ -1,19 +1,20 @@
 import os
 from dagster import materialize_to_memory
+import lakefs
 import requests
 
-from userCode.lib.classes import S3, RClone
+from userCode.lib.classes import S3, FileTransferer
 from userCode.lib.env import (
-    RCLONE_ACCESS_KEY_ID,
-    RCLONE_ENDPOINT_URL,
-    RCLONE_SECRET_ACCESS_KEY,
+    LAKEFS_ACCESS_KEY_ID,
+    LAKEFS_ENDPOINT_URL,
+    LAKEFS_SECRET_ACCESS_KEY,
     strict_env,
 )
 from userCode.main import rclone_config
 
 
 def test_rclone_installed():
-    # make sure you can run rclone version
+    """make sure you can run rclone version"""
     assert os.system("rclone version") == 0
 
 
@@ -31,29 +32,31 @@ def test_env_vars():
 
 def test_lakefs_health():
     """Ensure we can connect to the remote lakefs cluster"""
-    RCLONE_ENDPOINT_URL = strict_env("RCLONE_ENDPOINT_URL")
+    LAKEFS_ENDPOINT_URL = strict_env("LAKEFS_ENDPOINT_URL")
 
     response = requests.get(
-        f"{RCLONE_ENDPOINT_URL}/healthcheck",
+        f"{LAKEFS_ENDPOINT_URL}/api/v1/healthcheck",
     )
 
     assert (
         response.status_code == 204
-    ), f"{RCLONE_ENDPOINT_URL} is not healthy: {response.text}"
+    ), f"{LAKEFS_ENDPOINT_URL} is not healthy: {response.text}"
 
 
 def test_rclone_config_location():
-    location = RClone.get_config_path()
+    """Make sure we can find the rclone config file" locally"""
+    location = FileTransferer.get_rclone_config_path()
     assert location.parent.exists()
 
 
 def test_access_lakefs_repo():
+    """Make sure that the geoconnex repo exists on the remote"""
     response = requests.get(
-        f"{RCLONE_ENDPOINT_URL}/repositories/geoconnex",
-        auth=(RCLONE_ACCESS_KEY_ID, RCLONE_SECRET_ACCESS_KEY),
+        f"{LAKEFS_ENDPOINT_URL}/api/v1/repositories/geoconnex",
+        auth=(LAKEFS_ACCESS_KEY_ID, LAKEFS_SECRET_ACCESS_KEY),
     )
     json = response.json()
-    assert response.status_code == 200, f"{RCLONE_ENDPOINT_URL} is not healthy: {json}"
+    assert response.status_code == 200, f"{LAKEFS_ENDPOINT_URL} is not healthy: {json}"
 
     assert json["id"] == "geoconnex"
     assert json["storage_namespace"] == "local://geoconnex"
@@ -62,6 +65,7 @@ def test_access_lakefs_repo():
 
 
 def test_rclone_s3_to_lakefs():
+    """Make sure you can transfer a json file from s3 to lakefs"""
     client = S3()
     arbitary_dummy_data = b"TEST_S3_DATA_THAT_SHOULD_GET_UPLOADED"
     client.load(arbitary_dummy_data, "test_file.json")
@@ -70,5 +74,14 @@ def test_rclone_s3_to_lakefs():
 
     result = materialize_to_memory(assets=[rclone_config])
     assert result.success
-    rclone_client = RClone(config_data=result.output_for_node("rclone_config"))
+    rclone_client = FileTransferer(config_data=result.output_for_node("rclone_config"))
     rclone_client.copy("test_file.json")
+
+    test_file = (
+        lakefs.repository("geoconnex", client=rclone_client.lakefs_client)
+        .branch("main")
+        .object("test_file.json")
+    )
+    assert test_file.exists()
+    test_file.delete()
+    assert test_file.exists() is False

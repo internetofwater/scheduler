@@ -26,7 +26,7 @@ import docker.errors
 import requests
 import yaml
 
-from .lib.classes import S3, RClone
+from .lib.classes import S3, FileTransferer
 from .lib.utils import (
     all_dependencies_materialized,
     remove_non_alphanumeric,
@@ -419,15 +419,18 @@ def export_graph_as_nquads(context: OpExecutionContext) -> str:
 
 
 @asset()
-def rclone_to_renci(
+def nquads_to_renci(
     context: OpExecutionContext,
     rclone_config: str,
-    export_graph_as_nquads: str,
+    export_graph_as_nquads: str,  # contains the path to the nquads
 ):
     if not all_dependencies_materialized(context, "finished_individual_crawl"):
+        get_dagster_logger().warning(
+            "Skipping rclone copy as all dependencies are not materialized"
+        )
         return
 
-    client = RClone(rclone_config)
+    client = FileTransferer(rclone_config)
     client.copy(export_graph_as_nquads)
 
 

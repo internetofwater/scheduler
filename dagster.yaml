@@ -44,9 +44,9 @@ run_launcher:
       - DAGSTER_SLACK_TOKEN
       - DAGSTER_HOME
       - REMOTE_GLEANER_SITEMAP
-      - RCLONE_ENDPOINT_URL
-      - RCLONE_ACCESS_KEY_ID
-      - RCLONE_SECRET_ACCESS_KEY
+      - LAKEFS_ENDPOINT_URL
+      - LAKEFS_ACCESS_KEY_ID
+      - LAKEFS_SECRET_ACCESS_KEY
 
     network: dagster_network
     container_kwargs:

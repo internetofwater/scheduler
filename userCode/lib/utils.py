@@ -199,9 +199,9 @@ def template_rclone(input_template_file_path: str) -> str:
     vars_in_rclone_config = {
         var: strict_env(var)
         for var in [
-            "RCLONE_ENDPOINT_URL",
-            "RCLONE_ACCESS_KEY_ID",
-            "RCLONE_SECRET_ACCESS_KEY",
+            "LAKEFS_ENDPOINT_URL",
+            "LAKEFS_ACCESS_KEY_ID",
+            "LAKEFS_SECRET_ACCESS_KEY",
             "GLEANERIO_MINIO_ADDRESS",
             "GLEANERIO_MINIO_PORT",
             "GLEANERIO_MINIO_USE_SSL",
