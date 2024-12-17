@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import Tuple
+from typing import Optional, Tuple
 from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
 from dagster import (
@@ -386,7 +386,7 @@ def finished_individual_crawl(context: OpExecutionContext):
 
 
 @asset(deps=[finished_individual_crawl])
-def export_graph_as_nquads(context: OpExecutionContext) -> str:
+def export_graph_as_nquads(context: OpExecutionContext) -> Optional[str]:
     """Export the graphdb to nquads"""
 
     if not all_dependencies_materialized(context, "finished_individual_crawl"):
@@ -422,9 +422,12 @@ def export_graph_as_nquads(context: OpExecutionContext) -> str:
 def nquads_to_renci(
     context: OpExecutionContext,
     rclone_config: str,
-    export_graph_as_nquads: str,  # contains the path to the nquads
+    export_graph_as_nquads: Optional[str],  # contains the path to the nquads
 ):
-    if not all_dependencies_materialized(context, "finished_individual_crawl"):
+    if (
+        not all_dependencies_materialized(context, "finished_individual_crawl")
+        or not export_graph_as_nquads
+    ):
         get_dagster_logger().warning(
             "Skipping rclone copy as all dependencies are not materialized"
         )
