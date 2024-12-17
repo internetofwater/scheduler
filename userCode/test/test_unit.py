@@ -34,6 +34,9 @@ def test_env_vars():
         )
 
 
+@pytest.mark.skipif(
+    LAKEFS_SECRET_ACCESS_KEY == "unset", reason="secret access key is not set"
+)
 def test_lakefs_health():
     """Ensure we can connect to the remote lakefs cluster"""
     LAKEFS_ENDPOINT_URL = strict_env("LAKEFS_ENDPOINT_URL")
