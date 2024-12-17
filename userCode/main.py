@@ -431,6 +431,7 @@ def nquads_to_renci(
     rclone_config: str,
     export_graph_as_nquads: Optional[str],  # contains the path to the nquads
 ):
+    """Upload the nquads to the renci bucket in lakefs"""
     if (
         not all_dependencies_materialized(context, "finished_individual_crawl")
         or not export_graph_as_nquads
@@ -441,7 +442,11 @@ def nquads_to_renci(
         return
 
     client = FileTransferer(rclone_config)
-    client.copy_to_lakefs(export_graph_as_nquads)
+    client.copy_to_lakefs(
+        destination_branch="develop",
+        destination_filename="iow-dump.nq",
+        path_to_file=export_graph_as_nquads,
+    )
     merge_into_main(branch="develop")
 
 

@@ -9,6 +9,26 @@ from userCode.lib.env import (
 )
 
 
+def assert_file_exists(file_path: str, branch_name: str = "main"):
+    lakefs_client = Client(
+        host=LAKEFS_ENDPOINT_URL,
+        username=LAKEFS_ACCESS_KEY_ID,
+        password=LAKEFS_SECRET_ACCESS_KEY,
+    )
+    files = list(
+        lakefs.repository("geoconnex", client=lakefs_client)
+        .branch(branch_name)
+        .objects()
+    )
+    for file in files:
+        if file.path == file_path:
+            return
+    else:
+        raise Exception(
+            f"{file_path} does not exist in branch {branch_name} which has files {files}"
+        )
+
+
 def delete_file_on_main(file_path: str, branch_to_stage_from: str = "develop"):
     """Delete a file in a staging branch then merge it into main"""
     lakefs_client = Client(

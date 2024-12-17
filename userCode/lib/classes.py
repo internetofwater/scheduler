@@ -114,7 +114,12 @@ class FileTransferer:
 
         return stdout, stderr
 
-    def copy_to_lakefs(self, path_to_file: str, destination_branch: str = "develop"):
+    def copy_to_lakefs(
+        self,
+        path_to_file: str,
+        destination_filename: str,
+        destination_branch: str,
+    ):
         """
         Copy a file from minio to lakefs
 
@@ -129,7 +134,7 @@ class FileTransferer:
         new_branch = create_branch_if_not_exists(destination_branch)
 
         self._run_subprocess(
-            f"rclone copy minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch} -v"
+            f"rclone copyto minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch}/{destination_filename} -v"
         )
 
         if list(new_branch.uncommitted()):

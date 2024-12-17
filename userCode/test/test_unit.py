@@ -7,7 +7,11 @@ from userCode.lib.classes import (
     S3,
     FileTransferer,
 )
-from userCode.lib.lakefsUtils import create_branch_if_not_exists, get_branch
+from userCode.lib.lakefsUtils import (
+    assert_file_exists,
+    create_branch_if_not_exists,
+    get_branch,
+)
 from userCode.lib.env import (
     LAKEFS_ACCESS_KEY_ID,
     LAKEFS_ENDPOINT_URL,
@@ -81,7 +85,7 @@ def test_rclone_s3_to_lakefs():
     """Make sure you can transfer a json file from s3 to lakefs"""
     client = S3()
     arbitary_dummy_data = b"TEST_S3_DATA_THAT_SHOULD_GET_UPLOADED"
-    filename = "test__dummy_file.json"
+    filename = "test.txt"
     client.load(arbitary_dummy_data, filename)
 
     assert client.read(filename) == arbitary_dummy_data
@@ -89,12 +93,15 @@ def test_rclone_s3_to_lakefs():
     result = materialize_to_memory(assets=[rclone_config])
     assert result.success
     rclone_client = FileTransferer(config_data=result.output_for_node("rclone_config"))
-    rclone_client.copy_to_lakefs(filename, destination_branch="test_branch_for_CI")
+    rclone_client.copy_to_lakefs(
+        filename, destination_branch="test_branch_for_CI", destination_filename=filename
+    )
 
     stagingBranch = lakefs.repository(
         "geoconnex", client=rclone_client.lakefs_client
     ).branch("test_branch_for_CI")
 
+    assert_file_exists(filename, "test_branch_for_CI")
     stagingBranch.object(filename).delete()
 
     stagingBranch.commit(
