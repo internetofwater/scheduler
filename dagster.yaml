@@ -51,7 +51,8 @@ run_launcher:
 
     network: dagster_network
     container_kwargs:
-      cpu_quota: 2
+      cpuset_cpus: "0-4"
+      cpu_shares: 512
       auto_remove: True
       volumes: # Make docker client accessible to any launched containers as well
         - /var/run/docker.sock:/var/run/docker.sock
