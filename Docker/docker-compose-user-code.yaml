@@ -29,8 +29,7 @@ services:
     # seems like might need to pull this before if on macos since we cant specify platform in docker compose
     #  docker run -it --platform linux/amd64 -p 9222:9222 --rm --entrypoint /bin/bash chromedp/headless-shell:latest
     image: chromedp/headless-shell:latest
-    ports:
-      - 9222:9222
+    container_name: headless
     environment:
       - SERVICE_PORTS=9222
     networks:
