@@ -52,13 +52,13 @@ services:
       - dagster_network
 
   graphdb:
-    image: khaller/graphdb-free
+    image: ontotext/graphdb:10.6.4
     container_name: graphdb
     ports:
       - 7200:7200
     environment:
-      - JAVA_XMX=4g
-      - JAVA_XMS=2048m
+      - JAVA_XMX=16g
+      - JAVA_XMS=4g
     volumes:
       - graphdb_data:/opt/graphdb/data
     networks:
