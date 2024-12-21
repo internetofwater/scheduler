@@ -462,7 +462,7 @@ harvest_job = define_asset_job(
 
 
 @schedule(
-    cron_schedule="@daily",
+    cron_schedule="@weekly",
     job=harvest_job,
     default_status=DefaultScheduleStatus.STOPPED,
 )
