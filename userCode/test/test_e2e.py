@@ -46,12 +46,16 @@ def test_materialize_ref_hu02():
 def test_dynamic_partitions():
     """Make sure that a new materialization of the gleaner config will create new partitions"""
     instance = DagsterInstance.ephemeral()
-    dummy_names = ["test_partition1", "test_partition2", "test_partition3"]
+    mocked_partition_keys = ["test_partition1", "test_partition2", "test_partition3"]
     instance.add_dynamic_partitions(
-        partitions_def_name="sources_partitions_def", partition_keys=list(dummy_names)
+        partitions_def_name="sources_partitions_def",
+        partition_keys=list(mocked_partition_keys),
     )
 
-    assert instance.get_dynamic_partitions("sources_partitions_def") == dummy_names
+    assert (
+        instance.get_dynamic_partitions("sources_partitions_def")
+        == mocked_partition_keys
+    )
 
     assets = load_assets_from_modules([main])
     # It is possible to load certain asset types that cannot be passed into
@@ -69,9 +73,16 @@ def test_dynamic_partitions():
     )
     assert result.success, "Expected gleaner config to materialize"
 
-    assert instance.get_dynamic_partitions("sources_partitions_def") != dummy_names
+    assert (
+        instance.get_dynamic_partitions("sources_partitions_def")
+        != mocked_partition_keys
+    )
     newPartitions = instance.get_dynamic_partitions("sources_partitions_def")
 
+    # Make sure that the old partition keys aren't in the asset but
+    # the new ones are
+    for key in mocked_partition_keys:
+        assert key not in newPartitions
     assert "ref_hu02_hu02__0" in newPartitions
     assert "ref_hu04_hu04__0" in newPartitions
 
@@ -83,3 +94,5 @@ def test_dynamic_partitions():
     assert "ref_hu02_hu02__0" not in partitionsAfterDelete
     assert "ref_hu04_hu04__0" in partitionsAfterDelete
     assert len(partitionsAfterDelete) == len(newPartitions) - 1
+    for key in mocked_partition_keys:
+        assert key not in partitionsAfterDelete

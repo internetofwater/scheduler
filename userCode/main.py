@@ -38,7 +38,7 @@ from .lib.utils import (
     template_rclone,
 )
 from urllib.parse import urlparse
-from .lib.dagster_env import sources_partitions_def
+from .lib.dagster_env import filter_partitions, sources_partitions_def
 from .lib.env import (
     GLEANER_GRAPH_URL,
     GLEANER_HEADLESS_ENDPOINT,
@@ -91,11 +91,13 @@ def gleaner_config(context: AssetExecutionContext):
     Lines: list[str] = [sitemap.findNext("loc").text for sitemap in sitemapTags]
 
     sources = []
-    names = set()
+    names: set[str] = set()
 
     assert (
         len(Lines) > 0
     ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+
+    # context.instance.delete_dynamic_partition("sources_partitions_def")
 
     for line in Lines:
         basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
@@ -131,6 +133,9 @@ def gleaner_config(context: AssetExecutionContext):
         sources.append(data)
 
     get_dagster_logger().info(f"Found {len(sources)} sources in the sitemap")
+
+    filter_partitions(context.instance, "sources_partitions_def", names)
+
     # Each source is a partition that can be crawled independently
     context.instance.add_dynamic_partitions(
         partitions_def_name="sources_partitions_def", partition_keys=list(names)
