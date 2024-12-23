@@ -67,9 +67,19 @@ def test_dynamic_partitions():
         selection=["gleaner_config"],
         instance=instance,
     )
-    assert result.success, "Expected gleane config to materialize"
+    assert result.success, "Expected gleaner config to materialize"
 
     assert instance.get_dynamic_partitions("sources_partitions_def") != dummy_names
-    assert "ref_hu02_hu02__0" in instance.get_dynamic_partitions(
-        "sources_partitions_def"
-    ), "Reference feature hu02 was not found in partitions"
+    newPartitions = instance.get_dynamic_partitions("sources_partitions_def")
+
+    assert "ref_hu02_hu02__0" in newPartitions
+    assert "ref_hu04_hu04__0" in newPartitions
+
+    # Check what happens when we delete a specific key in the dynamic partition
+    instance.delete_dynamic_partition("sources_partitions_def", "ref_hu02_hu02__0")
+
+    # Make sure that
+    partitionsAfterDelete = instance.get_dynamic_partitions("sources_partitions_def")
+    assert "ref_hu02_hu02__0" not in partitionsAfterDelete
+    assert "ref_hu04_hu04__0" in partitionsAfterDelete
+    assert len(partitionsAfterDelete) == len(newPartitions) - 1
