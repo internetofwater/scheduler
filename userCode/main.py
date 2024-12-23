@@ -108,7 +108,9 @@ def gleaner_config(context: AssetExecutionContext):
         )
         name = remove_non_alphanumeric(name)
         if name in names:
-            print(f"Warning! Skipping duplicate name {name}")
+            get_dagster_logger().warning(
+                f"Found duplicate name '{name}' in line '{line}' in sitemap {REMOTE_GLEANER_SITEMAP}. Skipping adding it again"
+            )
             continue
 
         parsed_url = urlparse(REMOTE_GLEANER_SITEMAP)
@@ -128,6 +130,7 @@ def gleaner_config(context: AssetExecutionContext):
         names.add(name)
         sources.append(data)
 
+    get_dagster_logger().info(f"Found {len(sources)} sources in the sitemap")
     # Each source is a partition that can be crawled independently
     context.instance.add_dynamic_partitions(
         partitions_def_name="sources_partitions_def", partition_keys=list(names)
