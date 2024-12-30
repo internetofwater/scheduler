@@ -19,6 +19,7 @@ from dagster import (
     load_asset_checks_from_current_module,
     load_assets_from_current_module,
     schedule,
+    materialize,
 )
 import docker
 import dagster_slack
@@ -474,9 +475,31 @@ harvest_job = define_asset_job(
     job=harvest_job,
     default_status=DefaultScheduleStatus.STOPPED,
 )
-def crawl_entire_graph_schedule():
-    for partition_key in sources_partitions_def.get_partition_keys():
-        yield RunRequest(partition_key=partition_key)
+def crawl_entire_graph_schedule(context):
+    get_dagster_logger().info("Schedule triggered.")
+
+    result = materialize([gleaner_config], instance=context.instance)
+    if not result.success:
+        raise Exception(f"Failed to materialize gleaner_config!: {result}")
+
+    partition_keys = context.instance.get_dynamic_partitions("sources_partitions_def")
+    get_dagster_logger().info(f"Partition keys: {partition_keys}")
+    
+    if partition_keys:
+        
+        for partition_key in partition_keys:
+            yield RunRequest(
+                job_name="harvest_source",
+                run_key="havest_weekly",
+                partitions=partition_keys,
+                tags={
+                    "run_type": "harvest_weekly",
+                    "partition_key": partition_key,
+                }
+            )
+    else:
+        get_dagster_logger().warning("No partition keys found.")
+
 
 
 # expose all the code needed for our dagster repo
