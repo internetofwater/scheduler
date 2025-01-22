@@ -18,3 +18,6 @@ jobs:
         id: checkout
       - name: Run Reusable E2E Test Action
         uses: ./.github/actions/e2e-scheduler-test
+        with:
+          nabu_image: internetofwater/nabu:latest
+          gleaner_image: internetofwater/gleaner:latest
