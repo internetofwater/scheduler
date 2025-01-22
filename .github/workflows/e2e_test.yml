@@ -2,6 +2,7 @@ name: Test E2E with Dagster Build
 
 on:
   workflow_dispatch: # Allows manual triggering of the workflow
+  push:
 
 jobs:
   run-e2e-tests:
