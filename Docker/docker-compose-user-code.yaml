@@ -10,10 +10,10 @@ services:
     restart: always
     environment:
       # this is hard coded since we are building the container locally
-      - DAGSTER_CURRENT_IMAGE: "dagster_user_code_image"
+      - DAGSTER_CURRENT_IMAGE="dagster_user_code_image"
       # these are specified here since we want to be able to override them in ci/cd without create an entirely new env file
-      - NABU_IMAGE
-      - GLEANER_IMAGE
+      - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
+      - GLEANER_IMAGE=${GLEANER_IMAGE:-internetofwater/gleaner:latest}
     volumes:
       - ../userCode:/opt/dagster/app/userCode
       # When materialized via the UI, dagster runs the

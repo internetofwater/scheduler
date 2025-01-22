@@ -90,8 +90,8 @@ GLEANER_HEADLESS_ENDPOINT = strict_env("GLEANER_HEADLESS_ENDPOINT")
 # using GLEANER, even though this is a nabu property... same prefix seems easier
 GLEANER_GRAPH_URL = strict_env("GLEANERIO_GRAPH_URL")
 GLEANER_GRAPH_NAMESPACE = strict_env("GLEANERIO_GRAPH_NAMESPACE")
-GLEANER_IMAGE = os.environ.get("GLEANER_IMAGE") or "internetofwater/gleaner:latest"
-NABU_IMAGE = strict_env("NABU_IMAGE") or "internetofwater/nabu:latest"
+GLEANER_IMAGE = strict_env("GLEANER_IMAGE")
+NABU_IMAGE = strict_env("NABU_IMAGE")
 GLEANERIO_DATAGRAPH_ENDPOINT = strict_env("GLEANERIO_DATAGRAPH_ENDPOINT")
 GLEANERIO_PROVGRAPH_ENDPOINT = strict_env("GLEANERIO_PROVGRAPH_ENDPOINT")
 REMOTE_GLEANER_SITEMAP = strict_env("REMOTE_GLEANER_SITEMAP")
