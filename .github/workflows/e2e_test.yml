@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Run Reusable E2E Test Action            
-        uses:  ./.github/actions/e2e-scheduler-test
+      - name: Run Reusable E2E Test Action
+        uses: ./.github/actions/e2e-scheduler-test
         with:
           branch: main
