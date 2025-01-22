@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@v4
+        id: checkout
       - name: Run Reusable E2E Test Action
         uses: ./.github/actions/e2e-scheduler-test
         with:
