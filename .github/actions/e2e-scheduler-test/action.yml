@@ -1,10 +1,10 @@
 name: "An end-to-end test for te entire Geoconnex Scheduler"
 description: "Reusable GitHub Action to run E2E tests for the Dagster build"
 # inputs:
-  # branch:
-  #   description: "Branch of the scheduler repo to test against"
-  #   required: false
-  #   default: "main"
+# branch:
+#   description: "Branch of the scheduler repo to test against"
+#   required: false
+#   default: "main"
 
 runs:
   using: "composite"
