@@ -32,15 +32,15 @@ runs:
     - name: Wait for MinIO
       shell: bash
       run: |
-        for i in {1..30}; do
-          if curl --max-time 10 -fs http://localhost:9001/minio/health/live; then
+        for i in {1..10}; do
+          if curl --max-time 10 -fs http://127.0.0.1:9001/minio/health/live; then
             echo "MinIO is up!"
             exit 0
           fi
           echo "Waiting for MinIO to be ready... Attempt $i"
           sleep 10
         done
-        echo "Failed to connect to MinIO after 30 attempts."
+        echo "Failed to connect to MinIO after 10 attempts."
         exit 1
 
     - name: Run tests that don't require secrets
