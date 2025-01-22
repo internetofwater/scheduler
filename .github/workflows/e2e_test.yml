@@ -1,0 +1,14 @@
+name: Test E2E with Dagster Build
+
+on:
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  run-e2e-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run Reusable E2E Test Action            
+        uses:  ./.github/actions/e2e-scheduler-test
+        with:
+          branch: main
