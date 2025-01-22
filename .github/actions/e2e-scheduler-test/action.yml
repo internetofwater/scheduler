@@ -1,10 +1,5 @@
 name: "Geoconnex Scheduler E2E Test"
 description: "Reusable GitHub Action to run E2E tests for the Dagster build"
-# inputs:
-# branch:
-#   description: "Branch of the scheduler repo to test against"
-#   required: false
-#   default: "main"
 
 runs:
   using: "composite"
@@ -16,19 +11,32 @@ runs:
       uses: docker/setup-buildx-action@v2
 
     - name: Launch Docker Stack
-      run: python3 main.py local
+      run: python3 main.py local &
       shell: bash
+
+    - name: Debug Docker Containers
+      run: docker ps -a
+
+    - name: Check MinIO Logs
+      run: |
+        CONTAINER_ID=$(docker ps -q --filter "name=minio")
+        if [ -n "$CONTAINER_ID" ]; then
+          docker logs $CONTAINER_ID
+        else
+          echo "MinIO container not found!"
+          exit 1
+        fi
 
     - name: Wait for MinIO
       shell: bash
       run: |
-        for i in {1..10}; do
-          if curl -fs http://localhost:9001/minio/health/live; then
+        for i in {1..30}; do
+          if curl --max-time 10 -fs http://localhost:9001/minio/health/live; then
             echo "MinIO is up!"
             exit 0
           fi
-          echo "Waiting for MinIO to be ready..."
-          sleep 5
+          echo "Waiting for MinIO to be ready... Attempt $i"
+          sleep 10
         done
         echo "Failed to connect to MinIO after 30 attempts."
         exit 1
