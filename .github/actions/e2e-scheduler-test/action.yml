@@ -1,4 +1,4 @@
-name: "An end-to-end test for te entire Geoconnex Scheduler"
+name: "Geoconnex Scheduler E2E Test"
 description: "Reusable GitHub Action to run E2E tests for the Dagster build"
 # inputs:
 # branch:
@@ -23,7 +23,7 @@ runs:
       shell: bash
       run: |
         for i in {1..10}; do
-          if curl -fs http://minio:9001/minio/health/live; then
+          if curl -fs http://localhost:9001/minio/health/live; then
             echo "MinIO is up!"
             exit 0
           fi

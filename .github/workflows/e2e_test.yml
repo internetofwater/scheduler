@@ -1,4 +1,4 @@
-name: Test E2E with Dagster Build
+name: E2E Test Pipeline
 
 on:
   workflow_dispatch: # Allows manual triggering of the workflow
