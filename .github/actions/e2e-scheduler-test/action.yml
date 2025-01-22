@@ -15,9 +15,11 @@ runs:
       shell: bash
 
     - name: Debug Docker Containers
+      shell: bash
       run: docker ps -a
 
     - name: Check MinIO Logs
+      shell: bash
       run: |
         CONTAINER_ID=$(docker ps -q --filter "name=minio")
         if [ -n "$CONTAINER_ID" ]; then
