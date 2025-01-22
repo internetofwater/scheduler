@@ -35,4 +35,6 @@ runs:
 
     - name: Run tests that don't require secrets
       shell: bash
-      run: python3 main.py test
+      run: |
+        echo "Starting tests"
+        python3 main.py test
