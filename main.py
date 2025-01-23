@@ -99,9 +99,11 @@ def up(local: bool, debug: bool):
     else:
         compose_args = "-c ./Docker/docker-compose-user-code.yaml -c ./Docker/docker-compose-separated-dagster.yaml"
 
-    run_subprocess(
-        f"docker stack deploy {compose_args} geoconnex_crawler --detach=false"
-    )
+    # if we are in ci/cd we want to run the stack in the background so we don't wait for convergence and validating all the containers after they are spun up
+    detach_for_speedup = not sys.stdin.isatty()
+    docker_stack_cmd = f"docker stack deploy {compose_args} geoconnex_crawler --detach={detach_for_speedup}"
+    print(f"Deploying infrastructure with command: '{docker_stack_cmd}'")
+    run_subprocess(docker_stack_cmd)
 
 
 def refresh():
