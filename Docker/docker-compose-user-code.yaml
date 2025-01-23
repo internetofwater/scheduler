@@ -9,7 +9,11 @@ services:
     container_name: dagster_user_code
     restart: always
     environment:
-      DAGSTER_CURRENT_IMAGE: "dagster_user_code_image"
+      # this is hard coded since we are building the container locally
+      - DAGSTER_CURRENT_IMAGE="dagster_user_code_image"
+      # these are specified here since we want to be able to override them in ci/cd without create an entirely new env file
+      - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
+      - GLEANER_IMAGE=${GLEANER_IMAGE:-internetofwater/gleaner:latest}
     volumes:
       - ../userCode:/opt/dagster/app/userCode
       # When materialized via the UI, dagster runs the
@@ -17,7 +21,6 @@ services:
       # However, if we are just running pytest we need to have direct
       # access to the docker sock inside the user code container
       - /var/run/docker.sock:/var/run/docker.sock
-
     networks:
       - dagster_network
     env_file: "../.env"

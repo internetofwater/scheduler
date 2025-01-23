@@ -44,8 +44,8 @@ from .lib.env import (
     GLEANER_HEADLESS_ENDPOINT,
     REMOTE_GLEANER_SITEMAP,
     GLEANERIO_DATAGRAPH_ENDPOINT,
-    GLEANERIO_GLEANER_IMAGE,
-    GLEANERIO_NABU_IMAGE,
+    GLEANER_IMAGE,
+    NABU_IMAGE,
     GLEANERIO_PROVGRAPH_ENDPOINT,
     strict_env,
 )
@@ -197,8 +197,8 @@ def docker_client_environment():
     get_dagster_logger().info("Getting docker client and pulling images: ")
     client = docker.DockerClient(version="1.43")
     # check if the docker socket is available
-    client.images.pull(GLEANERIO_GLEANER_IMAGE)
-    client.images.pull(GLEANERIO_NABU_IMAGE)
+    client.images.pull(GLEANER_IMAGE)
+    client.images.pull(NABU_IMAGE)
     # we create configs as docker config objects so
     # we can more easily reuse them and not need to worry about
     # navigating / mounting file systems for local config access
@@ -260,7 +260,7 @@ def gleaner(context: OpExecutionContext):
     source = context.partition_key
     ARGS = ["--cfg", "gleanerconfig.yaml", "-source", source, "--rude"]
     returned_value = run_scheduler_docker_image(
-        context, source, GLEANERIO_GLEANER_IMAGE, ARGS, "gleaner"
+        context, source, GLEANER_IMAGE, ARGS, "gleaner"
     )
     get_dagster_logger().info(f"Gleaner returned value: '{returned_value}'")
 
@@ -276,7 +276,7 @@ def nabu_release(context: OpExecutionContext):
         "--prefix",
         "summoned/" + source,
     ]
-    run_scheduler_docker_image(context, source, GLEANERIO_NABU_IMAGE, ARGS, "release")
+    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "release")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_release])
@@ -291,7 +291,7 @@ def nabu_object(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, GLEANERIO_NABU_IMAGE, ARGS, "object")
+    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "object")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_object])
@@ -307,7 +307,7 @@ def nabu_prune(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, GLEANERIO_NABU_IMAGE, ARGS, "prune")
+    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prune")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
@@ -322,9 +322,7 @@ def nabu_prov_release(context):
         "--prefix",
         "prov/" + source,
     ]
-    run_scheduler_docker_image(
-        context, source, GLEANERIO_NABU_IMAGE, ARGS, "prov-release"
-    )
+    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prov-release")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_release])
@@ -338,9 +336,7 @@ def nabu_prov_clear(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(
-        context, source, GLEANERIO_NABU_IMAGE, ARGS, "prov-clear"
-    )
+    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prov-clear")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_clear])
@@ -355,9 +351,7 @@ def nabu_prov_object(context):
         "--endpoint",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(
-        context, source, GLEANERIO_NABU_IMAGE, ARGS, "prov-object"
-    )
+    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prov-object")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
@@ -374,9 +368,7 @@ def nabu_orgs_release(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(
-        context, source, GLEANERIO_NABU_IMAGE, ARGS, "orgs-release"
-    )
+    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "orgs-release")
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_orgs_release])
@@ -392,7 +384,7 @@ def nabu_orgs(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, GLEANERIO_NABU_IMAGE, ARGS, "orgs")
+    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "orgs")
 
 
 @asset(
