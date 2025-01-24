@@ -1,0 +1,148 @@
+name: geoconnex_scheduler
+
+services:
+  # MinIO service for storage
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - scheduler_minio_data:/data
+    env_file:
+      - "../.env"
+    profiles:
+      - localInfra
+
+  # Creates buckets for MinIO
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+        sleep 10;
+        /usr/bin/mc alias set myminio http://minio:9000 minio_access_key minio_secret_key;
+        /usr/bin/mc mb myminio/gleanerbucket;
+        /usr/bin/mc anonymous set public myminio/gleanerbucket;
+        sleep infinity;
+      "
+    profiles:
+      - localInfra
+
+  # GraphDB service for storage
+  graphdb:
+    image: khaller/graphdb-free
+    ports:
+      - "7200:7200"
+    environment:
+      - JAVA_XMX=4g
+      - JAVA_XMS=2048m
+    volumes:
+      - graphdb_data:/opt/graphdb/data
+    profiles:
+      - localInfra
+
+  # Creates repositories in GraphDB
+  createrepositories:
+    image: alpine/curl
+    depends_on:
+      - graphdb
+    entrypoint: >
+      /bin/sh -c "
+        sleep 5;
+        curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iow-config.ttl';
+        curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@templates/iowprov-config.ttl';
+        sleep infinity;
+      "
+    volumes:
+      - ../templates:/templates
+    profiles:
+      - localInfra
+
+  # PostgreSQL database for Dagster
+  dagster_postgres:
+    image: postgres:11
+    volumes:
+      - dagster_postgres_data:/var/lib/postgresql/data
+    env_file:
+      - "../.env"
+    profiles:
+      - dagsterStorage
+    ports:
+      - 5432:5432
+
+  # Dagster Webserver
+  dagster_webserver:
+    image: dagster_webserver_image
+    build:
+      context: ..
+      dockerfile: ./Docker/dagster/Dockerfile_dagster
+    entrypoint:
+      - dagster-webserver
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3000"
+      - -w
+      - "workspace.yaml"
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/io_manager_storage:/tmp/io_manager_storage
+    depends_on:
+      - dagster_postgres
+      - dagster_user_code
+    env_file:
+      - "../.env"
+
+  # Dagster Daemon
+  dagster_daemon:
+    image: dagster_daemon_image
+    build:
+      context: ..
+      dockerfile: ./Docker/dagster/Dockerfile_dagster
+    restart: on-failure
+    entrypoint:
+      - dagster-daemon
+      - run
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/io_manager_storage:/tmp/io_manager_storage
+    depends_on:
+      - dagster_postgres
+      - dagster_user_code
+    env_file:
+      - "../.env"
+
+  # Dagster User Code
+  dagster_user_code:
+    image: dagster_user_code_image
+    build:
+      context: ..
+      dockerfile: ./Docker/dagster/Dockerfile_user_code
+    restart: always
+    environment:
+      - DAGSTER_CURRENT_IMAGE=dagster_user_code_image
+      - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
+      - GLEANER_IMAGE=${GLEANER_IMAGE:-internetofwater/gleaner:latest}
+    volumes:
+      - ../userCode:/opt/dagster/app/userCode
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - "../.env"
+
+  # Headless browser for testing
+  headless:
+    image: chromedp/headless-shell:latest
+    ports:
+      - "9222:9222"
+    environment:
+      - SERVICE_PORTS=9222
+
+volumes:
+  scheduler_minio_data:
+  graphdb_data:
+  dagster_postgres_data:

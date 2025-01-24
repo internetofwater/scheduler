@@ -4,10 +4,6 @@
 # for debugging or just dagster code-server for running in production
 
 set -x
-if [ "$DAGSTER_DEBUG" != "true" ] && [ "$DAGSTER_DEBUG" != "false" ]; then
-  echo "DAGSTER_DEBUG env var must be set to one of 'true' or 'false'"
-  exit 1
-fi
 
 if [ "$DAGSTER_DEBUG" = "true" ]; then
   echo "Starting dagster in debug mode and waiting for connection to debugpy"
