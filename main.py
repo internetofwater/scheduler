@@ -1,5 +1,4 @@
 import os
-import shlex
 import shutil
 import subprocess
 import sys
@@ -13,26 +12,27 @@ This file is the CLI for managing Docker Compose-based infrastructure.
 """
 
 
-def run_subprocess(command: str, returnStdoutInsteadOfPrint: bool = False):
+def run_subprocess(command: str, returnStdoutAsValue: bool = False):
     """Run a shell command and stream the output in realtime"""
     process = subprocess.Popen(
         command,
         shell=True,
-        stdout=subprocess.PIPE if returnStdoutInsteadOfPrint else sys.stdout,
+        stdout=subprocess.PIPE if returnStdoutAsValue else sys.stdout,
         stderr=sys.stderr,
+        env=os.environ,
     )
     stdout, _ = process.communicate()
     if process.returncode != 0:
         sys.exit(process.returncode)
 
-    return stdout.decode("utf-8") if returnStdoutInsteadOfPrint else None
+    return stdout.decode("utf-8") if returnStdoutAsValue else None
 
 
 def login():
     """Log into the user code container"""
     containerName = run_subprocess(
-        "docker ps --filter name=geoconnex_crawler_dagster_user_code --format '{{.Names}}'",
-        returnStdoutInsteadOfPrint=True,
+        "docker ps --filter name=geoconnex_scheduler_dagster_user_code --format '{{.Names}}'",
+        returnStdoutAsValue=True,
     )
     if not containerName:
         raise RuntimeError("Could not find the user code container to log in")
@@ -42,16 +42,8 @@ def login():
     run_subprocess(f"docker exec -it {containerName} /bin/bash")
 
 
-def down():
-    """Stop the Docker Compose services"""
-    run_subprocess(
-        "docker compose --profile localInfra --profile dagsterStorage -f Docker/Docker-compose.yaml down"
-    )
-
-
-def up():
+def up(profiles: list[str], build: bool = False, dev_mode: bool = False):
     """Run the Docker Compose services"""
-
     if not os.path.exists(".env"):
         if not sys.stdin.isatty():
             shutil.copy(".env.example", ".env")
@@ -66,84 +58,48 @@ def up():
                 print("Missing .env file. Exiting")
                 return
 
-    # Build the images
-    run_subprocess(
-        "docker compose --profile localInfra --profile dagsterStorage -f Docker/Docker-compose.yaml up"
-    )
+    profileCommand = " ".join(f"--profile {profile}" for profile in profiles)
+    command = f"docker compose {profileCommand} -f Docker/Docker-compose.yaml up"
 
-
-def refresh():
-    """Rebuild the user code for Dagster, but not anything else"""
-    run_subprocess(
-        "docker compose --profile localInfra --profile dagsterStorage -f Docker/Docker-compose.yaml build geoconnex_crawler_dagster_user_code"
-    )
-
-
-def test(*args):
-    """Run pytest inside the user code container with optional arguments"""
-    containerName = run_subprocess(
-        "docker ps --filter name=geoconnex_crawler_dagster_user_code --format '{{.Names}}'",
-        returnStdoutInsteadOfPrint=True,
-    )
-    if not containerName:
-        raise RuntimeError("Could not find the user code container to run pytest")
-    containerName = containerName.strip()
-
-    quoted_args = " ".join(
-        shlex.quote(arg) if " " not in arg else f'"{arg}"' for arg in args
-    )
-
-    pytest_command = f"pytest userCode/ -vvvxs {quoted_args}"
-
-    print(f"Running pytest cmd: '{pytest_command}'")
-    if not sys.stdin.isatty():
-        run_subprocess(f"docker exec {containerName} {pytest_command}")
+    if dev_mode:
+        run_subprocess("uv sync")
+        command = "export DAGSTER_POSTGRES_HOST=localhost && " + command
     else:
-        run_subprocess(f"docker exec -it {containerName} {pytest_command}")
+        command = "export DAGSTER_POSTGRES_HOST=dagster_postgres && " + command
+    if build:
+        run_subprocess(f"{command} --build")
+    else:
+        run_subprocess(command)
 
 
 def main():
     # Set DOCKER_CLI_HINTS false to avoid the advertisement message after every docker cmd
     os.environ["DOCKER_CLI_HINTS"] = "false"
 
-    # Make sure the user is in the same directory as this file
-    file_dir = os.path.dirname(os.path.abspath(__file__))
-    if file_dir != os.getcwd():
-        raise RuntimeError(
-            "Must run from same directory as the CLI in order for paths to be correct"
-        )
-
     parser = argparse.ArgumentParser(description="Docker Compose Management")
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("down", help="Stop the Docker Compose services")
 
-    local_parser = subparsers.add_parser(
-        "local", help="Spin up the Docker Compose services with local s3 and graphdb"
-    )
-    local_parser.add_argument(
-        "--debug",
+    dev = subparsers.add_parser("dev", help="Run dagster dev with local infrastructure")
+    dev.add_argument(
+        "--build",
         action="store_true",
-        help="Enables a debugger for Dagster. Requires the vscode debugger to be running.",
+        help="Build the Docker Compose services before starting",
     )
 
-    subparsers.add_parser(
-        "refresh",
-        help="Rebuild and reload the user code for Dagster without touching other services",
+    prod = subparsers.add_parser(
+        "prod", help="Run the Docker Compose services in production mode"
+    )
+    prod.add_argument(
+        "--local-services",
+        action="store_true",
+        help="Spin up local infrastructure instead of managed ones.",
     )
 
-    subparsers.add_parser(
-        "prod",
-        help="Spin up the Docker Compose services with remote s3 and graphdb",
-    )
-
-    test_parser = subparsers.add_parser(
-        "test",
-        help="Run pytest inside the user code container. Pass additional pytest arguments as needed",
-    )
-    test_parser.add_argument(
-        "pytest_args",
-        nargs="*",
-        help="Additional arguments to pass to pytest (e.g., -- -k 'special_fn')",
+    prod.add_argument(
+        "--build",
+        action="store_true",
+        help="Build the Docker Compose services before starting",
     )
 
     subparsers.add_parser(
@@ -151,20 +107,20 @@ def main():
     )
 
     args = parser.parse_args()
+
     if args.command == "down":
-        down()
-    elif args.command == "local":
-        up(local=True, debug=args.debug)
+        run_subprocess(
+            "docker compose --profile localInfra --profile production -f Docker/Docker-compose.yaml down"
+        )
+    elif args.command == "dev":
+        up(profiles=["localInfra"], build=args.build, dev_mode=True)
     elif args.command == "prod":
-        up(local=False, debug=False)
-    elif args.command == "refresh":
-        refresh()
-    elif args.command == "test":
-        test(*args.pytest_args)
+        profiles = ["production"]
+        if args.local_services:
+            profiles.append("localInfra")
+        up(profiles, build=args.build, dev_mode=False)
     elif args.command == "login":
         login()
-    else:
-        parser.print_help()
 
 
 if __name__ == "__main__":

@@ -22,5 +22,5 @@ dependencies = [
 ]
 
 [tool.dagster]
-module_name = "userCode"
+module_name = "userCode.main"
 code_location_name = "userCode"

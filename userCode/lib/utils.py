@@ -34,6 +34,10 @@ def remove_non_alphanumeric(string):
     return re.sub(r"[^a-zA-Z0-9_]+", "", string)
 
 
+def run_gleaner():
+    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "release")
+
+
 def run_scheduler_docker_image(
     context: OpExecutionContext,
     source: str,  # which organization we are crawling
@@ -57,6 +61,7 @@ def run_scheduler_docker_image(
     validate_docker_image(image_name)
 
     op_container_context = DockerContainerContext(
+        # networks="dagster_network",
         container_kwargs={
             "working_dir": "/opt/dagster/app",
         },
@@ -126,8 +131,8 @@ def template_rclone(input_template_file_path: str) -> str:
             "LAKEFS_SECRET_ACCESS_KEY",
             "GLEANERIO_MINIO_ADDRESS",
             "GLEANERIO_MINIO_PORT",
-            "SCHEDULER_MINIO_USE_SSL",
-            "SCHEDULER_MINIO_BUCKET",
+            "GLEANERIO_MINIO_USE_SSL",
+            "GLEANERIO_MINIO_BUCKET",
             "MINIO_SECRET_KEY",
             "MINIO_ACCESS_KEY",
         ]
@@ -147,16 +152,16 @@ def template_gleaner_or_nabu(input_template_file_path: str) -> str:
     vars_in_both_nabu_and_gleaner_configs: dict[str, Union[str, int]] = {
         var: strict_env(var)
         for var in [
-            "SCHEDULER_MINIO_ADDRESS",
+            "GLEANERIO_MINIO_ADDRESS",
             "MINIO_ACCESS_KEY",
             "MINIO_SECRET_KEY",
-            "SCHEDULER_MINIO_BUCKET",
-            "SCHEDULER_MINIO_PORT",
-            "SCHEDULER_MINIO_USE_SSL",
-            "SCHEDULER_DATAGRAPH_ENDPOINT",
-            "SCHEDULER_GRAPH_URL",
-            "SCHEDULER_PROVGRAPH_ENDPOINT",
-            "SCHEDULER_MINIO_REGION",
+            "GLEANERIO_MINIO_BUCKET",
+            "GLEANERIO_MINIO_PORT",
+            "GLEANERIO_MINIO_USE_SSL",
+            "GLEANERIO_DATAGRAPH_ENDPOINT",
+            "GLEANERIO_GRAPH_URL",
+            "GLEANERIO_PROVGRAPH_ENDPOINT",
+            "GLEANERIO_MINIO_REGION",
             "GLEANER_HEADLESS_ENDPOINT",
         ]
     }

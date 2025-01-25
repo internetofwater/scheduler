@@ -110,8 +110,12 @@ services:
         condition: service_started
     env_file:
       - "../.env"
+    environment:
+      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST:?Missing DAGSTER_POSTGRES_HOST}
     networks:
       - dagster_network
+    profiles:
+      - production
 
   # Dagster Daemon
   dagster_daemon:
@@ -134,8 +138,12 @@ services:
         condition: service_started
     env_file:
       - "../.env"
+    environment:
+      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST:?Missing DAGSTER_POSTGRES_HOST}
     networks:
       - dagster_network
+    profiles:
+      - production
 
   # Dagster User Code
   dagster_user_code:
@@ -151,11 +159,14 @@ services:
       - DAGSTER_CURRENT_IMAGE=dagster_user_code_image
       - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
       - GLEANER_IMAGE=${GLEANER_IMAGE:-internetofwater/gleaner:latest}
+      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST:?Missing DAGSTER_POSTGRES_HOST}
     volumes:
       - ../userCode:/opt/dagster/app/userCode
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
       - "../.env"
+    profiles:
+      - production
 
   # Headless browser for testing
   headless:

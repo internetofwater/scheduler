@@ -31,10 +31,10 @@ def test_env_vars():
     env vars that were incorrectly applied or missing"""
     env = os.environ
     for key in env.keys():
-        assert (
-            env[key] != ""
-        ), "{} is empty, but scheduler should only be using env vars that are defined".format(
-            key
+        assert env[key] != "", (
+            "{} is empty, but scheduler should only be using env vars that are defined".format(
+                key
+            )
         )
 
 
@@ -49,9 +49,9 @@ def test_lakefs_health():
         f"{LAKEFS_ENDPOINT_URL}/api/v1/healthcheck",
     )
 
-    assert (
-        response.status_code == 204
-    ), f"{LAKEFS_ENDPOINT_URL} is not healthy: {response.text}"
+    assert response.status_code == 204, (
+        f"{LAKEFS_ENDPOINT_URL} is not healthy: {response.text}"
+    )
 
 
 def test_rclone_config_location():

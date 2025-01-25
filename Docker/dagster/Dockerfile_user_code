@@ -20,8 +20,8 @@ ENV DAGSTER_DEBUG=$DAGSTER_DEBUG
 
 # configs and runtime code
 WORKDIR /opt/dagster/app
-COPY userCode /opt/dagster/app/userCode
-COPY templates /opt/dagster/app/templates
+COPY userCode/ /opt/dagster/app/userCode
+COPY templates/ /opt/dagster/app/templates
 
 # Expose the necessary ports
 EXPOSE 4000

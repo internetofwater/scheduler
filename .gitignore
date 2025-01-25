@@ -15,3 +15,5 @@ build/
 
 test_*config.yaml
 rclone.conf
+
+tmp*/

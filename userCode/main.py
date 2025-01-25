@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+import os
 from typing import Optional, Tuple
 from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
@@ -55,9 +56,10 @@ from .lib.env import (
 def nabu_config():
     """The nabuconfig.yaml used for nabu"""
     get_dagster_logger().info("Creating nabu config")
-    templated_data = template_gleaner_or_nabu(
-        "/opt/dagster/app/templates/nabuconfig.yaml.j2"
+    input_file = os.path.join(
+        os.path.dirname(__file__), "templates", "nabuconfig.yaml.j2"
     )
+    templated_data = template_gleaner_or_nabu(input_file)
     conf = yaml.safe_load(templated_data)
     encoded_as_bytes = yaml.safe_dump(conf).encode()
     # put configs in s3 for introspection and persistence if we need to run gleaner locally
@@ -72,7 +74,8 @@ def nabu_config():
 def rclone_config() -> str:
     """Create the rclone config by templating the rclone.conf.j2 template"""
     get_dagster_logger().info("Creating rclone config")
-    templated_conf: str = template_rclone("/opt/dagster/app/templates/rclone.conf.j2")
+    input_file = os.path.join(os.path.dirname(__file__), "templates", "rclone.conf.j2")
+    templated_conf: str = template_rclone(input_file)
     return templated_conf
 
 
@@ -80,7 +83,9 @@ def rclone_config() -> str:
 def gleaner_config(context: AssetExecutionContext):
     """The gleanerconfig.yaml used for gleaner"""
     get_dagster_logger().info("Creating gleaner config")
-    input_file = "/opt/dagster/app/templates/gleanerconfig.yaml.j2"
+    input_file = os.path.join(
+        os.path.dirname(__file__), "templates", "gleanerconfig.yaml.j2"
+    )
 
     # Fill in the config with the common minio configuration
     templated_base = yaml.safe_load(template_gleaner_or_nabu(input_file))
@@ -193,45 +198,11 @@ def gleaner_links_are_valid():
 def docker_client_environment():
     """Set up dagster by pulling both the gleaner and nabu images and moving the config files into docker configs"""
     get_dagster_logger().info("Getting docker client and pulling images: ")
-    client = docker.DockerClient(version="1.43")
+    client = docker.DockerClient()
+
     # check if the docker socket is available
     client.images.pull(GLEANER_IMAGE)
     client.images.pull(NABU_IMAGE)
-    # we create configs as docker config objects so
-    # we can more easily reuse them and not need to worry about
-    # navigating / mounting file systems for local config access
-    api_client = docker.APIClient()
-
-    # At the start of the pipeline, remove any existing configs
-    # and try to regenerate a new one
-    # since we don't want old/stale configs to be used
-
-    # However, if another container is using the config it will fail and throw an error
-    # Instead of using a mutex and trying to synchronize access,
-    # we just assume that a config that is in use is not stale.
-    configs = {
-        "gleaner": "configs/gleanerconfig.yaml",
-        "nabu": "configs/nabuconfig.yaml",
-    }
-
-    for config_name, config_file in configs.items():
-        try:
-            config = client.configs.list(filters={"name": [config_name]})
-            if config:
-                api_client.remove_config(config[0].id)
-        except docker.errors.APIError as e:
-            get_dagster_logger().info(
-                f"Skipped removing {config_name} config during docker client environment creation since it is likely in use. Underlying skipped exception was {e}"
-            )
-        except IndexError as e:
-            get_dagster_logger().info(f"No config found for {config_name}: {e}")
-
-        try:
-            client.configs.create(name=config_name, data=S3().read(config_file))
-        except docker.errors.APIError as e:
-            get_dagster_logger().info(
-                f"Skipped creating {config_name} config during docker client environment creation since it is likely in use. Underlying skipped exception was {e}"
-            )
 
 
 @asset_check(asset=docker_client_environment)
