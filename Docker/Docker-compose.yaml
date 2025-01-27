@@ -13,6 +13,8 @@ services:
       - scheduler_minio_data:/data
     env_file:
       - "../.env"
+    networks:
+      - dagster_network
     profiles:
       - localInfra
 
@@ -29,6 +31,8 @@ services:
         /usr/bin/mc anonymous set public myminio/gleanerbucket;
         sleep infinity;
       "
+    networks:
+      - dagster_network
     profiles:
       - localInfra
 
@@ -41,6 +45,8 @@ services:
     environment:
       - JAVA_XMX=4g
       - JAVA_XMS=2048m
+    networks:
+      - dagster_network
     volumes:
       - graphdb_data:/opt/graphdb/data
     profiles:
@@ -58,6 +64,8 @@ services:
         curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@graphdb/iowprov-config.ttl';
         sleep infinity;
       "
+    networks:
+      - dagster_network
     volumes:
       - ./graphdb:/graphdb
     profiles:
@@ -111,7 +119,7 @@ services:
     env_file:
       - "../.env"
     environment:
-      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST:?Missing DAGSTER_POSTGRES_HOST}
+      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST:?}
     networks:
       - dagster_network
     profiles:
@@ -139,7 +147,7 @@ services:
     env_file:
       - "../.env"
     environment:
-      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST:?Missing DAGSTER_POSTGRES_HOST}
+      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST:?}
     networks:
       - dagster_network
     profiles:
@@ -159,7 +167,7 @@ services:
       - DAGSTER_CURRENT_IMAGE=dagster_user_code_image
       - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
       - GLEANER_IMAGE=${GLEANER_IMAGE:-internetofwater/gleaner:latest}
-      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST:?Missing DAGSTER_POSTGRES_HOST}
+      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST:?}
     volumes:
       - ../userCode:/opt/dagster/app/userCode
       - /var/run/docker.sock:/var/run/docker.sock
@@ -174,6 +182,8 @@ services:
     container_name: scheduler_headless
     ports:
       - "9222:9222"
+    networks:
+      - dagster_network
     environment:
       - SERVICE_PORTS=9222
 

@@ -19,6 +19,44 @@ run_monitoring:
   # changed in the future if we want shorter timeouts
   # poll_interval_seconds: 120
 
+run_launcher:
+  module: dagster_docker
+  class: DockerRunLauncher
+  config:
+    env_vars:
+      - DAGSTER_POSTGRES_USER
+      - DAGSTER_POSTGRES_PASSWORD
+      - DAGSTER_POSTGRES_DB
+      - GLEANERIO_MINIO_ADDRESS
+      - GLEANERIO_MINIO_PORT
+      - GLEANERIO_MINIO_USE_SSL
+      - GLEANERIO_MINIO_BUCKET
+      - GLEANERIO_MINIO_REGION
+      - MINIO_ACCESS_KEY
+      - MINIO_SECRET_KEY
+      - GLEANER_HEADLESS_ENDPOINT
+      - GLEANERIO_GRAPH_URL
+      - GLEANERIO_GRAPH_NAMESPACE
+      - GLEANERIO_DATAGRAPH_ENDPOINT
+      - GLEANERIO_PROVGRAPH_ENDPOINT
+      - GLEANER_IMAGE
+      - NABU_IMAGE
+      - DAGSTER_SLACK_TOKEN
+      - DAGSTER_HOME
+      - REMOTE_GLEANER_SITEMAP
+      - LAKEFS_ENDPOINT_URL
+      - LAKEFS_ACCESS_KEY_ID
+      - LAKEFS_SECRET_ACCESS_KEY
+      - GLEANER_THREADS
+      - DAGSTER_POSTGRES_HOST
+
+    network: dagster_network
+    container_kwargs:
+      auto_remove: True
+      volumes: # Make docker client accessible to any launched containers as well
+        - /var/run/docker.sock:/var/run/docker.sock
+        - /tmp/io_manager_storage:/tmp/io_manager_storage
+
 run_storage:
   module: dagster_postgres.run_storage
   class: PostgresRunStorage

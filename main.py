@@ -19,7 +19,6 @@ def run_subprocess(command: str, returnStdoutAsValue: bool = False):
         shell=True,
         stdout=subprocess.PIPE if returnStdoutAsValue else sys.stdout,
         stderr=sys.stderr,
-        env=os.environ,
     )
     stdout, _ = process.communicate()
     if process.returncode != 0:
@@ -31,7 +30,7 @@ def run_subprocess(command: str, returnStdoutAsValue: bool = False):
 def login():
     """Log into the user code container"""
     containerName = run_subprocess(
-        "docker ps --filter name=geoconnex_scheduler_dagster_user_code --format '{{.Names}}'",
+        "docker ps --filter name=user_code --format '{{.Names}}'",
         returnStdoutAsValue=True,
     )
     if not containerName:
@@ -63,7 +62,7 @@ def up(profiles: list[str], build: bool = False, dev_mode: bool = False):
 
     if dev_mode:
         run_subprocess("uv sync")
-        command = "export DAGSTER_POSTGRES_HOST=localhost && " + command
+        command = "export DAGSTER_POSTGRES_HOST=0.0.0.0 && " + command
     else:
         command = "export DAGSTER_POSTGRES_HOST=dagster_postgres && " + command
     if build:

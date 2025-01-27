@@ -19,8 +19,17 @@ dependencies = [
     "pytest>=8.3.4",
     "pyyaml>=6.0.2",
     "requests>=2.32.3",
+    "pytest-dotenv>=0.5.2",
 ]
 
 [tool.dagster]
 module_name = "userCode.main"
 code_location_name = "userCode"
+
+[tool.pytest.ini_options]
+# we want to be able to override existing env values so .env is the source of truth. Otherwise 
+# old env values from a previous run will be set and not overridden
+env_override_existing_values = 1
+env_files = [
+    ".env"
+]

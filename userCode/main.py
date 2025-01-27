@@ -68,6 +68,8 @@ def nabu_config():
         encoded_as_bytes,
         "configs/nabuconfig.yaml",
     )
+    with open("/tmp/nabuconfig.yaml", "w") as f:
+        f.write(templated_data)
 
 
 @asset
@@ -88,7 +90,7 @@ def gleaner_config(context: AssetExecutionContext):
     )
 
     # Fill in the config with the common minio configuration
-    templated_base = yaml.safe_load(template_gleaner_or_nabu(input_file))
+    templated_base: dict = yaml.safe_load(template_gleaner_or_nabu(input_file))
 
     r = requests.get(REMOTE_GLEANER_SITEMAP)
     xml = r.text
@@ -154,6 +156,8 @@ def gleaner_config(context: AssetExecutionContext):
     encoded_as_bytes = yaml.dump(templated_base).encode()
     s3_client = S3()
     s3_client.load(encoded_as_bytes, "configs/gleanerconfig.yaml")
+    with open("/tmp/gleanerconfig.yaml", "w") as f:
+        f.write(yaml.dump(templated_base))
 
 
 @asset_check(asset=gleaner_config)
@@ -210,9 +214,7 @@ def can_contact_headless():
     """Check that we can contact the headless server"""
     TWO_SECONDS = 2
     # the Host header needs to be set for Chromium due to an upstream security requirement
-    result = requests.get(
-        GLEANER_HEADLESS_ENDPOINT, timeout=TWO_SECONDS, headers={"Host": "localhost"}
-    )
+    result = requests.get(GLEANER_HEADLESS_ENDPOINT, timeout=TWO_SECONDS)
     return AssetCheckResult(
         passed=result.status_code == 200,
         metadata={
@@ -227,9 +229,15 @@ def can_contact_headless():
 def gleaner(context: OpExecutionContext):
     """Get the jsonld for each site in the gleaner config"""
     source = context.partition_key
-    ARGS = ["--cfg", "gleanerconfig.yaml", "-source", source, "--rude"]
+    ARGS = ["--cfg", "gleanerconfig.yaml", "--source", source, "--rude"]
+
     returned_value = run_scheduler_docker_image(
-        context, source, GLEANER_IMAGE, ARGS, "gleaner"
+        context,
+        source,
+        GLEANER_IMAGE,
+        ARGS,
+        "gleaner",
+        volumeMapping=["/tmp/gleanerconfig.yaml:/gleanerconfig.yaml"],
     )
     get_dagster_logger().info(f"Gleaner returned value: '{returned_value}'")
 
@@ -245,7 +253,14 @@ def nabu_release(context: OpExecutionContext):
         "--prefix",
         "summoned/" + source,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "release")
+    run_scheduler_docker_image(
+        context,
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "release",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_release])
@@ -260,7 +275,14 @@ def nabu_object(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "object")
+    run_scheduler_docker_image(
+        context,
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "object",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_object])
@@ -276,7 +298,14 @@ def nabu_prune(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prune")
+    run_scheduler_docker_image(
+        context,
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "prune",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
@@ -291,7 +320,14 @@ def nabu_prov_release(context):
         "--prefix",
         "prov/" + source,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prov-release")
+    run_scheduler_docker_image(
+        context,
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "prov-release",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_release])
@@ -305,7 +341,14 @@ def nabu_prov_clear(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prov-clear")
+    run_scheduler_docker_image(
+        context,
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "prov-clear",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_clear])
@@ -320,7 +363,14 @@ def nabu_prov_object(context):
         "--endpoint",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prov-object")
+    run_scheduler_docker_image(
+        context,
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "prov-object",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
@@ -337,7 +387,14 @@ def nabu_orgs_release(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "orgs-release")
+    run_scheduler_docker_image(
+        context,
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "orgs-release",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_orgs_release])
@@ -353,7 +410,14 @@ def nabu_orgs(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "orgs")
+    run_scheduler_docker_image(
+        context,
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "orgs",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(

@@ -8,8 +8,6 @@ from dagster import (
     RunFailureSensorContext,
     get_dagster_logger,
 )
-from dagster._core.utils import parse_env_var
-from dagster_docker import DockerRunLauncher
 import docker
 import docker.errors
 import docker.models
@@ -26,16 +24,11 @@ from .env import (
     strict_env,
     strict_env_int,
 )
-from dagster_docker.container_context import DockerContainerContext
 from dagster_docker.utils import validate_docker_image
 
 
 def remove_non_alphanumeric(string):
     return re.sub(r"[^a-zA-Z0-9_]+", "", string)
-
-
-def run_gleaner():
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "release")
 
 
 def run_scheduler_docker_image(
@@ -52,34 +45,20 @@ def run_scheduler_docker_image(
     get_dagster_logger().info(f"Datagraph value: {GLEANERIO_DATAGRAPH_ENDPOINT}")
     get_dagster_logger().info(f"Provgraph value: {GLEANERIO_PROVGRAPH_ENDPOINT}")
 
-    run_container_context = DockerContainerContext.create_for_run(
-        context.dagster_run,
-        context.instance.run_launcher
-        if isinstance(context.instance.run_launcher, DockerRunLauncher)
-        else None,
-    )
     validate_docker_image(image_name)
 
-    op_container_context = DockerContainerContext(
-        # networks="dagster_network",
-        container_kwargs={
-            "working_dir": "/opt/dagster/app",
-        },
-    )
-    # We merge the two contexts to get the parent env vars in the child
-    container_context = run_container_context.merge(op_container_context)
-
-    client = docker.DockerClient()
-    env_vars = dict([parse_env_var(env_var) for env_var in container_context.env_vars])
+    client = docker.from_env()
 
     container = client.containers.run(
         image_name,
-        args,
         name=container_name,
+        command=args,
         detach=True,  # run the container in the background non-blocking so we can stream logs
-        environment=env_vars,
-        auto_remove=True,
-        remove=True,
+        # We do not auto remove the container so we can explicitly remove it ourselves
+        auto_remove=False,
+        remove=False,
+        # we need to set the dagster network so it can communicate with minio/graphdb even though it is outside the compose project
+        network="dagster_network",
         volumes=volumeMapping,
     )
 
@@ -89,12 +68,16 @@ def run_scheduler_docker_image(
 
     logBuffer = ""
 
-    for line in container.logs(stdout=True, stderr=True, stream=True, follow=True):
-        get_dagster_logger().debug(line)
-        logBuffer += line.decode("utf-8")
+    try:
+        for line in container.logs(stdout=True, stderr=True, stream=True, follow=True):
+            get_dagster_logger().debug(line)
+            logBuffer += line.decode("utf-8")
 
-    exit_status: int = container.wait()["StatusCode"]
-    get_dagster_logger().info(f"Container Wait Exit status:  {exit_status}")
+        exit_status: int = container.wait()["StatusCode"]
+        get_dagster_logger().info(f"Container Wait Exit status:  {exit_status}")
+    finally:
+        container.stop()
+        container.remove()
 
     s3_client = S3()
     s3_client.load(
