@@ -98,4 +98,8 @@ REMOTE_GLEANER_SITEMAP = strict_env("REMOTE_GLEANER_SITEMAP")
 LAKEFS_ENDPOINT_URL = strict_env("LAKEFS_ENDPOINT_URL")
 LAKEFS_ACCESS_KEY_ID = strict_env("LAKEFS_ACCESS_KEY_ID")
 LAKEFS_SECRET_ACCESS_KEY = strict_env("LAKEFS_SECRET_ACCESS_KEY")
-strict_env("DAGSTER_POSTGRES_HOST")
+
+DAGSTER_YAML_CONFIG = os.path.join(
+    os.path.dirname(__file__), "..", "..", "dagster.yaml"
+)
+assert os.path.exists(DAGSTER_YAML_CONFIG)

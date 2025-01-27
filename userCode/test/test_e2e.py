@@ -1,8 +1,10 @@
+import os
 from dagster import (
     DagsterInstance,
     load_assets_from_modules,
     materialize,
 )
+from userCode.lib.env import DAGSTER_YAML_CONFIG
 import userCode.main as main
 from userCode.main import definitions, sources_partitions_def
 
@@ -11,8 +13,10 @@ from dagster import AssetsDefinition, AssetSpec, SourceAsset
 
 
 def test_materialize_ref_hu02():
-    instance = DagsterInstance.ephemeral()
-
+    assert os.path.exists(DAGSTER_YAML_CONFIG)
+    instance = DagsterInstance.from_config(
+        config_dir=os.path.dirname(DAGSTER_YAML_CONFIG), config_filename="dagster.yaml"
+    )
     assets = load_assets_from_modules([main])
     # It is possible to load certain asset types that cannot be passed into
     # Materialize so we filter them to avoid a pyright type error

@@ -16,7 +16,6 @@ import docker.models.services
 from jinja2 import Environment, FileSystemLoader
 import jinja2
 from .dagster_env import sources_partitions_def
-
 from .classes import S3
 from .env import (
     GLEANERIO_DATAGRAPH_ENDPOINT,
@@ -47,7 +46,9 @@ def run_scheduler_docker_image(
 
     validate_docker_image(image_name)
 
-    client = docker.from_env()
+    client = docker.DockerClient()
+
+    validate_docker_image(image_name)
 
     container = client.containers.run(
         image_name,

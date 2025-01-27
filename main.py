@@ -62,9 +62,9 @@ def up(profiles: list[str], build: bool = False, dev_mode: bool = False):
 
     if dev_mode:
         run_subprocess("uv sync")
-        command = "export DAGSTER_POSTGRES_HOST=0.0.0.0 && " + command
+        command = "DAGSTER_POSTGRES_HOST=0.0.0.0 " + command
     else:
-        command = "export DAGSTER_POSTGRES_HOST=dagster_postgres && " + command
+        command = "DAGSTER_POSTGRES_HOST=dagster_postgres " + command
     if build:
         run_subprocess(f"{command} --build")
     else:
