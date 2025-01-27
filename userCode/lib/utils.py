@@ -48,8 +48,6 @@ def run_scheduler_docker_image(
 
     client = docker.DockerClient()
 
-    validate_docker_image(image_name)
-
     container = client.containers.run(
         image_name,
         name=container_name,
