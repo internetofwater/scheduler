@@ -4,11 +4,6 @@ FROM python:3.10-slim
 COPY requirements.txt user_code_requirements.txt
 RUN pip install -r user_code_requirements.txt
 
-# install rclone
-RUN apt-get -y update; apt-get -y install curl unzip
-COPY Docker/dagster/rclone.sh rclone.sh
-RUN bash rclone.sh
-
 # configs and runtime code
 WORKDIR /opt/dagster/app
 COPY userCode/ /opt/dagster/app/userCode
