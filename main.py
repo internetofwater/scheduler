@@ -12,7 +12,7 @@ This file is the CLI for managing Docker Compose-based infrastructure.
 """
 
 
-def run_subprocess(command: str, returnStdoutAsValue: bool = False):
+def run_subprocess(command: str, returnStdoutAsValue: bool = False, wait: bool = True):
     """Run a shell command and stream the output in realtime"""
     process = subprocess.Popen(
         command,
@@ -23,7 +23,6 @@ def run_subprocess(command: str, returnStdoutAsValue: bool = False):
     stdout, _ = process.communicate()
     if process.returncode != 0:
         sys.exit(process.returncode)
-
     return stdout.decode("utf-8") if returnStdoutAsValue else None
 
 
@@ -41,7 +40,7 @@ def login():
     run_subprocess(f"docker exec -it {containerName} /bin/bash")
 
 
-def up(profiles: list[str], build: bool = False):
+def up(profiles: list[str], build: bool = False, detach: bool = False):
     """Run the Docker Compose services"""
     if not os.path.exists(".env"):
         if not sys.stdin.isatty():
@@ -65,7 +64,10 @@ def up(profiles: list[str], build: bool = False):
         command = "DAGSTER_POSTGRES_HOST=dagster_postgres " + command
     if build:
         command += " --build"
+    if detach:
+        command += " -d"
 
+    # Run subprocess without waiting if detach is True
     run_subprocess(command)
 
 
@@ -103,6 +105,18 @@ def main():
         help="Build the Docker Compose services before starting",
     )
 
+    dev.add_argument(
+        "--detach",
+        action="store_true",
+        help="Run the Docker Compose services in detached mode",
+    )
+
+    prod.add_argument(
+        "--detach",
+        action="store_true",
+        help="Run the Docker Compose services in detached mode",
+    )
+
     subparsers.add_parser(
         "login", help="Log into the user code container (interactive shell)"
     )
@@ -116,12 +130,12 @@ def main():
     elif args.command == "dagster-dev":
         run_subprocess("DAGSTER_POSTGRES_HOST=0.0.0.0 dagster dev")
     elif args.command == "dev":
-        up(profiles=["localInfra"], build=args.build)
+        up(profiles=["localInfra"], build=args.build, detach=args.detach)
     elif args.command == "prod":
         profiles = ["production"]
         if args.local_services:
             profiles.append("localInfra")
-        up(profiles, build=args.build)
+        up(profiles, build=args.build, detach=args.detach)
     elif args.command == "login":
         login()
 

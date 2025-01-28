@@ -21,7 +21,7 @@ runs:
       uses: docker/setup-buildx-action@v2
 
     - name: Launch Docker Stack
-      run: python3 main.py dev
+      run: python3 main.py dev --detach
       shell: bash
 
     - name: Debug Docker Containers
