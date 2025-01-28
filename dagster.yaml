@@ -24,7 +24,7 @@ run_storage:
   class: PostgresRunStorage
   config:
     postgres_db:
-      hostname: 
+      hostname:
         env: DAGSTER_POSTGRES_HOST
       username:
         env: DAGSTER_POSTGRES_USER
@@ -39,7 +39,7 @@ schedule_storage:
   class: PostgresScheduleStorage
   config:
     postgres_db:
-      hostname: 
+      hostname:
         env: DAGSTER_POSTGRES_HOST
       username:
         env: DAGSTER_POSTGRES_USER
@@ -54,7 +54,7 @@ event_log_storage:
   class: PostgresEventLogStorage
   config:
     postgres_db:
-      hostname: 
+      hostname:
         env: DAGSTER_POSTGRES_HOST
       username:
         env: DAGSTER_POSTGRES_USER

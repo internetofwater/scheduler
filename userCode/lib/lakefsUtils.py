@@ -42,9 +42,9 @@ def delete_file_on_main(file_path: str, branch_to_stage_from: str = "develop"):
     )
 
     allobjs = stagingBranch.objects()
-    assert stagingBranch.object(file_path).exists(), (
-        f"{file_path} does not exist but it should. Branch {branch_to_stage_from} instead contains {list(allobjs)}"
-    )
+    assert stagingBranch.object(
+        file_path
+    ).exists(), f"{file_path} does not exist but it should. Branch {branch_to_stage_from} instead contains {list(allobjs)}"
 
     stagingBranch.object(file_path).delete()
 
