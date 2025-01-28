@@ -60,7 +60,6 @@ def up(profiles: list[str], build: bool = False):
     profileCommand = " ".join(f"--profile {profile}" for profile in profiles)
     command = f"docker compose {profileCommand} -f Docker/Docker-compose.yaml up"
     if "production" not in profiles:
-        run_subprocess("uv sync")
         command = "DAGSTER_POSTGRES_HOST=0.0.0.0 " + command
     else:
         command = "DAGSTER_POSTGRES_HOST=dagster_postgres " + command
