@@ -48,6 +48,7 @@ from .lib.env import (
     GLEANER_IMAGE,
     NABU_IMAGE,
     GLEANERIO_PROVGRAPH_ENDPOINT,
+    RUNNING_AS_TEST_OR_DEV,
     strict_env,
 )
 
@@ -213,8 +214,14 @@ def docker_client_environment():
 def can_contact_headless():
     """Check that we can contact the headless server"""
     TWO_SECONDS = 2
+
+    url = GLEANER_HEADLESS_ENDPOINT
+    if RUNNING_AS_TEST_OR_DEV():
+        portNumber = GLEANER_HEADLESS_ENDPOINT.removeprefix("http://").split(":")[1]
+        url = f"http://localhost:{portNumber}"
+
     # the Host header needs to be set for Chromium due to an upstream security requirement
-    result = requests.get(GLEANER_HEADLESS_ENDPOINT, timeout=TWO_SECONDS)
+    result = requests.get(url, timeout=TWO_SECONDS)
     return AssetCheckResult(
         passed=result.status_code == 200,
         metadata={
@@ -514,7 +521,9 @@ definitions = Definitions(
             channel="#cgs-iow-bots",
             slack_token=strict_env("DAGSTER_SLACK_TOKEN"),
             text_fn=slack_error_fn,
-            default_status=DefaultSensorStatus.RUNNING,
+            default_status=DefaultSensorStatus.STOPPED
+            if RUNNING_AS_TEST_OR_DEV()
+            else DefaultSensorStatus.RUNNING,
             monitor_all_code_locations=True,
         )
     ],

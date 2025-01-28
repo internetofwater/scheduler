@@ -41,7 +41,7 @@ def login():
     run_subprocess(f"docker exec -it {containerName} /bin/bash")
 
 
-def up(profiles: list[str], build: bool = False, dev_mode: bool = False):
+def up(profiles: list[str], build: bool = False):
     """Run the Docker Compose services"""
     if not os.path.exists(".env"):
         if not sys.stdin.isatty():
@@ -59,16 +59,15 @@ def up(profiles: list[str], build: bool = False, dev_mode: bool = False):
 
     profileCommand = " ".join(f"--profile {profile}" for profile in profiles)
     command = f"docker compose {profileCommand} -f Docker/Docker-compose.yaml up"
-
-    if dev_mode:
+    if "production" not in profiles:
         run_subprocess("uv sync")
         command = "DAGSTER_POSTGRES_HOST=0.0.0.0 " + command
     else:
         command = "DAGSTER_POSTGRES_HOST=dagster_postgres " + command
     if build:
-        run_subprocess(f"{command} --build")
-    else:
-        run_subprocess(command)
+        command += " --build"
+
+    run_subprocess(command)
 
 
 def main():
@@ -78,6 +77,10 @@ def main():
     parser = argparse.ArgumentParser(description="Docker Compose Management")
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("down", help="Stop the Docker Compose services")
+
+    subparsers.add_parser(
+        "dagster-dev", help="Run dagster dev with local infrastructure"
+    )
 
     dev = subparsers.add_parser("dev", help="Run dagster dev with local infrastructure")
     dev.add_argument(
@@ -109,15 +112,17 @@ def main():
 
     if args.command == "down":
         run_subprocess(
-            "docker compose --profile localInfra --profile production -f Docker/Docker-compose.yaml down"
+            "DAGSTER_POSTGRES_HOST=dagster_postgres docker compose --profile localInfra --profile production -f Docker/Docker-compose.yaml down"
         )
+    elif args.command == "dagster-dev":
+        run_subprocess("DAGSTER_POSTGRES_HOST=0.0.0.0 dagster dev")
     elif args.command == "dev":
-        up(profiles=["localInfra"], build=args.build, dev_mode=True)
+        up(profiles=["localInfra"], build=args.build)
     elif args.command == "prod":
         profiles = ["production"]
         if args.local_services:
             profiles.append("localInfra")
-        up(profiles, build=args.build, dev_mode=False)
+        up(profiles, build=args.build)
     elif args.command == "login":
         login()
 

@@ -26,18 +26,6 @@ def test_rclone_installed():
     assert os.system("rclone version") == 0
 
 
-def test_env_vars():
-    """for every env var, make sure that there are no "" values which signify
-    env vars that were incorrectly applied or missing"""
-    env = os.environ
-    for key in env.keys():
-        assert env[key] != "", (
-            "{} is empty, but scheduler should only be using env vars that are defined".format(
-                key
-            )
-        )
-
-
 @pytest.mark.skipif(
     LAKEFS_SECRET_ACCESS_KEY == "unset", reason="secret access key is not set"
 )

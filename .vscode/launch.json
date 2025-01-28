@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "dagster dev",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "dagster",
+            "args": [
+                "dev",
+            ],
+            "subProcess": true,
+            "env": {
+                "DAGSTER_POSTGRES_HOST": "0.0.0.0",
+            }
+        },
+    ]
+}

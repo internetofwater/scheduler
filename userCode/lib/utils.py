@@ -20,6 +20,7 @@ from .classes import S3
 from .env import (
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_PROVGRAPH_ENDPOINT,
+    RUNNING_AS_TEST_OR_DEV,
     strict_env,
     strict_env_int,
 )
@@ -119,6 +120,9 @@ def template_rclone(input_template_file_path: str) -> str:
             "MINIO_ACCESS_KEY",
         ]
     }
+    if RUNNING_AS_TEST_OR_DEV():
+        vars_in_rclone_config["GLEANERIO_MINIO_ADDRESS"] = "localhost"
+
     env = Environment(
         loader=FileSystemLoader(os.path.dirname(input_template_file_path)),
         undefined=jinja2.StrictUndefined,

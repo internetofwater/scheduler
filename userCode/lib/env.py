@@ -8,6 +8,11 @@ that fail immediately if missing instead of later in the run
 """
 
 
+def RUNNING_AS_TEST_OR_DEV():
+    """Check if we are running outside of the docker container"""
+    return "DAGSTER_IS_DEV_CLI" in os.environ or "PYTEST_CURRENT_TEST" in os.environ
+
+
 def assert_all_vars():
     """assert that all required env vars are set"""
     vars = [

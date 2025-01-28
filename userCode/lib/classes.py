@@ -19,12 +19,18 @@ from .env import (
     LAKEFS_ACCESS_KEY_ID,
     LAKEFS_ENDPOINT_URL,
     LAKEFS_SECRET_ACCESS_KEY,
+    RUNNING_AS_TEST_OR_DEV,
 )
 
 
 class S3:
     def __init__(self):
-        self.endpoint = f"{GLEANER_MINIO_ADDRESS}:{GLEANER_MINIO_PORT}"
+        # If we are in a test environment then we want to use localhost
+        # since we are outside of the docker network.
+        if RUNNING_AS_TEST_OR_DEV():
+            self.endpoint = f"localhost:{GLEANER_MINIO_PORT}"
+        else:
+            self.endpoint = f"{GLEANER_MINIO_ADDRESS}:{GLEANER_MINIO_PORT}"
         self.client = Minio(
             self.endpoint,
             secure=GLEANER_MINIO_USE_SSL,

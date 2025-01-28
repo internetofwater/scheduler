@@ -21,7 +21,7 @@ runs:
       uses: docker/setup-buildx-action@v2
 
     - name: Launch Docker Stack
-      run: python3 main.py local
+      run: python3 main.py dev
       shell: bash
 
     - name: Debug Docker Containers
@@ -57,4 +57,7 @@ runs:
       shell: bash
       run: |
         echo "Starting tests"
-        python3 main.py test
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install -r requirements.txt
+        pytest
