@@ -191,7 +191,7 @@ volumes:
   scheduler_minio_data:
   graphdb_data:
   dagster_postgres_data:
-   
+
 networks:
   dagster_network:
     driver: bridge
