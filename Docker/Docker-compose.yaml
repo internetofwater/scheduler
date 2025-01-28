@@ -51,6 +51,7 @@ services:
       - graphdb_data:/opt/graphdb/data
     profiles:
       - localInfra
+      - production
 
   # Creates repositories in GraphDB
   createrepositories:
@@ -70,6 +71,7 @@ services:
       - ./graphdb:/graphdb
     profiles:
       - localInfra
+      - production
 
   # PostgreSQL database for Dagster
   dagster_postgres:

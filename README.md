@@ -1,14 +1,32 @@
-# How to use this repository
+# Geoconnex Scheduler
 
-- `python3 main.py local`
-- Navigate to `localhost:3000` to view the dagster UI
+The geoconnex scheduler crawls geoconnex partner data on a schedule and uploads it to the geoconnex graph. 
+- it crawls data with gleaner
+- it syncs data with the graphdb using nabu
 
-Tear down the docker swarm stack with `python3 main.py down`
+## How to use
 
-As you develop, run `python3 main.py refresh` to rebuild the user code image and `python3 main.py test` to run tests inside the container.
+Configuration for this repository is contained in `.env`. When you run `main.py` for the first time, it will prompt you to create a new `.env` file by copying `.env.example` 
 
-## Architecture
+In both `dev` and `prod` modes you can append either `--build` or `--detach` to pass those args to the underlying compose project. 
 
-- an .env file is sourced for all secrets and configuration for dagster
-- these configs and env vars are used inside the user code Docker container
-- containers are built and orchestrated with db resources inside a docker swarm
+## Development
+
+We use `uv` for dependency management. You need to be in an environment that matches the [pinned python version](./.python-version)
+- Once you are n that environment run `uv sync` to install dependencies 
+
+You need to run 2 commands from the root of the repo to get a dev environment
+
+- `python3 main.py dev` spins up test infrastructure 
+    - this will spin up a test minio container for testing  in addition to the standard services like graphdb, headless chrome etc 
+- run `dagster dev` from the root of the repo to spin up dagster
+    - this allows us to get hot reloading and use local debugging 
+    - view the UI at `localhost:3000` 
+
+For testing:
+- run `pytest` from the root to execute tests
+- you can start the task `dagster dev` in the vscode debug panel to run the full geoconnex pipeline with vscode breakpoints enabled 
+
+## Production 
+
+Run `python3 main.py prod` to run a priduction deployment. This will spin up everything and containerize dagster. You will need to specify your s3 container in the `.env` file. 

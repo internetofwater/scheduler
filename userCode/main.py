@@ -104,6 +104,8 @@ def rclone_binary():
     # Map system and architecture to the appropriate Rclone download URL
     if system == "linux" and arch in ("x86_64", "amd64"):
         download_url = "https://downloads.rclone.org/rclone-current-linux-amd64.zip"
+    elif system == "linux" and arch in ("arm64", "aarch64"):
+        download_url = "https://downloads.rclone.org/rclone-current-linux-arm64.zip"
     elif system == "darwin" and arch in ("arm64", "aarch64"):
         download_url = "https://downloads.rclone.org/rclone-current-osx-arm64.zip"
     else:
@@ -191,9 +193,9 @@ def gleaner_config(context: AssetExecutionContext):
     sources = []
     names: set[str] = set()
 
-    assert (
-        len(Lines) > 0
-    ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    assert len(Lines) > 0, (
+        f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    )
 
     for line in Lines:
         basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
