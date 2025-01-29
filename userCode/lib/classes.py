@@ -54,7 +54,8 @@ class S3:
 
     def read(self, remote_path: str):
         logger = get_dagster_logger()
-        logger.info(f"S3 FULL SERVER : {self.endpoint}")
+        logger.info(f"S3 endpoint that dagster will connect to: {self.endpoint}")
+        logger.info(f"S3 Address that gleaner will use: {GLEANER_MINIO_ADDRESS}")
         logger.info(f"S3 BUCKET : {GLEANER_MINIO_BUCKET}")
         logger.debug(f"S3 object path : {remote_path}")
         response: BaseHTTPResponse = self.client.get_object(
