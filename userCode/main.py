@@ -93,9 +93,9 @@ def gleaner_config(context: AssetExecutionContext):
     sources = []
     names: set[str] = set()
 
-    assert (
-        len(Lines) > 0
-    ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    assert len(Lines) > 0, (
+        f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    )
 
     # context.instance.delete_dynamic_partition("sources_partitions_def")
 
@@ -258,7 +258,7 @@ def can_contact_headless():
 def gleaner(context: OpExecutionContext):
     """Get the jsonld for each site in the gleaner config"""
     source = context.partition_key
-    ARGS = ["--cfg", "gleanerconfig.yaml", "-source", source, "--rude"]
+    ARGS = ["--cfg", "gleanerconfig.yaml", "--source", source, "--rude"]
     returned_value = run_scheduler_docker_image(
         context, source, GLEANER_IMAGE, ARGS, "gleaner"
     )
