@@ -93,9 +93,9 @@ def gleaner_config(context: AssetExecutionContext):
     sources = []
     names: set[str] = set()
 
-    assert len(Lines) > 0, (
-        f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
-    )
+    assert (
+        len(Lines) > 0
+    ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
 
     # context.instance.delete_dynamic_partition("sources_partitions_def")
 
