@@ -15,7 +15,10 @@ import docker.models.containers
 import docker.models.services
 from jinja2 import Environment, FileSystemLoader
 import jinja2
-from .dagster_env import sources_partitions_def
+from .dagster_helpers import (
+    dagster_log_with_parsed_level,
+    sources_partitions_def,
+)
 from .classes import S3
 from .env import (
     GLEANERIO_DATAGRAPH_ENDPOINT,
@@ -82,8 +85,9 @@ def run_scheduler_docker_image(
 
     try:
         for line in container.logs(stdout=True, stderr=True, stream=True, follow=True):
-            get_dagster_logger().debug(line)
-            logBuffer += line.decode("utf-8")
+            decoded = line.decode("utf-8")
+            dagster_log_with_parsed_level(decoded)
+            logBuffer += decoded
 
         exit_status: int = container.wait()["StatusCode"]
         get_dagster_logger().info(f"Container Wait Exit status:  {exit_status}")

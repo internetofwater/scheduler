@@ -43,7 +43,7 @@ from .lib.utils import (
     template_rclone,
 )
 from urllib.parse import urlparse
-from .lib.dagster_env import filter_partitions, sources_partitions_def
+from .lib.dagster_helpers import filter_partitions, sources_partitions_def
 from .lib.env import (
     GLEANER_GRAPH_URL,
     GLEANER_HEADLESS_ENDPOINT,
@@ -193,9 +193,9 @@ def gleaner_config(context: AssetExecutionContext):
     sources = []
     names: set[str] = set()
 
-    assert (
-        len(Lines) > 0
-    ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    assert len(Lines) > 0, (
+        f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    )
 
     for line in Lines:
         basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
@@ -526,15 +526,22 @@ def export_graph_as_nquads(context: OpExecutionContext) -> Optional[str]:
     if not all_dependencies_materialized(context, "finished_individual_crawl"):
         return
 
-    # Define the repository name and endpoint
-    endpoint = f"{GLEANER_GRAPH_URL}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}/statements?infer=false"
+    base_url = (
+        GLEANER_GRAPH_URL if not RUNNING_AS_TEST_OR_DEV() else "http://localhost:7200"
+    )
 
-    headers = {
-        "Accept": "application/n-quads",
-    }
+    # Define the repository name and endpoint
+    endpoint = (
+        f"{base_url}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}/statements?infer=false"
+    )
 
     # Send the POST request to export the data
-    response = requests.get(endpoint, headers=headers)
+    response = requests.get(
+        endpoint,
+        headers={
+            "Accept": "application/n-quads",
+        },
+    )
 
     # Check if the request was successful
     if response.status_code == 200:
@@ -565,6 +572,12 @@ def nquads_to_renci(
     ):
         get_dagster_logger().warning(
             "Skipping rclone copy as all dependencies are not materialized"
+        )
+        return
+
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning(
+            "Skipping rclone copy as we are running in test mode"
         )
         return
 
