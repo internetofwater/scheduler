@@ -17,6 +17,7 @@ from dagster import (
     DefaultSensorStatus,
     Definitions,
     OpExecutionContext,
+    ScheduleEvaluationContext,
     asset,
     asset_check,
     define_asset_job,
@@ -589,10 +590,10 @@ harvest_job = define_asset_job(
     cron_schedule="@weekly",
     job=harvest_job,
     default_status=DefaultScheduleStatus.STOPPED
-    if RUNNING_AS_TEST_OR_DEV
+    if RUNNING_AS_TEST_OR_DEV()
     else DefaultScheduleStatus.RUNNING,
 )
-def crawl_entire_graph_schedule(context):
+def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
     get_dagster_logger().info("Schedule triggered.")
 
     result = materialize([gleaner_config], instance=context.instance)
@@ -611,7 +612,7 @@ def crawl_entire_graph_schedule(context):
                 tags={"run_type": "harvest_weekly"},
             )
     else:
-        get_dagster_logger().warning("No partition keys found.")
+        RuntimeError("No partition keys found.")
 
 
 # expose all the code needed for our dagster repo
