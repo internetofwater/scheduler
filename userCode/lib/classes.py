@@ -27,7 +27,7 @@ class S3:
     def __init__(self):
         # If we are in a test environment then we want to use localhost
         # since we are outside of the docker network.
-        if RUNNING_AS_TEST_OR_DEV() and GLEANER_MINIO_ADDRESS not in "googleapis.com":
+        if RUNNING_AS_TEST_OR_DEV() and "googleapis.com" not in GLEANER_MINIO_ADDRESS:
             self.endpoint = f"localhost:{GLEANER_MINIO_PORT}"
         else:
             self.endpoint = f"{GLEANER_MINIO_ADDRESS}:{GLEANER_MINIO_PORT}"
