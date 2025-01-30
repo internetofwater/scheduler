@@ -73,9 +73,9 @@ def test_e2e():
     """
 
     resultDict = execute_sparql(query)
-    assert "Florida River" in resultDict["o"], (
-        "The Florida River Mainstem was not found in the graph"
-    )
+    assert (
+        "Florida River" in resultDict["o"]
+    ), "The Florida River Mainstem was not found in the graph"
 
     result = resolved_job.execute_in_process(
         instance=instance, partition_key="cdss_co_gages__0"
