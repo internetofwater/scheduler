@@ -2,8 +2,8 @@ import os
 import pytest
 
 
-# These are needed given the fact that the tests are run outside the docker
-# container but
+# These are needed given the fact that the tests are always best ran outside the docker
+# container. We set this here since we don't want to put it in the .env necessarily
 @pytest.fixture(scope="session", autouse=True)
 def setup_before_tests():
     # assume we are not inside the compose project if we are testing and thus

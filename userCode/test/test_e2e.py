@@ -9,6 +9,8 @@ from userCode.main import definitions, sources_partitions_def
 
 from dagster import AssetsDefinition, AssetSpec, SourceAsset
 
+from userCode.test.lib import execute_sparql
+
 
 def test_materialize_ref_hu02():
     instance = DagsterInstance.ephemeral()
@@ -40,6 +42,22 @@ def test_materialize_ref_hu02():
     )
 
     assert result.success, "Job execution failed for partition 'ref_hu02_hu02__0'"
+
+    query = """
+    select * where {
+        <https://geoconnex.us/ref/hu02/01> ?p ?o .
+    } limit 100
+    """
+    resultDict = execute_sparql(query)
+    assert len(resultDict) > 0
+    assert "New England Region" in resultDict["o"]
+
+    # This passes but is extremely slow to finish; no feasible for ci/cd
+    # result = resolved_job.execute_in_process(
+    #     instance=instance, partition_key="ref_mainstems_mainstems__0"
+    # )
+
+    # assert result.success, "Job execution failed for partition 'mainstems__0'"
 
 
 def test_dynamic_partitions():

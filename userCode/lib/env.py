@@ -64,14 +64,6 @@ def strict_env(key: str):
     return val
 
 
-def strict_get_tag(context: OpExecutionContext, key: str) -> str:
-    """Gets a tag from a dagster runand ensures it exists before running further jobs"""
-    src = context.run_tags[key]
-    if src is None:
-        raise Exception(f"Missing run tag {key}")
-    return src
-
-
 RELEASE_PATH = "graphs/latest"
 GLEANER_HEADLESS_NETWORK = "headless_gleanerio"
 GLEANER_MINIO_ADDRESS = strict_env("GLEANERIO_MINIO_ADDRESS")
@@ -107,4 +99,4 @@ LAKEFS_SECRET_ACCESS_KEY = strict_env("LAKEFS_SECRET_ACCESS_KEY")
 DAGSTER_YAML_CONFIG = os.path.join(
     os.path.dirname(__file__), "..", "..", "dagster.yaml"
 )
-assert os.path.exists(DAGSTER_YAML_CONFIG)
+assert os.path.exists(DAGSTER_YAML_CONFIG), "the dagster.yaml file does not exist"

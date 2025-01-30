@@ -16,6 +16,7 @@ from userCode.lib.env import (
     LAKEFS_ACCESS_KEY_ID,
     LAKEFS_ENDPOINT_URL,
     LAKEFS_SECRET_ACCESS_KEY,
+    RUNNING_AS_TEST_OR_DEV,
     strict_env,
 )
 from userCode.main import rclone_config
@@ -37,15 +38,19 @@ def test_lakefs_health():
         f"{LAKEFS_ENDPOINT_URL}/api/v1/healthcheck",
     )
 
-    assert (
-        response.status_code == 204
-    ), f"{LAKEFS_ENDPOINT_URL} is not healthy: {response.text}"
+    assert response.status_code == 204, (
+        f"{LAKEFS_ENDPOINT_URL} is not healthy: {response.text}"
+    )
 
 
 def test_rclone_config_location():
     """Make sure we can find the rclone config file" locally"""
     location = FileTransferer.get_rclone_config_path()
     assert location.parent.exists()
+
+
+def test_test_env_is_detected():
+    assert RUNNING_AS_TEST_OR_DEV()
 
 
 @pytest.mark.skipif(
