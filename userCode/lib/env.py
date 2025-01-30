@@ -1,6 +1,6 @@
 import os
 
-from dagster import OpExecutionContext, get_dagster_logger
+from dagster import get_dagster_logger
 
 """
 Runtime config and env vars for dagster; prioritizes strict env vars
