@@ -35,7 +35,7 @@ def assert_data_is_linked_in_graph():
     assert "https://geoconnex.us/ref/gages/1190185" in resultDict["monitoringLocation"]
 
 
-def test_materialize_ref_hu02():
+def test_e2e():
     instance = DagsterInstance.ephemeral()
     assets = load_assets_from_modules([main])
     # It is possible to load certain asset types that cannot be passed into
