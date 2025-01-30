@@ -31,8 +31,20 @@ def remove_non_alphanumeric(string):
     return re.sub(r"[^a-zA-Z0-9_]+", "", string)
 
 
+def create_max_length_container_name(source: str, action_name: str):
+    """Docker containers cannot be named longer than 63 characters; we trim the source if it is very long and would cause an issue"""
+    MAX_DOCKER_CONTAINER_NAME = 63
+
+    charsToUse = MAX_DOCKER_CONTAINER_NAME - len(source)
+    if len(action_name) > charsToUse:
+        action_name = action_name[:charsToUse]
+
+    result = f"{source}_{action_name}"
+    assert len(result) <= MAX_DOCKER_CONTAINER_NAME
+    return result
+
+
 def run_scheduler_docker_image(
-    context: OpExecutionContext,
     source: str,  # which organization we are crawling
     image_name: str,  # the name of the docker image to pull and validate
     args: list[str],  # the list of arguments to pass to the gleaner/nabu command
@@ -40,7 +52,7 @@ def run_scheduler_docker_image(
     volumeMapping: Optional[list[str]] = None,
 ):
     """Run a docker image inside the dagster docker runtime"""
-    container_name = f"{source}_{action_name}"
+    container_name = create_max_length_container_name(source, action_name)
 
     get_dagster_logger().info(f"Datagraph value: {GLEANERIO_DATAGRAPH_ENDPOINT}")
     get_dagster_logger().info(f"Provgraph value: {GLEANERIO_PROVGRAPH_ENDPOINT}")

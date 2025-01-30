@@ -193,9 +193,9 @@ def gleaner_config(context: AssetExecutionContext):
     sources = []
     names: set[str] = set()
 
-    assert (
-        len(Lines) > 0
-    ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    assert len(Lines) > 0, (
+        f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    )
 
     for line in Lines:
         basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
@@ -331,7 +331,6 @@ def gleaner(context: OpExecutionContext):
     ARGS = ["--cfg", "gleanerconfig.yaml", "--source", source, "--rude", "--setup"]
 
     returned_value = run_scheduler_docker_image(
-        context,
         source,
         GLEANER_IMAGE,
         ARGS,
@@ -353,7 +352,6 @@ def nabu_release(context: OpExecutionContext):
         "summoned/" + source,
     ]
     run_scheduler_docker_image(
-        context,
         source,
         NABU_IMAGE,
         ARGS,
@@ -375,7 +373,6 @@ def nabu_object(context: OpExecutionContext):
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
-        context,
         source,
         NABU_IMAGE,
         ARGS,
@@ -398,7 +395,6 @@ def nabu_prune(context: OpExecutionContext):
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
-        context,
         source,
         NABU_IMAGE,
         ARGS,
@@ -420,7 +416,6 @@ def nabu_prov_release(context):
         "prov/" + source,
     ]
     run_scheduler_docker_image(
-        context,
         source,
         NABU_IMAGE,
         ARGS,
@@ -441,7 +436,6 @@ def nabu_prov_clear(context: OpExecutionContext):
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
-        context,
         source,
         NABU_IMAGE,
         ARGS,
@@ -463,7 +457,6 @@ def nabu_prov_object(context):
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
-        context,
         source,
         NABU_IMAGE,
         ARGS,
@@ -487,7 +480,6 @@ def nabu_orgs_release(context: OpExecutionContext):
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
-        context,
         source,
         NABU_IMAGE,
         ARGS,
@@ -510,7 +502,6 @@ def nabu_orgs(context: OpExecutionContext):
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
-        context,
         source,
         NABU_IMAGE,
         ARGS,
