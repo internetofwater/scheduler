@@ -588,7 +588,7 @@ harvest_job = define_asset_job(
 @schedule(
     cron_schedule="@weekly",
     job=harvest_job,
-    default_status=DefaultScheduleStatus.STOPPED,
+    default_status=DefaultScheduleStatus.STOPPED if RUNNING_AS_TEST_OR_DEV else DefaultScheduleStatus.RUNNING,
 )
 def crawl_entire_graph_schedule(context):
     get_dagster_logger().info("Schedule triggered.")
