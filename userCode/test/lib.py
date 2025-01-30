@@ -1,6 +1,17 @@
 import requests
 
 
+def clear_graph():
+    """Reset the graph before running tests to make sure we are operating on fresh graph"""
+    query = "CLEAR ALL"
+    response = requests.post(
+        "http://localhost:7200/repositories/iow/statements",
+        data=query,
+        headers={"Content-Type": "application/sparql-update"},
+    )
+    assert response.ok, response.text
+
+
 def execute_sparql(query: str) -> dict[str, list[str]]:
     """Run a sparql query on graphdb and return the results"""
     endpoint = "http://localhost:7200/repositories/iow"

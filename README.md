@@ -21,7 +21,7 @@ You need to run 2 commands from the root of the repo to get a dev environment
 
 - `python3 main.py dev` spins up test infrastructure
   - this will spin up a test minio container for testing in addition to the standard services like graphdb, headless chrome etc
-- run `dagster dev` from the root of the repo to spin up dagster
+- run `python3 main.py dagster-dev` from the root of the repo to spin up dagster
   - this allows us to get hot reloading and use local debugging
   - view the UI at `localhost:3000`
 
