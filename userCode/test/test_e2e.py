@@ -12,6 +12,29 @@ from dagster import AssetsDefinition, AssetSpec, SourceAsset
 from userCode.test.lib import execute_sparql
 
 
+def assert_data_is_linked_in_graph():
+    """Check that a mainstem is associated with a monitoring location in the graph"""
+    query = """
+    select * where {
+        <https://geoconnex.us/cdss/gages/FARMERCO> <https://schema.org/name> ?o .
+    } limit 100
+    """
+
+    resultDict = execute_sparql(query)
+    assert "FLORIDA FARMERS CANAL" in resultDict["o"]
+
+    query = """
+    PREFIX hyf: <https://www.opengis.net/def/schema/hy_features/hyf/>
+
+    select * where { 
+        ?monitoringLocation hyf:referencedPosition/hyf:HY_IndirectPosition/hyf:linearElement <https://geoconnex.us/ref/mainstems/42750> .
+    } limit 100 
+    """
+    resultDict = execute_sparql(query)
+    # make sure that the florida canal monitoring location is on the florida river mainstem
+    assert "https://geoconnex.us/ref/gages/1190185" in resultDict["monitoringLocation"]
+
+
 def test_materialize_ref_hu02():
     instance = DagsterInstance.ephemeral()
     assets = load_assets_from_modules([main])
@@ -45,37 +68,21 @@ def test_materialize_ref_hu02():
 
     query = """
     select * where {
-        ?s ?p <https://schema.org/Place> .
-    } limit 100
-    """
-    resultDict = execute_sparql(query)
-    assert len(resultDict) > 0
-    assert "https://geoconnex.us/ref/mainstems/65655" in resultDict["s"]
-
-    query = """
-    select * where {
-        <https://geoconnex.us/ref/mainstems/65655> <https://schema.org/name> ?o .
+        <https://geoconnex.us/ref/mainstems/42750> <https://schema.org/name> ?o .
     } limit 100
     """
 
     resultDict = execute_sparql(query)
-    assert len(resultDict) > 0
-    assert "Junction Creek" in resultDict["o"]
+    assert "Florida River" in resultDict["o"], (
+        "The Florida River Mainstem was not found in the graph"
+    )
 
     result = resolved_job.execute_in_process(
-        instance=instance, partition_key="ref_dams_dams__0"
+        instance=instance, partition_key="cdss_co_gages__0"
     )
-    assert result.success, "Job execution failed for partition 'ref_dams_dams__0'"
+    assert result.success, "Job execution failed for partition 'cdss_co_gages__0'"
 
-    query = """
-    select * where {
-        <https://geoconnex.us/ref/dams/1045939> <https://schema.org/name> ?o .
-    } limit 100
-    """
-
-    resultDict = execute_sparql(query)
-    assert len(resultDict) > 0
-    assert "Upper Railroad" in resultDict["o"]
+    assert_data_is_linked_in_graph()
 
 
 def test_dynamic_partitions():
