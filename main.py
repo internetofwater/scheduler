@@ -80,10 +80,12 @@ def main():
     subparsers.add_parser("down", help="Stop the Docker Compose services")
 
     subparsers.add_parser(
-        "dagster-dev", help="Run dagster dev with local infrastructure"
+        "dagster-dev", help="Run dagster dev; will point to local dev infrastructure"
     )
 
-    dev = subparsers.add_parser("dev", help="Run dagster dev with local infrastructure")
+    dev = subparsers.add_parser(
+        "dev", help="Run local infrastructure needed for dagster dev"
+    )
     dev.add_argument(
         "--build",
         action="store_true",
