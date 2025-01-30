@@ -1,6 +1,11 @@
 import asyncio
 from datetime import datetime
+import os
+import platform
+import shutil
+import subprocess
 from typing import Optional, Tuple
+import zipfile
 from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
 from dagster import (
@@ -47,6 +52,7 @@ from .lib.env import (
     GLEANER_IMAGE,
     NABU_IMAGE,
     GLEANERIO_PROVGRAPH_ENDPOINT,
+    RUNNING_AS_TEST_OR_DEV,
     strict_env,
 )
 
@@ -55,9 +61,10 @@ from .lib.env import (
 def nabu_config():
     """The nabuconfig.yaml used for nabu"""
     get_dagster_logger().info("Creating nabu config")
-    templated_data = template_gleaner_or_nabu(
-        "/opt/dagster/app/templates/nabuconfig.yaml.j2"
+    input_file = os.path.join(
+        os.path.dirname(__file__), "templates", "nabuconfig.yaml.j2"
     )
+    templated_data = template_gleaner_or_nabu(input_file)
     conf = yaml.safe_load(templated_data)
     encoded_as_bytes = yaml.safe_dump(conf).encode()
     # put configs in s3 for introspection and persistence if we need to run gleaner locally
@@ -66,13 +73,104 @@ def nabu_config():
         encoded_as_bytes,
         "configs/nabuconfig.yaml",
     )
+    with open("/tmp/nabuconfig.yaml", "w") as f:
+        f.write(templated_data)
+
+
+def ensure_local_bin_in_path():
+    """Ensure ~/.local/bin is in the PATH."""
+    local_bin = os.path.expanduser("~/.local/bin")
+    if local_bin not in os.environ["PATH"].split(os.pathsep):
+        os.environ["PATH"] += os.pathsep + local_bin
+    return local_bin
 
 
 @asset
+def rclone_binary():
+    """Download the rclone binary to a user-writable location in the PATH."""
+    local_bin = ensure_local_bin_in_path()
+    os.makedirs(local_bin, exist_ok=True)
+
+    # Check if rclone is already installed in ~/.local/bin
+    rclone_path = os.path.join(local_bin, "rclone")
+    if os.path.isfile(rclone_path):
+        print(f"Rclone is already installed at {rclone_path}.")
+        return
+
+    # Determine the platform
+    system = platform.system().lower()
+    arch = platform.machine().lower()
+
+    # Map system and architecture to the appropriate Rclone download URL
+    if system == "linux" and arch in ("x86_64", "amd64"):
+        download_url = "https://downloads.rclone.org/rclone-current-linux-amd64.zip"
+    elif system == "linux" and arch in ("arm64", "aarch64"):
+        download_url = "https://downloads.rclone.org/rclone-current-linux-arm64.zip"
+    elif system == "darwin" and arch in ("arm64", "aarch64"):
+        download_url = "https://downloads.rclone.org/rclone-current-osx-arm64.zip"
+    else:
+        raise SystemError(
+            "Unsupported system or architecture: {} on {}".format(arch, system)
+        )
+
+    # Download the file
+    def download_file(url, dest):
+        print(f"Downloading Rclone from {url}...")
+        response = requests.get(url, stream=True)
+        if response.status_code == 200:
+            with open(dest, "wb") as f:
+                shutil.copyfileobj(response.raw, f)
+            print("Download complete.")
+        else:
+            raise RuntimeError(
+                f"Failed to download file. HTTP Status Code: {response.status_code}"
+            )
+
+    zip_file = "rclone.zip"
+    download_file(download_url, zip_file)
+
+    # Extract the downloaded zip file
+    with zipfile.ZipFile(zip_file, "r") as zip_ref:
+        print("Extracting Rclone...")
+        zip_ref.extractall("rclone_extracted")
+
+    # Change to the extracted directory
+    extracted_dir = next(
+        (
+            d
+            for d in os.listdir("rclone_extracted")
+            if os.path.isdir(os.path.join("rclone_extracted", d))
+        ),
+        None,
+    )
+    if not extracted_dir:
+        raise FileNotFoundError("Extracted Rclone directory not found.")
+
+    extracted_path = os.path.join("rclone_extracted", extracted_dir)
+
+    # Copy the Rclone binary to ~/.local/bin
+    rclone_binary = os.path.join(extracted_path, "rclone")
+    if not os.path.isfile(rclone_binary):
+        raise FileNotFoundError("Rclone binary not found in extracted directory.")
+
+    print(f"Installing Rclone to {local_bin}...")
+    shutil.copy(rclone_binary, rclone_path)
+    os.chmod(rclone_path, 0o755)  # Set executable permissions
+
+    print("Verifying Rclone installation...")
+    subprocess.run(["rclone", "version"], check=True)
+
+    os.remove(zip_file)
+    shutil.rmtree("rclone_extracted")
+    print("Installation complete.")
+
+
+@asset(deps=[rclone_binary])
 def rclone_config() -> str:
     """Create the rclone config by templating the rclone.conf.j2 template"""
     get_dagster_logger().info("Creating rclone config")
-    templated_conf: str = template_rclone("/opt/dagster/app/templates/rclone.conf.j2")
+    input_file = os.path.join(os.path.dirname(__file__), "templates", "rclone.conf.j2")
+    templated_conf: str = template_rclone(input_file)
     return templated_conf
 
 
@@ -80,10 +178,12 @@ def rclone_config() -> str:
 def gleaner_config(context: AssetExecutionContext):
     """The gleanerconfig.yaml used for gleaner"""
     get_dagster_logger().info("Creating gleaner config")
-    input_file = "/opt/dagster/app/templates/gleanerconfig.yaml.j2"
+    input_file = os.path.join(
+        os.path.dirname(__file__), "templates", "gleanerconfig.yaml.j2"
+    )
 
     # Fill in the config with the common minio configuration
-    templated_base = yaml.safe_load(template_gleaner_or_nabu(input_file))
+    templated_base: dict = yaml.safe_load(template_gleaner_or_nabu(input_file))
 
     r = requests.get(REMOTE_GLEANER_SITEMAP)
     xml = r.text
@@ -96,8 +196,6 @@ def gleaner_config(context: AssetExecutionContext):
     assert (
         len(Lines) > 0
     ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
-
-    # context.instance.delete_dynamic_partition("sources_partitions_def")
 
     for line in Lines:
         basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
@@ -151,6 +249,8 @@ def gleaner_config(context: AssetExecutionContext):
     encoded_as_bytes = yaml.dump(templated_base).encode()
     s3_client = S3()
     s3_client.load(encoded_as_bytes, "configs/gleanerconfig.yaml")
+    with open("/tmp/gleanerconfig.yaml", "w") as f:
+        f.write(yaml.dump(templated_base))
 
 
 @asset_check(asset=gleaner_config)
@@ -195,55 +295,25 @@ def gleaner_links_are_valid():
 def docker_client_environment():
     """Set up dagster by pulling both the gleaner and nabu images and moving the config files into docker configs"""
     get_dagster_logger().info("Getting docker client and pulling images: ")
-    client = docker.DockerClient(version="1.43")
+    client = docker.DockerClient()
+
     # check if the docker socket is available
     client.images.pull(GLEANER_IMAGE)
     client.images.pull(NABU_IMAGE)
-    # we create configs as docker config objects so
-    # we can more easily reuse them and not need to worry about
-    # navigating / mounting file systems for local config access
-    api_client = docker.APIClient()
-
-    # At the start of the pipeline, remove any existing configs
-    # and try to regenerate a new one
-    # since we don't want old/stale configs to be used
-
-    # However, if another container is using the config it will fail and throw an error
-    # Instead of using a mutex and trying to synchronize access,
-    # we just assume that a config that is in use is not stale.
-    configs = {
-        "gleaner": "configs/gleanerconfig.yaml",
-        "nabu": "configs/nabuconfig.yaml",
-    }
-
-    for config_name, config_file in configs.items():
-        try:
-            config = client.configs.list(filters={"name": [config_name]})
-            if config:
-                api_client.remove_config(config[0].id)
-        except docker.errors.APIError as e:
-            get_dagster_logger().info(
-                f"Skipped removing {config_name} config during docker client environment creation since it is likely in use. Underlying skipped exception was {e}"
-            )
-        except IndexError as e:
-            get_dagster_logger().info(f"No config found for {config_name}: {e}")
-
-        try:
-            client.configs.create(name=config_name, data=S3().read(config_file))
-        except docker.errors.APIError as e:
-            get_dagster_logger().info(
-                f"Skipped creating {config_name} config during docker client environment creation since it is likely in use. Underlying skipped exception was {e}"
-            )
 
 
 @asset_check(asset=docker_client_environment)
 def can_contact_headless():
     """Check that we can contact the headless server"""
     TWO_SECONDS = 2
+
+    url = GLEANER_HEADLESS_ENDPOINT
+    if RUNNING_AS_TEST_OR_DEV():
+        portNumber = GLEANER_HEADLESS_ENDPOINT.removeprefix("http://").split(":")[1]
+        url = f"http://localhost:{portNumber}"
+
     # the Host header needs to be set for Chromium due to an upstream security requirement
-    result = requests.get(
-        GLEANER_HEADLESS_ENDPOINT, timeout=TWO_SECONDS, headers={"Host": "localhost"}
-    )
+    result = requests.get(url, timeout=TWO_SECONDS)
     return AssetCheckResult(
         passed=result.status_code == 200,
         metadata={
@@ -258,9 +328,14 @@ def can_contact_headless():
 def gleaner(context: OpExecutionContext):
     """Get the jsonld for each site in the gleaner config"""
     source = context.partition_key
-    ARGS = ["--cfg", "gleanerconfig.yaml", "-source", source, "--rude"]
+    ARGS = ["--cfg", "gleanerconfig.yaml", "--source", source, "--rude", "--setup"]
+
     returned_value = run_scheduler_docker_image(
-        context, source, GLEANER_IMAGE, ARGS, "gleaner"
+        source,
+        GLEANER_IMAGE,
+        ARGS,
+        "gleaner",
+        volumeMapping=["/tmp/gleanerconfig.yaml:/app/gleanerconfig.yaml"],
     )
     get_dagster_logger().info(f"Gleaner returned value: '{returned_value}'")
 
@@ -276,7 +351,13 @@ def nabu_release(context: OpExecutionContext):
         "--prefix",
         "summoned/" + source,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "release")
+    run_scheduler_docker_image(
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "release",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_release])
@@ -291,7 +372,13 @@ def nabu_object(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "object")
+    run_scheduler_docker_image(
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "object",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_object])
@@ -307,7 +394,13 @@ def nabu_prune(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prune")
+    run_scheduler_docker_image(
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "prune",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
@@ -322,7 +415,13 @@ def nabu_prov_release(context):
         "--prefix",
         "prov/" + source,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prov-release")
+    run_scheduler_docker_image(
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "prov-release",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_release])
@@ -336,7 +435,13 @@ def nabu_prov_clear(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prov-clear")
+    run_scheduler_docker_image(
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "prov-clear",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_clear])
@@ -351,7 +456,13 @@ def nabu_prov_object(context):
         "--endpoint",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "prov-object")
+    run_scheduler_docker_image(
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "prov-object",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
@@ -368,7 +479,13 @@ def nabu_orgs_release(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "orgs-release")
+    run_scheduler_docker_image(
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "orgs-release",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_orgs_release])
@@ -384,7 +501,13 @@ def nabu_orgs(context: OpExecutionContext):
         "--endpoint",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
-    run_scheduler_docker_image(context, source, NABU_IMAGE, ARGS, "orgs")
+    run_scheduler_docker_image(
+        source,
+        NABU_IMAGE,
+        ARGS,
+        "orgs",
+        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+    )
 
 
 @asset(
@@ -481,7 +604,9 @@ definitions = Definitions(
             channel="#cgs-iow-bots",
             slack_token=strict_env("DAGSTER_SLACK_TOKEN"),
             text_fn=slack_error_fn,
-            default_status=DefaultSensorStatus.RUNNING,
+            default_status=DefaultSensorStatus.STOPPED
+            if RUNNING_AS_TEST_OR_DEV()
+            else DefaultSensorStatus.RUNNING,
             monitor_all_code_locations=True,
         )
     ],

@@ -1,0 +1,200 @@
+name: geoconnex_scheduler
+
+services:
+  # MinIO service for storage
+  minio:
+    container_name: scheduler_minio
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - scheduler_minio_data:/data
+    env_file:
+      - "../.env"
+    networks:
+      - dagster_network
+    profiles:
+      - localInfra
+
+  # Creates buckets for MinIO
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+        sleep 10;
+        /usr/bin/mc alias set myminio http://minio:9000 minio_access_key minio_secret_key;
+        /usr/bin/mc mb myminio/gleanerbucket;
+        /usr/bin/mc anonymous set public myminio/gleanerbucket;
+        sleep infinity;
+      "
+    networks:
+      - dagster_network
+    profiles:
+      - localInfra
+
+  # GraphDB service for storage
+  graphdb:
+    image: khaller/graphdb-free
+    container_name: scheduler_graphdb
+    ports:
+      - "7200:7200"
+    environment:
+      - JAVA_XMX=4g
+      - JAVA_XMS=2048m
+    networks:
+      - dagster_network
+    volumes:
+      - graphdb_data:/opt/graphdb/data
+    profiles:
+      - localInfra
+      - production
+
+  # Creates repositories in GraphDB
+  createrepositories:
+    image: alpine/curl
+    depends_on:
+      - graphdb
+    entrypoint: >
+      /bin/sh -c "
+        sleep 5;
+        curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@graphdb/iow-config.ttl';
+        curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@graphdb/iowprov-config.ttl';
+        sleep infinity;
+      "
+    networks:
+      - dagster_network
+    volumes:
+      - ./graphdb:/graphdb
+    profiles:
+      - localInfra
+      - production
+
+  # PostgreSQL database for Dagster
+  dagster_postgres:
+    image: postgres:11
+    container_name: dagster_postgres
+    volumes:
+      - dagster_postgres_data:/var/lib/postgresql/data
+    env_file:
+      - "../.env"
+    ports:
+      - "5432:5432"
+    expose:
+      - 5432
+    networks:
+      - dagster_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres_db"]
+      interval: 10s
+      timeout: 8s
+      retries: 5
+
+  # Dagster Webserver
+  dagster_webserver:
+    image: dagster_webserver_image
+    container_name: dagster_webserver
+    build:
+      context: ..
+      dockerfile: ./Docker/dagster/Dockerfile_dagster
+    entrypoint:
+      - dagster-webserver
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3000"
+      - -w
+      - "workspace.yaml"
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/io_manager_storage:/tmp/io_manager_storage
+    depends_on:
+      dagster_postgres:
+        condition: service_healthy
+      dagster_user_code:
+        condition: service_started
+    env_file:
+      - "../.env"
+    environment:
+      - DAGSTER_POSTGRES_HOST=dagster_postgres
+    networks:
+      - dagster_network
+    profiles:
+      - production
+
+  # Dagster Daemon
+  dagster_daemon:
+    image: dagster_daemon_image
+    container_name: dagster_daemon
+    build:
+      context: ..
+      dockerfile: ./Docker/dagster/Dockerfile_dagster
+    restart: on-failure
+    entrypoint:
+      - dagster-daemon
+      - run
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/io_manager_storage:/tmp/io_manager_storage
+    depends_on:
+      dagster_postgres:
+        condition: service_healthy
+      dagster_user_code:
+        condition: service_started
+    env_file:
+      - "../.env"
+    environment:
+      - DAGSTER_POSTGRES_HOST=dagster_postgres
+    networks:
+      - dagster_network
+    profiles:
+      - production
+
+  # Dagster User Code
+  dagster_user_code:
+    image: dagster_user_code_image
+    container_name: dagster_user_code
+    build:
+      context: ..
+      dockerfile: ./Docker/dagster/Dockerfile_user_code
+    restart: always
+    networks:
+      - dagster_network
+    environment:
+      - DAGSTER_CURRENT_IMAGE=dagster_user_code_image
+      - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
+      - GLEANER_IMAGE=${GLEANER_IMAGE:-internetofwater/gleaner:latest}
+      - DAGSTER_POSTGRES_HOST=dagster_postgres
+    volumes:
+      - ../userCode:/opt/dagster/app/userCode
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - "../.env"
+    profiles:
+      - production
+
+  # Headless browser for testing
+  headless:
+    image: chromedp/headless-shell:latest
+    container_name: scheduler_headless
+    ports:
+      - "9222:9222"
+    networks:
+      - dagster_network
+    environment:
+      - SERVICE_PORTS=9222
+
+volumes:
+  scheduler_minio_data:
+  graphdb_data:
+  dagster_postgres_data:
+
+networks:
+  dagster_network:
+    driver: bridge
+    name: dagster_network

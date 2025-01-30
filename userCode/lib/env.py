@@ -1,11 +1,16 @@
 import os
 
-from dagster import OpExecutionContext, get_dagster_logger
+from dagster import get_dagster_logger
 
 """
 Runtime config and env vars for dagster; prioritizes strict env vars
 that fail immediately if missing instead of later in the run
 """
+
+
+def RUNNING_AS_TEST_OR_DEV():
+    """Check if we are running outside of the docker container"""
+    return "DAGSTER_IS_DEV_CLI" in os.environ or "PYTEST_CURRENT_TEST" in os.environ
 
 
 def assert_all_vars():
@@ -59,14 +64,6 @@ def strict_env(key: str):
     return val
 
 
-def strict_get_tag(context: OpExecutionContext, key: str) -> str:
-    """Gets a tag from a dagster runand ensures it exists before running further jobs"""
-    src = context.run_tags[key]
-    if src is None:
-        raise Exception(f"Missing run tag {key}")
-    return src
-
-
 RELEASE_PATH = "graphs/latest"
 GLEANER_HEADLESS_NETWORK = "headless_gleanerio"
 GLEANER_MINIO_ADDRESS = strict_env("GLEANERIO_MINIO_ADDRESS")
@@ -98,3 +95,8 @@ REMOTE_GLEANER_SITEMAP = strict_env("REMOTE_GLEANER_SITEMAP")
 LAKEFS_ENDPOINT_URL = strict_env("LAKEFS_ENDPOINT_URL")
 LAKEFS_ACCESS_KEY_ID = strict_env("LAKEFS_ACCESS_KEY_ID")
 LAKEFS_SECRET_ACCESS_KEY = strict_env("LAKEFS_SECRET_ACCESS_KEY")
+
+DAGSTER_YAML_CONFIG = os.path.join(
+    os.path.dirname(__file__), "..", "..", "dagster.yaml"
+)
+assert os.path.exists(DAGSTER_YAML_CONFIG), "the dagster.yaml file does not exist"

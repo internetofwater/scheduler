@@ -9,10 +9,42 @@ from userCode.main import definitions, sources_partitions_def
 
 from dagster import AssetsDefinition, AssetSpec, SourceAsset
 
+from userCode.test.lib import clear_graph, execute_sparql
 
-def test_materialize_ref_hu02():
+
+def assert_data_is_linked_in_graph():
+    """Check that a mainstem is associated with a monitoring location in the graph"""
+    query = """
+    select * where {
+        <https://geoconnex.us/cdss/gages/FARMERCO> <https://schema.org/name> ?o .
+    } limit 100
+    """
+
+    resultDict = execute_sparql(query)
+    assert "FLORIDA FARMERS CANAL" in resultDict["o"]
+
+    query = """
+    PREFIX hyf: <https://www.opengis.net/def/schema/hy_features/hyf/>
+
+    select * where { 
+        ?monitoringLocation hyf:referencedPosition/hyf:HY_IndirectPosition/hyf:linearElement <https://geoconnex.us/ref/mainstems/42750> .
+    } limit 100 
+    """
+    resultDict = execute_sparql(query)
+    # make sure that the florida canal monitoring location is on the florida river mainstem
+    assert (
+        len(resultDict["monitoringLocation"]) > 0
+    ), "There were no linked monitoring locations for the Florida River Mainstem"
+    assert (
+        "https://geoconnex.us/cdss/gages/FLOCANCO" in resultDict["monitoringLocation"]
+    )
+
+
+def test_e2e():
+    """Run the e2e test on the entire geoconnex graph"""
+    clear_graph()
+
     instance = DagsterInstance.ephemeral()
-
     assets = load_assets_from_modules([main])
     # It is possible to load certain asset types that cannot be passed into
     # Materialize so we filter them to avoid a pyright type error
@@ -37,10 +69,28 @@ def test_materialize_ref_hu02():
     assert len(all_partitions) > 0, "Partitions were not generated"
 
     result = resolved_job.execute_in_process(
-        instance=instance, partition_key="ref_hu02_hu02__0"
+        instance=instance, partition_key="ref_mainstems_mainstems__0"
     )
 
-    assert result.success, "Job execution failed for partition 'ref_hu02_hu02__0'"
+    assert result.success, "Job execution failed for partition 'mainstems__0'"
+
+    query = """
+    select * where {
+        <https://geoconnex.us/ref/mainstems/42750> <https://schema.org/name> ?o .
+    } limit 100
+    """
+
+    resultDict = execute_sparql(query)
+    assert (
+        "Florida River" in resultDict["o"]
+    ), "The Florida River Mainstem was not found in the graph"
+
+    result = resolved_job.execute_in_process(
+        instance=instance, partition_key="cdss_co_gages__0"
+    )
+    assert result.success, "Job execution failed for partition 'cdss_co_gages__0'"
+
+    assert_data_is_linked_in_graph()
 
 
 def test_dynamic_partitions():
@@ -83,16 +133,18 @@ def test_dynamic_partitions():
     # the new ones are
     for key in mocked_partition_keys:
         assert key not in newPartitions
-    assert "ref_hu02_hu02__0" in newPartitions
-    assert "ref_hu04_hu04__0" in newPartitions
+    assert "ref_mainstems_mainstems__0" in newPartitions
+    assert "ref_dams_dams__0" in newPartitions
 
     # Check what happens when we delete a specific key in the dynamic partition
-    instance.delete_dynamic_partition("sources_partitions_def", "ref_hu02_hu02__0")
+    instance.delete_dynamic_partition(
+        "sources_partitions_def", "ref_mainstems_mainstems__0"
+    )
 
     # Make sure that
     partitionsAfterDelete = instance.get_dynamic_partitions("sources_partitions_def")
-    assert "ref_hu02_hu02__0" not in partitionsAfterDelete
-    assert "ref_hu04_hu04__0" in partitionsAfterDelete
+    assert "ref_mainstems_mainstems__0" not in partitionsAfterDelete
+    assert "ref_dams_dams__0" in partitionsAfterDelete
     assert len(partitionsAfterDelete) == len(newPartitions) - 1
     for key in mocked_partition_keys:
         assert key not in partitionsAfterDelete

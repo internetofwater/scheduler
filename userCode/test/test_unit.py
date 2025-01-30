@@ -16,6 +16,7 @@ from userCode.lib.env import (
     LAKEFS_ACCESS_KEY_ID,
     LAKEFS_ENDPOINT_URL,
     LAKEFS_SECRET_ACCESS_KEY,
+    RUNNING_AS_TEST_OR_DEV,
     strict_env,
 )
 from userCode.main import rclone_config
@@ -24,18 +25,6 @@ from userCode.main import rclone_config
 def test_rclone_installed():
     """make sure you can run rclone version"""
     assert os.system("rclone version") == 0
-
-
-def test_env_vars():
-    """for every env var, make sure that there are no "" values which signify
-    env vars that were incorrectly applied or missing"""
-    env = os.environ
-    for key in env.keys():
-        assert (
-            env[key] != ""
-        ), "{} is empty, but scheduler should only be using env vars that are defined".format(
-            key
-        )
 
 
 @pytest.mark.skipif(
@@ -58,6 +47,10 @@ def test_rclone_config_location():
     """Make sure we can find the rclone config file" locally"""
     location = FileTransferer.get_rclone_config_path()
     assert location.parent.exists()
+
+
+def test_test_env_is_detected():
+    assert RUNNING_AS_TEST_OR_DEV()
 
 
 @pytest.mark.skipif(

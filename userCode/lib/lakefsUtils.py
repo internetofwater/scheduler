@@ -10,6 +10,7 @@ from userCode.lib.env import (
 
 
 def assert_file_exists(file_path: str, branch_name: str = "main"):
+    """Assert that a file path has a valid file within the lakefs cluster"""
     lakefs_client = Client(
         host=LAKEFS_ENDPOINT_URL,
         username=LAKEFS_ACCESS_KEY_ID,
@@ -102,6 +103,7 @@ def get_branch(branch_name: str) -> Optional[lakefs.Branch]:
 
 
 def move_file(branch: str, source: str, destination: str):
+    """Move a file within a given branch from one source to another"""
     lakefs_client = Client(
         host=LAKEFS_ENDPOINT_URL,
         username=LAKEFS_ACCESS_KEY_ID,
@@ -117,6 +119,7 @@ def move_file(branch: str, source: str, destination: str):
 
 
 def merge_into_main(branch: str):
+    """Merge a branch into the main branch of the lakefs cluster"""
     lakefs_client = Client(
         host=LAKEFS_ENDPOINT_URL,
         username=LAKEFS_ACCESS_KEY_ID,

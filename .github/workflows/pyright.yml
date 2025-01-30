@@ -16,7 +16,7 @@ jobs:
       - run: |
           python -m venv .venv
           source .venv/bin/activate
-          pip install -r Docker/user_code_requirements.txt
+          pip install -r requirements.txt
 
       - run: echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
