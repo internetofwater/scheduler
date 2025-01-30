@@ -38,26 +38,44 @@ def test_materialize_ref_hu02():
     assert len(all_partitions) > 0, "Partitions were not generated"
 
     result = resolved_job.execute_in_process(
-        instance=instance, partition_key="ref_hu02_hu02__0"
+        instance=instance, partition_key="ref_mainstems_mainstems__0"
     )
 
-    assert result.success, "Job execution failed for partition 'ref_hu02_hu02__0'"
+    assert result.success, "Job execution failed for partition 'mainstems__0'"
 
     query = """
     select * where {
-        <https://geoconnex.us/ref/hu02/01> ?p ?o .
+        ?s ?p <https://schema.org/Place> .
     } limit 100
     """
     resultDict = execute_sparql(query)
     assert len(resultDict) > 0
-    assert "New England Region" in resultDict["o"]
+    assert "https://geoconnex.us/ref/mainstems/65655" in resultDict["s"]
 
-    # This passes but is extremely slow to finish; no feasible for ci/cd
-    # result = resolved_job.execute_in_process(
-    #     instance=instance, partition_key="ref_mainstems_mainstems__0"
-    # )
+    query = """
+    select * where {
+        <https://geoconnex.us/ref/mainstems/65655> <https://schema.org/name> ?o .
+    } limit 100
+    """
 
-    # assert result.success, "Job execution failed for partition 'mainstems__0'"
+    resultDict = execute_sparql(query)
+    assert len(resultDict) > 0
+    assert "Junction Creek" in resultDict["o"]
+
+    result = resolved_job.execute_in_process(
+        instance=instance, partition_key="ref_dams_dams__0"
+    )
+    assert result.success, "Job execution failed for partition 'ref_dams_dams__0'"
+
+    query = """
+    select * where {
+        <https://geoconnex.us/ref/dams/1045939> <https://schema.org/name> ?o .
+    } limit 100
+    """
+
+    resultDict = execute_sparql(query)
+    assert len(resultDict) > 0
+    assert "Upper Railroad" in resultDict["o"]
 
 
 def test_dynamic_partitions():
@@ -100,16 +118,18 @@ def test_dynamic_partitions():
     # the new ones are
     for key in mocked_partition_keys:
         assert key not in newPartitions
-    assert "ref_hu02_hu02__0" in newPartitions
-    assert "ref_hu04_hu04__0" in newPartitions
+    assert "ref_mainstems_mainstems__0" in newPartitions
+    assert "ref_dams_dams__0" in newPartitions
 
     # Check what happens when we delete a specific key in the dynamic partition
-    instance.delete_dynamic_partition("sources_partitions_def", "ref_hu02_hu02__0")
+    instance.delete_dynamic_partition(
+        "sources_partitions_def", "ref_mainstems_mainstems__0"
+    )
 
     # Make sure that
     partitionsAfterDelete = instance.get_dynamic_partitions("sources_partitions_def")
-    assert "ref_hu02_hu02__0" not in partitionsAfterDelete
-    assert "ref_hu04_hu04__0" in partitionsAfterDelete
+    assert "ref_mainstems_mainstems__0" not in partitionsAfterDelete
+    assert "ref_dams_dams__0" in partitionsAfterDelete
     assert len(partitionsAfterDelete) == len(newPartitions) - 1
     for key in mocked_partition_keys:
         assert key not in partitionsAfterDelete
