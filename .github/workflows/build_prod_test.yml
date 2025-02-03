@@ -1,0 +1,23 @@
+name: Test Prod Build
+
+on:
+    workflow_dispatch: # Allows manual triggering of the workflow
+    push:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    test-build-prod:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+
+            - name: Set up Docker
+              uses: docker/setup-buildx-action@v2
+
+            - name: Launch Docker Compose
+              run: python3 main.py prod --detach
