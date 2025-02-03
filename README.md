@@ -32,4 +32,5 @@ For testing:
 
 ## Production
 
-Run `python3 main.py prod` to run a priduction deployment. This will spin up everything and containerize dagster. You will need to specify your s3 container in the `.env` file.
+Run `python3 main.py prod` to run a production deployment. This will spin up everything and containerize dagster. You will need to specify your s3 container in the `.env` file.
+
