@@ -1,3 +1,13 @@
+# =================================================================
+#
+# Authors: Colton Loftus <70598503+C-Loftus@users.noreply.github.com>
+#
+# Copyright (c) 2025 Lincoln Institute of Land Policy
+#
+# Licensed under the Apache License 2.0.
+#
+# =================================================================
+
 name: "Geoconnex Scheduler E2E Test"
 description: "Reusable GitHub Action to run E2E tests for the Dagster build"
 # Allow specifying a custom docker image so we can test specific versions

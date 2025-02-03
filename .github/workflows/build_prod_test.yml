@@ -1,3 +1,13 @@
+# =================================================================
+#
+# Authors: Colton Loftus <70598503+C-Loftus@users.noreply.github.com>
+#
+# Copyright (c) 2025 Lincoln Institute of Land Policy
+#
+# Licensed under the Apache License 2.0.
+#
+# =================================================================
+
 # NOTE: this only tests building, there is no good way to test
 # runtime functionality in prod without using pytest
 name: Test Prod Build

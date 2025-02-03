@@ -1,4 +1,13 @@
 #!/bin/sh
+# =================================================================
+#
+# Authors: Colton Loftus <70598503+C-Loftus@users.noreply.github.com>
+#
+# Copyright (c) 2025 Lincoln Institute of Land Policy
+#
+# Licensed under the Apache License 2.0.
+#
+# =================================================================
 
 # Create an entrypoint for the code server. This could be either dagster dev with debugpy
 # for debugging or just dagster code-server for running in production
