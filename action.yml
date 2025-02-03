@@ -20,7 +20,7 @@ runs:
     - name: Set up Docker
       uses: docker/setup-buildx-action@v2
 
-    - name: Launch Docker Stack
+    - name: Launch Docker Compose
       run: python3 main.py dev --detach
       shell: bash
 

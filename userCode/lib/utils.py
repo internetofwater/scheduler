@@ -20,6 +20,7 @@ from .dagster_helpers import (
     sources_partitions_def,
 )
 from .classes import S3
+from .types import cli_modes
 from .env import (
     GLEANERIO_DATAGRAPH_ENDPOINT,
     GLEANERIO_PROVGRAPH_ENDPOINT,
@@ -51,7 +52,7 @@ def run_scheduler_docker_image(
     source: str,  # which organization we are crawling
     image_name: str,  # the name of the docker image to pull and validate
     args: list[str],  # the list of arguments to pass to the gleaner/nabu command
-    action_name: str,  # the name of the action to run inside gleaner/nabu
+    action_name: cli_modes,  # the name of the action to run inside gleaner/nabu
     volumeMapping: Optional[list[str]] = None,
 ):
     """Run a docker image inside the dagster docker runtime"""

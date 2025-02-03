@@ -20,8 +20,9 @@ def run_subprocess(command: str, returnStdoutAsValue: bool = False, wait: bool =
         stdout=subprocess.PIPE if returnStdoutAsValue else sys.stdout,
         stderr=sys.stderr,
     )
-    stdout, _ = process.communicate()
+    stdout, stderr = process.communicate()
     if process.returncode != 0:
+        print(stderr.decode("utf-8"))
         sys.exit(process.returncode)
     return stdout.decode("utf-8") if returnStdoutAsValue else None
 
@@ -143,4 +144,7 @@ def main():
 
 
 if __name__ == "__main__":
+    assert (
+        os.path.dirname(os.path.abspath(__file__)) == os.getcwd()
+    ), "Please run this script from the root of the repository"
     main()
