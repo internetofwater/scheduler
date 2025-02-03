@@ -131,7 +131,7 @@ def main():
             "DAGSTER_POSTGRES_HOST=dagster_postgres docker compose --profile localInfra --profile production -f Docker/Docker-compose.yaml down"
         )
     elif args.command == "dagster-dev":
-        run_subprocess("DAGSTER_POSTGRES_HOST=0.0.0.0 dagster dev")
+        run_subprocess("DAGSTER_POSTGRES_HOST=0.0.0.0 DAGSTER_HOME=$PWD dagster dev")
     elif args.command == "dev":
         up(profiles=["localInfra"], build=args.build, detach=args.detach)
     elif args.command == "prod":
@@ -144,4 +144,7 @@ def main():
 
 
 if __name__ == "__main__":
+    assert os.path.dirname(os.path.abspath(__file__)) == os.getcwd(), (
+        "Please run this script from the root of the repository"
+    )
     main()

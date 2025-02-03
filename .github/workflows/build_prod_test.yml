@@ -1,5 +1,6 @@
+# NOTE: this only tests building, there is no good way to test
+# runtime functionality in prod without using pytest
 name: Test Prod Build
-
 on:
   workflow_dispatch: # Allows manual triggering of the workflow
   push:
@@ -21,3 +22,7 @@ jobs:
 
       - name: Launch Docker Compose
         run: python3 main.py prod --detach
+
+      - name: Debug Docker Containers
+        shell: bash
+        run: docker ps -a
