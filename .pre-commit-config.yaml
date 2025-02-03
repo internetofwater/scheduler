@@ -28,9 +28,6 @@ repos:
       - id: check-shebang-scripts-are-executable
       - id: destroyed-symlinks
       - id: detect-private-key
-      - id: end-of-file-fixer
-        exclude_types: [svg]
-        verbose: true
       - id: fix-byte-order-marker
       - id: mixed-line-ending
   - repo: https://github.com/pre-commit/mirrors-prettier
