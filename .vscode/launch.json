@@ -9,7 +9,7 @@
       "args": ["dev"],
       "subProcess": true,
       "env": {
-        "DAGSTER_POSTGRES_HOST": "0.0.0.0",
+        "DAGSTER_POSTGRES_HOST": "0.0.0.0"
       }
     }
   ]
