@@ -52,4 +52,4 @@ repos:
     rev: '0a8669'
     hooks:
       - id: addlicense
-        args: [-l, "MIT", -c, "Lincoln Institute of Land Policy"]
+        args: ["-s=only", -l, "MIT", -c, "Lincoln Institute of Land Policy"]
