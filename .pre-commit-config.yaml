@@ -2,6 +2,10 @@ minimum_pre_commit_version: "2.9.0"
 ci:
   autoupdate_schedule: monthly
 repos:
+  - repo: https://github.com/cgs-earth/pre-commit-hooks
+    rev: v0.1.0
+    hooks:
+      - id: add-header
   - repo: meta
     hooks:
       - id: check-useless-excludes
