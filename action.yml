@@ -39,8 +39,6 @@ runs:
           exit 1
         fi
 
-
-
     - name: Run tests that don't require secrets
       shell: bash
       run: |
