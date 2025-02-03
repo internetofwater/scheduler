@@ -1,3 +1,6 @@
+# Copyright 2025 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: MIT
+
 name: "Geoconnex Scheduler E2E Test"
 description: "Reusable GitHub Action to run E2E tests for the Dagster build"
 # Allow specifying a custom docker image so we can test specific versions

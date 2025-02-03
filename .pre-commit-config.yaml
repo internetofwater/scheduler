@@ -1,3 +1,6 @@
+# Copyright 2025 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: MIT
+
 minimum_pre_commit_version: "2.9.0"
 ci:
   autoupdate_schedule: monthly
@@ -49,7 +52,7 @@ repos:
       - id: uv-lock
       - id: uv-export
   - repo: https://github.com/XuehaiPan/addlicense
-    rev: '0a8669'
+    rev: "0a8669"
     hooks:
       - id: addlicense
         args: ["-s=only", -l, "MIT", -c, "Lincoln Institute of Land Policy"]

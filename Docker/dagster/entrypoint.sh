@@ -1,4 +1,7 @@
 #!/bin/sh
+# Copyright 2025 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: MIT
+
 
 # Create an entrypoint for the code server. This could be either dagster dev with debugpy
 # for debugging or just dagster code-server for running in production

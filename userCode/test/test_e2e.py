@@ -1,3 +1,6 @@
+# Copyright 2025 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: MIT
+
 from dagster import (
     DagsterInstance,
     load_assets_from_modules,
