@@ -99,6 +99,6 @@ LAKEFS_SECRET_ACCESS_KEY = strict_env("LAKEFS_SECRET_ACCESS_KEY")
 DAGSTER_YAML_CONFIG = os.path.join(
     os.path.dirname(__file__), "..", "..", "dagster.yaml"
 )
-assert os.path.exists(DAGSTER_YAML_CONFIG), (
-    f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
-)
+assert os.path.exists(
+    DAGSTER_YAML_CONFIG
+), f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
