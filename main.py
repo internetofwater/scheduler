@@ -145,8 +145,8 @@ def main():
 
 
 if __name__ == "__main__":
-    assert os.path.dirname(os.path.abspath(__file__)) == os.getcwd(), (
-        "Please run this script from the root of the repository"
-    )
+    assert (
+        os.path.dirname(os.path.abspath(__file__)) == os.getcwd()
+    ), "Please run this script from the root of the repository"
     os.makedirs("/tmp/geoconnex", exist_ok=True)
     main()

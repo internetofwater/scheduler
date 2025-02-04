@@ -195,9 +195,9 @@ def gleaner_config(context: AssetExecutionContext):
     sources = []
     names: set[str] = set()
 
-    assert len(Lines) > 0, (
-        f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
-    )
+    assert (
+        len(Lines) > 0
+    ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
 
     for line in Lines:
         basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
