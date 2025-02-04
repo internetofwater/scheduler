@@ -195,9 +195,9 @@ def gleaner_config(context: AssetExecutionContext):
     sources = []
     names: set[str] = set()
 
-    assert (
-        len(Lines) > 0
-    ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    assert len(Lines) > 0, (
+        f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    )
 
     for line in Lines:
         basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
@@ -299,6 +299,7 @@ def docker_client_environment():
     get_dagster_logger().info("Initializing docker client and pulling images: ")
     client = docker.DockerClient()
 
+    get_dagster_logger().info(f"Pulling {GLEANER_IMAGE} and {NABU_IMAGE}")
     # check if the docker socket is available
     client.images.pull(GLEANER_IMAGE)
     client.images.pull(NABU_IMAGE)
