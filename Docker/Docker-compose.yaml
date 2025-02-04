@@ -166,8 +166,8 @@ services:
       - dagster_network
     environment:
       - DAGSTER_CURRENT_IMAGE=dagster_user_code_image
-      - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
-      - GLEANER_IMAGE=${GLEANER_IMAGE:-internetofwater/gleaner:latest}
+      - NABU_IMAGE=${NABU_IMAGE:?}
+      - GLEANER_IMAGE=${GLEANER_IMAGE:?}
       - DAGSTER_POSTGRES_HOST=dagster_postgres
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
