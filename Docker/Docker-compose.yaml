@@ -15,8 +15,6 @@ services:
       - "../.env"
     networks:
       - dagster_network
-    profiles:
-      - localInfra
 
   # Creates buckets for MinIO
   createbuckets:
@@ -139,6 +137,7 @@ services:
       - dagster-daemon
       - run
     volumes:
+      # we mount the docker sock to allow us to spawn nabu / gleaner containers
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
     depends_on:
@@ -171,8 +170,10 @@ services:
       - GLEANER_IMAGE=${GLEANER_IMAGE:-internetofwater/gleaner:latest}
       - DAGSTER_POSTGRES_HOST=dagster_postgres
     volumes:
-      - ../userCode:/opt/dagster/app/userCode
       - /var/run/docker.sock:/var/run/docker.sock
+      # we mount the temp dir to allow us to access the nabu / gleaner configs from host
+      # since the docker socket mounts volumes relative to the host 
+      - /tmp/geoconnex/:/tmp/geoconnex/
     env_file:
       - "../.env"
     profiles:

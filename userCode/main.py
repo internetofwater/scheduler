@@ -75,7 +75,7 @@ def nabu_config():
         encoded_as_bytes,
         "configs/nabuconfig.yaml",
     )
-    with open("/tmp/nabuconfig.yaml", "w") as f:
+    with open("/tmp/geoconnex/nabuconfig.yaml", "w") as f:
         f.write(templated_data)
 
 
@@ -195,9 +195,9 @@ def gleaner_config(context: AssetExecutionContext):
     sources = []
     names: set[str] = set()
 
-    assert (
-        len(Lines) > 0
-    ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    assert len(Lines) > 0, (
+        f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    )
 
     for line in Lines:
         basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
@@ -251,7 +251,7 @@ def gleaner_config(context: AssetExecutionContext):
     encoded_as_bytes = yaml.dump(templated_base).encode()
     s3_client = S3()
     s3_client.load(encoded_as_bytes, "configs/gleanerconfig.yaml")
-    with open("/tmp/gleanerconfig.yaml", "w") as f:
+    with open("/tmp/geoconnex/gleanerconfig.yaml", "w") as f:
         f.write(yaml.dump(templated_base))
 
 
@@ -296,7 +296,7 @@ def gleaner_links_are_valid():
 @asset(deps=[gleaner_config, nabu_config, rclone_config])
 def docker_client_environment():
     """Set up dagster by pulling both the gleaner and nabu images and moving the config files into docker configs"""
-    get_dagster_logger().info("Getting docker client and pulling images: ")
+    get_dagster_logger().info("Initializing docker client and pulling images: ")
     client = docker.DockerClient()
 
     # check if the docker socket is available
@@ -337,7 +337,7 @@ def gleaner(context: OpExecutionContext):
         GLEANER_IMAGE,
         ARGS,
         "gleaner",
-        volumeMapping=["/tmp/gleanerconfig.yaml:/app/gleanerconfig.yaml"],
+        volumeMapping=["/tmp/geoconnex/gleanerconfig.yaml:/app/gleanerconfig.yaml"],
     )
     get_dagster_logger().info(f"Gleaner returned value: '{returned_value}'")
 
@@ -358,7 +358,7 @@ def nabu_release(context: OpExecutionContext):
         NABU_IMAGE,
         ARGS,
         "release",
-        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
     )
 
 
@@ -379,7 +379,7 @@ def nabu_object(context: OpExecutionContext):
         NABU_IMAGE,
         ARGS,
         "object",
-        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
     )
 
 
@@ -401,7 +401,7 @@ def nabu_prune(context: OpExecutionContext):
         NABU_IMAGE,
         ARGS,
         "prune",
-        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
     )
 
 
@@ -422,7 +422,7 @@ def nabu_prov_release(context):
         NABU_IMAGE,
         ARGS,
         "prov-release",
-        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
     )
 
 
@@ -434,6 +434,7 @@ def nabu_prov_clear(context: OpExecutionContext):
         "--cfg",
         "nabuconfig.yaml",
         "clear",
+        "--dangerous",
         "--endpoint",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
@@ -442,7 +443,7 @@ def nabu_prov_clear(context: OpExecutionContext):
         NABU_IMAGE,
         ARGS,
         "prov-clear",
-        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
     )
 
 
@@ -463,7 +464,7 @@ def nabu_prov_object(context):
         NABU_IMAGE,
         ARGS,
         "prov-object",
-        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
     )
 
 
@@ -486,7 +487,7 @@ def nabu_orgs_release(context: OpExecutionContext):
         NABU_IMAGE,
         ARGS,
         "orgs-release",
-        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
     )
 
 
@@ -508,7 +509,7 @@ def nabu_orgs(context: OpExecutionContext):
         NABU_IMAGE,
         ARGS,
         "orgs",
-        volumeMapping=["/tmp/nabuconfig.yaml:/nabuconfig.yaml"],
+        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
     )
 
 
