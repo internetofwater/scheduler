@@ -4,15 +4,13 @@ import subprocess
 import sys
 import argparse
 
-BUILD_DIR = os.path.join(os.path.dirname(__file__), "build")
-TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
 """
 This file is the CLI for managing Docker Compose-based infrastructure.
 """
 
 
-def run_subprocess(command: str, returnStdoutAsValue: bool = False, wait: bool = True):
+def run_subprocess(command: str, returnStdoutAsValue: bool = False):
     """Run a shell command and stream the output in realtime"""
     process = subprocess.Popen(
         command,
@@ -22,7 +20,10 @@ def run_subprocess(command: str, returnStdoutAsValue: bool = False, wait: bool =
     )
     stdout, stderr = process.communicate()
     if process.returncode != 0:
-        print(stderr.decode("utf-8"))
+        if stderr:
+            print(stderr.decode("utf-8"))
+        if stdout:
+            print(stdout.decode("utf-8"))
         sys.exit(process.returncode)
     return stdout.decode("utf-8") if returnStdoutAsValue else None
 
@@ -147,4 +148,5 @@ if __name__ == "__main__":
     assert (
         os.path.dirname(os.path.abspath(__file__)) == os.getcwd()
     ), "Please run this script from the root of the repository"
+    os.makedirs("/tmp/geoconnex", exist_ok=True)
     main()
