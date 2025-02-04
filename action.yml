@@ -23,10 +23,7 @@ runs:
     - name: Set NABU_IMAGE and Run Dev Mode
       shell: bash
       run: |
-        export GLEANER_IMAGE="${{ inputs.gleaner_image }}"
-        export NABU_IMAGE="${{ inputs.nabu_image }}"
-        echo "Running images $GLEANER_IMAGE and $NABU_IMAGE"
-        python3 main.py dev --detach
+        GLEANER_IMAGE="${{ inputs.gleaner_image }}" NABU_IMAGE="${{ inputs.nabu_image }}" python3 main.py dev --detach
 
     - name: Debug Docker Containers
       shell: bash
