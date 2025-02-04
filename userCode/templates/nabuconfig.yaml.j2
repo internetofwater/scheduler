@@ -7,58 +7,19 @@ minio:
   ssl: {{ GLEANERIO_MINIO_USE_SSL }}
   bucket: {{ GLEANERIO_MINIO_BUCKET }}
   region: {{ GLEANERIO_MINIO_REGION }}
-implementation_network:
-  orgname: iow
 context:
   cache: true
   strict: true
 contextmaps:
   - prefix: https://schema.org/
     file: /nabu/assets/schemaorg-current-https.jsonld
-  - prefix: http://schema.org/
-    file: /nabu/assets/schemaorg-current-http.jsonld
-objects:
-  domain: us-east-1
-  prefix:
-    - summoned/providera
+sparql:
+  endpoint: {{ GLEANERIO_GRAPH_URL }}
+  authenticate: false
+  username: ""
+  password: ""
+  repository: iow
+prefixes:
+     summoned/providera
     - prov/providera
     - orgs
-endpoints:
-  - service: {{ GLEANERIO_DATAGRAPH_ENDPOINT }}
-    baseurl: {{ GLEANERIO_GRAPH_URL }}/repositories/{{ GLEANERIO_DATAGRAPH_ENDPOINT }}
-    type: graphdb
-    authenticate: false
-    username: admin
-    password: jfpw
-    modes:
-      - action: sparql
-        suffix:  # no suffix needed for GraphDB
-        accept: application/sparql-results+json
-        method: GET
-      - action: update
-        suffix: /statements
-        accept: application/sparql-update
-        method: POST
-      - action: bulk
-        suffix: /statements
-        accept: text/x-nquads
-        method: POST
-  - service: {{ GLEANERIO_PROVGRAPH_ENDPOINT }}
-    baseurl: {{ GLEANERIO_GRAPH_URL }}/repositories/{{ GLEANERIO_PROVGRAPH_ENDPOINT }}
-    type: graphdb
-    authenticate: false
-    username: admin
-    password: jfpw
-    modes:
-      - action: sparql
-        suffix:  # no suffix needed for GraphDB
-        accept: application/sparql-results+json
-        method: GET
-      - action: update
-        suffix: /statements
-        accept: application/sparql-update
-        method: POST
-      - action: bulk
-        suffix: /statements
-        accept: text/x-nquads
-        method: POST
