@@ -372,7 +372,7 @@ def nabu_object(context: OpExecutionContext):
         "nabuconfig.yaml",
         "object",
         f"graphs/latest/{source}_release.nq",
-        "--endpoint",
+        "--repository",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
@@ -394,7 +394,7 @@ def nabu_prune(context: OpExecutionContext):
         "prune",
         "--prefix",
         "summoned/" + source,
-        "--endpoint",
+        "--repository",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
@@ -435,7 +435,7 @@ def nabu_prov_clear(context: OpExecutionContext):
         "--cfg",
         "nabuconfig.yaml",
         "clear",
-        "--endpoint",
+        "--repository",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
@@ -456,7 +456,7 @@ def nabu_prov_object(context):
         "nabuconfig.yaml",
         "object",
         f"graphs/latest/{source}_prov.nq",
-        "--endpoint",
+        "--repository",
         GLEANERIO_PROVGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
@@ -479,7 +479,7 @@ def nabu_orgs_release(context: OpExecutionContext):
         "release",
         "--prefix",
         "orgs",
-        "--endpoint",
+        "--repository",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
@@ -501,7 +501,7 @@ def nabu_orgs(context: OpExecutionContext):
         "prefix",
         "--prefix",
         "orgs",
-        "--endpoint",
+        "--repository",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
     run_scheduler_docker_image(
