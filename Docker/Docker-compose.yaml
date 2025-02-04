@@ -172,7 +172,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # we mount the temp dir to allow us to access the nabu / gleaner configs from host
-      # since the docker socket mounts volumes relative to the host 
+      # since the docker socket mounts volumes relative to the host
       - /tmp/geoconnex/:/tmp/geoconnex/
     env_file:
       - "../.env"
