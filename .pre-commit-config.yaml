@@ -49,8 +49,8 @@ repos:
       # Update the uv lockfile
       - id: uv-lock
       - id: uv-export
-  - repo: https://github.com/XuehaiPan/addlicense
-    rev: "0a8669"
+  - repo: https://github.com/google/addlicense
+    rev: "55a521bf81c24480094950caa3566548fa63875e"
     hooks:
       - id: addlicense
         args: ["-s=only", -l, "MIT", -c, "Lincoln Institute of Land Policy"]
