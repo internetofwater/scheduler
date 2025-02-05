@@ -1,3 +1,6 @@
+# Copyright 2025 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 minimum_pre_commit_version: "2.9.0"
 ci:
   autoupdate_schedule: monthly
@@ -48,3 +51,9 @@ repos:
       # Update the uv lockfile
       - id: uv-lock
       - id: uv-export
+  - repo: https://github.com/google/addlicense
+    rev: "55a521bf81c24480094950caa3566548fa63875e"
+    hooks:
+      - id: addlicense
+        args:
+          ["-s=only", -l, "Apache-2.0", -c, "Lincoln Institute of Land Policy"]
