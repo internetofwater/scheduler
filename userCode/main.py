@@ -4,9 +4,9 @@ import os
 import platform
 import shutil
 import subprocess
-from typing import Optional, Tuple
+from typing import Optional
 import zipfile
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 from dagster import (
     AssetCheckResult,
@@ -263,20 +263,20 @@ def gleaner_links_are_valid():
     config = s3_client.read("configs/gleanerconfig.yaml")
     yaml_config = yaml.safe_load(config)
 
-    dead_links: list[dict[str, Tuple[int, str]]] = []
+    dead_links: list[dict[str, int]] = []
 
     async def validate_url(url: str):
-        # Geoconnex links generally take at absolute max 8 seconds if it is very large sitemap
-        # If it is above 12 seconds that is a good signal that something is wrong
-        async with ClientSession(timeout=ClientTimeout(total=12)) as session:
-            resp = await session.get(url)
-
-            if resp.status != 200:
-                content = await resp.text()
-                get_dagster_logger().error(
-                    f"URL {url} returned status code {resp.status} with content: {content}"
-                )
-                dead_links.append({url: (resp.status, content)})
+        async with ClientSession() as session:
+            # only request the headers of each geoconnex sitemap
+            # no reason to download all the content
+            async with session.head(url) as response:
+                if response.status == 200:
+                    get_dagster_logger().debug(f"URL {url} exists.")
+                else:
+                    get_dagster_logger().debug(
+                        f"URL {url} returned status code {response.status}."
+                    )
+                    dead_links.append({url: response.status})
 
     async def main(urls):
         tasks = [validate_url(url) for url in urls]
