@@ -19,24 +19,6 @@ services:
     networks:
       - dagster_network
 
-  # Creates buckets for MinIO
-  createbuckets:
-    image: minio/mc
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-        sleep 10;
-        /usr/bin/mc alias set myminio http://minio:9000 minio_access_key minio_secret_key;
-        /usr/bin/mc mb myminio/gleanerbucket;
-        /usr/bin/mc anonymous set public myminio/gleanerbucket;
-        sleep infinity;
-      "
-    networks:
-      - dagster_network
-    profiles:
-      - localInfra
-
   # GraphDB service for storage
   graphdb:
     image: khaller/graphdb-free
