@@ -29,7 +29,6 @@ def assert_all_vars():
         "GLEANERIO_MINIO_BUCKET",
         "GLEANER_HEADLESS_ENDPOINT",  # note this is named differently, confusingly so does not have the IO
         "GLEANERIO_GRAPH_URL",
-        "GLEANERIO_GRAPH_NAMESPACE",
         "LAKEFS_ENDPOINT_URL",
         "LAKEFS_ACCESS_KEY_ID",
         "LAKEFS_SECRET_ACCESS_KEY",
@@ -90,7 +89,6 @@ MINIO_OPTIONS = {
 GLEANER_HEADLESS_ENDPOINT = strict_env("GLEANER_HEADLESS_ENDPOINT")
 # using GLEANER, even though this is a nabu property... same prefix seems easier
 GLEANER_GRAPH_URL = strict_env("GLEANERIO_GRAPH_URL")
-GLEANER_GRAPH_NAMESPACE = strict_env("GLEANERIO_GRAPH_NAMESPACE")
 GLEANER_IMAGE = strict_env("GLEANER_IMAGE")
 NABU_IMAGE = strict_env("NABU_IMAGE")
 GLEANERIO_DATAGRAPH_ENDPOINT = strict_env("GLEANERIO_DATAGRAPH_ENDPOINT")
@@ -107,3 +105,6 @@ DAGSTER_YAML_CONFIG: str = os.path.join(userCodeRoot, "dagster.yaml")
 assert Path(
     DAGSTER_YAML_CONFIG
 ).exists(), f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
+assert Path(
+    "/tmp/geoconnex/"
+).exists(), "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"

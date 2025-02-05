@@ -34,7 +34,7 @@ from .env import (
 from dagster_docker.utils import validate_docker_image
 
 
-def remove_non_alphanumeric(string):
+def remove_non_alphanumeric(string: str):
     return re.sub(r"[^a-zA-Z0-9_]+", "", string)
 
 
@@ -67,6 +67,15 @@ def run_scheduler_docker_image(
     validate_docker_image(image_name)
 
     client = docker.DockerClient()
+
+    if volumeMapping:
+        for volume in volumeMapping:
+            src = volume.split(":")[0]
+            assert os.path.exists(src), f"volume {src} does not exist"
+            if src.endswith("/"):
+                assert os.path.isdir(src), f"volume {src} is not a directory"
+            else:
+                assert os.path.isfile(src), f"volume {src} is not a file"
 
     container = client.containers.run(
         image_name,
