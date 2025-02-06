@@ -60,8 +60,8 @@ def login():
     run_subprocess(f"docker exec -it {containerName} /bin/bash")
 
 
-def pull_and_build(profiles: list[str], actions: list[str]):
-    """Pull and Build imgaes the Docker Compose services"""
+def execute_compose(profiles: list[str], actions: list[str]):
+    """Executes command on the Docker Compose services"""
     check_dotenv()
 
     profileCommand = " ".join(f"--profile {profile}" for profile in profiles)
@@ -172,9 +172,9 @@ def main():
     elif args.command == "dagster-dev":
         run_subprocess("DAGSTER_POSTGRES_HOST=0.0.0.0 dagster dev")
     elif args.command == "build":
-        pull_and_build(profiles=args.profiles, actions=["build"])
+        execute_compose(profiles=args.profiles, actions=["build"])
     elif args.command == "pull":
-        pull_and_build(profiles=args.profiles, actions=["pull"])
+        execute_compose(profiles=args.profiles, actions=["pull"])
     elif args.command == "dev":
         up(profiles=["localInfra"], build=args.build, detach=args.detach)
     elif args.command == "prod":
