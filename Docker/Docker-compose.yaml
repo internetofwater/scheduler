@@ -15,6 +15,8 @@ services:
       - "../.env"
     networks:
       - dagster_network
+    profiles:
+      - localInfra
 
   # Creates buckets for MinIO
   createbuckets:
@@ -180,7 +182,7 @@ services:
       - production
 
   # Headless browser for testing
-  headless:
+  scheduler_headless:
     image: chromedp/headless-shell:latest
     container_name: scheduler_headless
     ports:
@@ -189,6 +191,8 @@ services:
       - dagster_network
     environment:
       - SERVICE_PORTS=9222
+    profiles:
+      - production
 
 volumes:
   scheduler_minio_data:
