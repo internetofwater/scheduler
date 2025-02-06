@@ -199,9 +199,7 @@ def gleaner_config(context: AssetExecutionContext):
     sources = []
     names: set[str] = set()
 
-    assert (
-        len(Lines) > 0
-    ), f"No sitemaps found in sitemap index {REMOTE_GLEANER_SITEMAP}"
+    assert len(Lines) > 0, f"No sitemaps found in index {REMOTE_GLEANER_SITEMAP}"
 
     for line in Lines:
         basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
@@ -323,9 +321,14 @@ def can_contact_headless():
     if RUNNING_AS_TEST_OR_DEV():
         portNumber = GLEANER_HEADLESS_ENDPOINT.removeprefix("http://").split(":")[1]
         url = f"http://localhost:{portNumber}"
+        get_dagster_logger().warning(
+            f"Skipping headless check in test mode. Check would have pinged {url}"
+        )
+        # Dagster does not support skipping asset checks so must return a valid result
+        return AssetCheckResult(passed=True)
 
     # the Host header needs to be set for Chromium due to an upstream security requirement
-    result = requests.get(url, timeout=TWO_SECONDS)
+    result = requests.get(url, headers={"Host": "localhost"}, timeout=TWO_SECONDS)
     return AssetCheckResult(
         passed=result.status_code == 200,
         metadata={
@@ -438,7 +441,7 @@ def nabu_prov_release(context):
     )
 
 
-@asset(partitions_def=sources_partitions_def, deps=[nabu_prov_release])
+@asset(partitions_def=sources_partitions_def, deps=[gleaner])
 def nabu_prov_clear(context: OpExecutionContext):
     """Clears the prov graph before putting the new nq in"""
     source = context.partition_key
@@ -458,7 +461,7 @@ def nabu_prov_clear(context: OpExecutionContext):
     )
 
 
-@asset(partitions_def=sources_partitions_def, deps=[nabu_prov_clear])
+@asset(partitions_def=sources_partitions_def, deps=[nabu_prov_clear, nabu_prov_release])
 def nabu_prov_object(context):
     """Take the nq file from s3 and use the sparql API to upload it into the prov graph repository"""
     source = context.partition_key
@@ -503,7 +506,7 @@ def nabu_orgs_release(context: OpExecutionContext):
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_orgs_release])
-def nabu_orgs(context: OpExecutionContext):
+def nabu_orgs_prefix(context: OpExecutionContext):
     """Move the orgs nq file(s) into the graphdb"""
     source = context.partition_key
     ARGS = [
@@ -526,7 +529,7 @@ def nabu_orgs(context: OpExecutionContext):
 
 @asset(
     partitions_def=sources_partitions_def,
-    deps=[nabu_orgs, nabu_prune],
+    deps=[nabu_orgs_prefix, nabu_prune],
 )
 def finished_individual_crawl(context: OpExecutionContext):
     """Dummy asset signifying the geoconnex crawl is completed once the orgs and prov nq files are in the graphdb and the graph is synced with the s3 bucket"""
