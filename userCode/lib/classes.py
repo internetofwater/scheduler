@@ -1,3 +1,6 @@
+# Copyright 2025 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 import io
 from pathlib import Path
 import subprocess
@@ -37,6 +40,9 @@ class S3:
             access_key=GLEANER_MINIO_ACCESS_KEY,
             secret_key=GLEANER_MINIO_SECRET_KEY,
         )
+
+        if not self.client.bucket_exists(GLEANER_MINIO_BUCKET):
+            self.client.make_bucket(GLEANER_MINIO_BUCKET)
 
     def load(self, data: Any, remote_path: str):
         """Load arbitrary data into s3 bucket"""

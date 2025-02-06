@@ -1,3 +1,8 @@
+{#
+Copyright 2025 Lincoln Institute of Land Policy
+SPDX-License-Identifier: Apache-2.0
+#}
+
 ---
 minio:
   address: {{ GLEANERIO_MINIO_ADDRESS }}
@@ -18,8 +23,8 @@ sparql:
   authenticate: false
   username: ""
   password: ""
-  repository: iow
+  repository: {{ GLEANERIO_DATAGRAPH_ENDPOINT }}
 prefixes:
-     summoned/providera
+    - summoned/providera
     - prov/providera
     - orgs

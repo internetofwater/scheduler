@@ -1,3 +1,6 @@
+# Copyright 2025 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 name: geoconnex_scheduler
 
 services:
@@ -13,24 +16,6 @@ services:
       - scheduler_minio_data:/data
     env_file:
       - "../.env"
-    networks:
-      - dagster_network
-    profiles:
-      - localInfra
-
-  # Creates buckets for MinIO
-  createbuckets:
-    image: minio/mc
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-        sleep 10;
-        /usr/bin/mc alias set myminio http://minio:9000 minio_access_key minio_secret_key;
-        /usr/bin/mc mb myminio/gleanerbucket;
-        /usr/bin/mc anonymous set public myminio/gleanerbucket;
-        sleep infinity;
-      "
     networks:
       - dagster_network
     profiles:
