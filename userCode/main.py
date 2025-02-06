@@ -529,7 +529,7 @@ def nabu_orgs_prefix(context: OpExecutionContext):
 
 @asset(
     partitions_def=sources_partitions_def,
-    deps=[nabu_orgs_prefix, nabu_prov_object, nabu_prune],
+    deps=[nabu_orgs_prefix, nabu_prune],
 )
 def finished_individual_crawl(context: OpExecutionContext):
     """Dummy asset signifying the geoconnex crawl is completed once the orgs and prov nq files are in the graphdb and the graph is synced with the s3 bucket"""
