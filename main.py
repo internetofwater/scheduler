@@ -13,6 +13,21 @@ This file is the CLI for managing Docker Compose-based infrastructure.
 """
 
 
+def check_dotenv():
+    if not os.path.exists(".env"):
+        if not sys.stdin.isatty():
+            shutil.copy(".env.example", ".env")
+        else:
+            answer = input(
+                "Missing .env file. Do you want to copy .env.example to .env ? (y/n)"
+            ).lower()
+            if answer == "y" or answer == "yes":
+                print("Copying .env.example to .env")
+                shutil.copy(".env.example", ".env")
+            else:
+                raise RuntimeError("Missing .env file. Exiting")
+
+
 def run_subprocess(command: str, returnStdoutAsValue: bool = False):
     """Run a shell command and stream the output in realtime"""
     process = subprocess.Popen(
@@ -45,21 +60,23 @@ def login():
     run_subprocess(f"docker exec -it {containerName} /bin/bash")
 
 
+def execute_compose(profiles: list[str], actions: list[str]):
+    """Executes command on the Docker Compose services"""
+    check_dotenv()
+
+    profileCommand = " ".join(f"--profile {profile}" for profile in profiles)
+
+    for action in actions:
+        # Run subprocess without waiting if detach is True
+        command = (
+            f"docker compose {profileCommand} -f Docker/Docker-compose.yaml {action}"
+        )
+        run_subprocess(command)
+
+
 def up(profiles: list[str], build: bool = False, detach: bool = False):
     """Run the Docker Compose services"""
-    if not os.path.exists(".env"):
-        if not sys.stdin.isatty():
-            shutil.copy(".env.example", ".env")
-        else:
-            answer = input(
-                "Missing .env file. Do you want to copy .env.example to .env ? (y/n)"
-            ).lower()
-            if answer == "y" or answer == "yes":
-                print("Copying .env.example to .env")
-                shutil.copy(".env.example", ".env")
-            else:
-                print("Missing .env file. Exiting")
-                return
+    check_dotenv()
 
     profileCommand = " ".join(f"--profile {profile}" for profile in profiles)
     command = f"docker compose {profileCommand} -f Docker/Docker-compose.yaml up"
@@ -86,6 +103,24 @@ def main():
 
     subparsers.add_parser(
         "dagster-dev", help="Run dagster dev; will point to local dev infrastructure"
+    )
+
+    pull = subparsers.add_parser("pull", help="Pull the Docker Compose services")
+    pull.add_argument(
+        "--profiles",
+        nargs="+",
+        choices=["localInfra", "production"],
+        required=True,
+        help="Specify the profiles to pull",
+    )
+
+    build = subparsers.add_parser("build", help="Build the Docker Compose services")
+    build.add_argument(
+        "--profiles",
+        nargs="+",
+        choices=["localInfra", "production"],
+        required=True,
+        help="Specify the profiles to build",
     )
 
     dev = subparsers.add_parser(
@@ -136,6 +171,10 @@ def main():
         )
     elif args.command == "dagster-dev":
         run_subprocess("DAGSTER_POSTGRES_HOST=0.0.0.0 dagster dev")
+    elif args.command == "build":
+        execute_compose(profiles=args.profiles, actions=["build"])
+    elif args.command == "pull":
+        execute_compose(profiles=args.profiles, actions=["pull"])
     elif args.command == "dev":
         up(profiles=["localInfra"], build=args.build, detach=args.detach)
     elif args.command == "prod":
