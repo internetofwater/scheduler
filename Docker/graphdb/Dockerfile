@@ -3,4 +3,5 @@
 
 FROM khaller/graphdb-free
 
-COPY *.ttl /repository.init/
+COPY ./iow-config.ttl /repository.init/iow/config.ttl
+COPY ./iowprov-config.ttl /repository.init/iowprov/config.ttl
