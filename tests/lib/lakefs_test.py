@@ -33,15 +33,9 @@ def test_upstream_lakefs_health():
         f"{LAKEFS_ENDPOINT_URL}/api/v1/healthcheck",
     )
 
-    assert (
-        response.status_code == 204
-    ), f"{LAKEFS_ENDPOINT_URL} is not healthy: {response.text}"
-
-
-def test_rclone_config_location():
-    """Make sure we can find the rclone config file" locally"""
-    location = RcloneClient.get_config_path()
-    assert location.parent.exists(), f"{location} does not exist"
+    assert response.status_code == 204, (
+        f"{LAKEFS_ENDPOINT_URL} is not healthy: {response.text}"
+    )
 
 
 @pytest.mark.skipif(

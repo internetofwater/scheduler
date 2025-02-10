@@ -89,6 +89,7 @@ class RcloneClient:
             text=True,  # Ensure output is returned as a string
             stdout=subprocess.PIPE,  # Capture standard output
             stderr=subprocess.PIPE,  # Capture standard error
+            check=True,
         )
         if result.returncode == 0:
             # Parse the output to get the path
