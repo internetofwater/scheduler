@@ -19,7 +19,7 @@
 
             # Inference and Validation
             graphdb:ruleset "rdfsplus-optimized" ;
-            graphdb:disable-sameAs "true" ;
+            graphdb:disable-sameAs "false" ;
             graphdb:check-for-inconsistencies "false" ;
 
             # Indexing
