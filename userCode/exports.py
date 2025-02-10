@@ -1,3 +1,6 @@
+# Copyright 2025 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 from datetime import datetime
 from typing import Optional
 from dagster import OpExecutionContext, asset, get_dagster_logger
