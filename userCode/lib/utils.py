@@ -84,6 +84,9 @@ def run_scheduler_docker_image(
         # we need to set the dagster network so it can communicate with minio/graphdb even though it is outside the compose project
         network="dagster_network",
         volumes=volumeMapping,
+        # Ensures the container gets a fair share of CPU
+        cpu_shares=1024,
+        cpu_quota=50000,
     )
 
     get_dagster_logger().info(
