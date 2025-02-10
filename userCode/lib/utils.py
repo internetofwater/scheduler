@@ -6,9 +6,6 @@ import os
 import re
 from typing import Optional, Union
 from dagster import (
-    AssetKey,
-    OpExecutionContext,
-    RunFailureSensorContext,
     get_dagster_logger,
 )
 import docker
@@ -18,9 +15,8 @@ import docker.models.containers
 import docker.models.services
 from jinja2 import Environment, FileSystemLoader
 import jinja2
-from .dagster_helpers import (
+from .dagster import (
     dagster_log_with_parsed_level,
-    sources_partitions_def,
 )
 from .classes import S3
 from .types import cli_modes
@@ -122,17 +118,6 @@ def run_scheduler_docker_image(
         )
 
 
-def slack_error_fn(context: RunFailureSensorContext) -> str:
-    get_dagster_logger().info("Sending notification to Slack")
-    # The make_slack_on_run_failure_sensor automatically sends the job
-    # id and name so you can just send the error. We don't need other data in the string
-    source_being_crawled = context.partition_key
-    if source_being_crawled:
-        return f"Error for partition: {source_being_crawled}: {context.failure_event.message}"
-    else:
-        return f"Error: {context.failure_event.message}"
-
-
 def template_rclone(input_template_file_path: str) -> str:
     """Fill in a template with shared env vars and return the templated data"""
     vars_in_rclone_config = {
@@ -193,28 +178,3 @@ def template_gleaner_or_nabu(input_template_file_path: str) -> str:
 
     # Render the template with the context
     return template.render(**vars_in_both_nabu_and_gleaner_configs)
-
-
-def all_dependencies_materialized(
-    context: OpExecutionContext, dependency_asset_key: str
-) -> bool:
-    """Check if all partitions of a given asset are materialized"""
-    instance = context.instance
-    all_partitions = sources_partitions_def.get_partition_keys(
-        dynamic_partitions_store=instance
-    )
-    # Check if all partitions of finished_individual_crawl are materialized
-    materialized_partitions = context.instance.get_materialized_partitions(
-        asset_key=AssetKey(dependency_asset_key)
-    )
-
-    if len(all_partitions) != len(materialized_partitions):
-        get_dagster_logger().warning(
-            f"Not all partitions of {dependency_asset_key} are materialized, so nq generation will be skipped"
-        )
-        return False
-    else:
-        get_dagster_logger().info(
-            f"All partitions of {dependency_asset_key} are detected as having been materialized"
-        )
-        return True

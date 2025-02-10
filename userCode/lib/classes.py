@@ -11,7 +11,8 @@ from minio import Minio
 from urllib3 import BaseHTTPResponse
 from lakefs.client import Client
 
-from userCode.lib.lakefsUtils import create_branch_if_not_exists
+from userCode.lib.lakefs import LakeFSClient
+
 from .env import (
     GLEANER_MINIO_SECRET_KEY,
     GLEANER_MINIO_ACCESS_KEY,
@@ -73,11 +74,11 @@ class S3:
         return data
 
 
-class FileTransferer:
+class RcloneClient:
     """Helper class to transfer files from minio to lakefs using rclone"""
 
     @classmethod
-    def get_rclone_config_path(cls) -> Path:
+    def get_config_path(cls) -> Path:
         """
         Get the path to the rclone clone config file on the host.
         This is needed since rclone configs can be present in multiple locations
@@ -88,6 +89,7 @@ class FileTransferer:
             text=True,  # Ensure output is returned as a string
             stdout=subprocess.PIPE,  # Capture standard output
             stderr=subprocess.PIPE,  # Capture standard error
+            check=True,
         )
         if result.returncode == 0:
             # Parse the output to get the path
@@ -98,7 +100,7 @@ class FileTransferer:
         raise RuntimeError("Error finding rclone config file path:", result.stderr)
 
     def __init__(self, config_data: str):
-        rclone_conf_location = self.get_rclone_config_path()
+        rclone_conf_location = self.get_config_path()
         with open(str(rclone_conf_location), "w") as f:
             f.write(config_data)
 
@@ -130,6 +132,7 @@ class FileTransferer:
         path_to_file: str,
         destination_filename: str,
         destination_branch: str,
+        lakefs_client: LakeFSClient,
     ):
         """
         Copy a file from minio to lakefs
@@ -142,7 +145,7 @@ class FileTransferer:
 
         get_dagster_logger().info(f"Uploading {path_to_file} to {LAKEFS_ENDPOINT_URL}")
 
-        new_branch = create_branch_if_not_exists(destination_branch)
+        new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
 
         self._run_subprocess(
             f"rclone copyto minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch}/{destination_filename} -v"
