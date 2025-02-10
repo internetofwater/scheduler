@@ -10,5 +10,7 @@
   "editor.formatOnType": true,
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
-  "python.testing.pytestArgs": ["userCode", "-vv"]
+  "python.testing.pytestArgs": [
+    "tests"
+  ]
 }
