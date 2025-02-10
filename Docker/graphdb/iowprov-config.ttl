@@ -25,7 +25,7 @@
             # Indexing
             graphdb:entity-id-size "32" ;
             graphdb:enable-context-index "false" ;
-            graphdb:enablePredicateList "true" ;
+            graphdb:enablePredicateList "false" ;
             graphdb:enable-fts-index "false" ;
             graphdb:fts-indexes ("default" "iri") ;
             graphdb:fts-string-literals-index "default" ;
@@ -44,6 +44,6 @@
             graphdb:storage-folder "storage" ;
             graphdb:entity-index-size "10000000" ;
             graphdb:in-memory-literal-properties "true" ;
-            graphdb:enable-literal-index "true" ;
+            graphdb:enable-literal-index "false" ;
         ]
     ].
