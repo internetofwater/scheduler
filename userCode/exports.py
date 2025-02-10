@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 from dagster import OpExecutionContext, asset, get_dagster_logger
 import requests
-from userCode.lib.classes import S3, FileTransferer
+from userCode.lib.classes import S3, RcloneClient
 from userCode.lib.dagster import all_dependencies_materialized
 from userCode.lib.env import (
     GLEANER_GRAPH_URL,
@@ -86,7 +86,7 @@ def nquads_to_renci(
         )
         return
 
-    rclone_client = FileTransferer(rclone_config)
+    rclone_client = RcloneClient(rclone_config)
     lakefs_client = LakeFSClient("geoconnex")
 
     rclone_client.copy_to_lakefs(

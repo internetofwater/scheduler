@@ -7,7 +7,7 @@ import requests
 import pytest
 from userCode.lib.classes import (
     S3,
-    FileTransferer,
+    RcloneClient,
 )
 from userCode.lib.env import (
     LAKEFS_ACCESS_KEY_ID,
@@ -40,8 +40,8 @@ def test_upstream_lakefs_health():
 
 def test_rclone_config_location():
     """Make sure we can find the rclone config file" locally"""
-    location = FileTransferer.get_rclone_config_path()
-    assert location.parent.exists()
+    location = RcloneClient.get_config_path()
+    assert location.parent.exists(), f"{location} does not exist"
 
 
 @pytest.mark.skipif(
@@ -76,7 +76,7 @@ def test_rclone_s3_to_lakefs(lakefs_client: LakeFSClient):
 
     result = materialize_to_memory(assets=[rclone_config])
     assert result.success
-    rclone_client = FileTransferer(config_data=result.output_for_node("rclone_config"))
+    rclone_client = RcloneClient(config_data=result.output_for_node("rclone_config"))
     rclone_client.copy_to_lakefs(
         filename,
         destination_branch="test_branch_for_CI",

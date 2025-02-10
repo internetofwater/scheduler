@@ -74,11 +74,11 @@ class S3:
         return data
 
 
-class FileTransferer:
+class RcloneClient:
     """Helper class to transfer files from minio to lakefs using rclone"""
 
     @classmethod
-    def get_rclone_config_path(cls) -> Path:
+    def get_config_path(cls) -> Path:
         """
         Get the path to the rclone clone config file on the host.
         This is needed since rclone configs can be present in multiple locations
@@ -99,7 +99,7 @@ class FileTransferer:
         raise RuntimeError("Error finding rclone config file path:", result.stderr)
 
     def __init__(self, config_data: str):
-        rclone_conf_location = self.get_rclone_config_path()
+        rclone_conf_location = self.get_config_path()
         with open(str(rclone_conf_location), "w") as f:
             f.write(config_data)
 
