@@ -19,13 +19,13 @@
 
             # Inference and Validation
             graphdb:ruleset "rdfsplus-optimized" ;
-            graphdb:disable-sameAs "true" ;
+            graphdb:disable-sameAs "false" ;
             graphdb:check-for-inconsistencies "false" ;
 
             # Indexing
             graphdb:entity-id-size "32" ;
             graphdb:enable-context-index "false" ;
-            graphdb:enablePredicateList "true" ;
+            graphdb:enablePredicateList "false" ;
             graphdb:enable-fts-index "false" ;
             graphdb:fts-indexes ("default" "iri") ;
             graphdb:fts-string-literals-index "default" ;
@@ -43,7 +43,7 @@
             graphdb:repository-type "file-repository" ;
             graphdb:storage-folder "storage" ;
             graphdb:entity-index-size "10000000" ;
-            graphdb:in-memory-literal-properties "true" ;
+            graphdb:in-memory-literal-properties "false" ;
             graphdb:enable-literal-index "true" ;
         ]
     ].
