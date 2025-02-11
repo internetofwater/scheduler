@@ -97,14 +97,15 @@ REMOTE_GLEANER_SITEMAP = strict_env("REMOTE_GLEANER_SITEMAP")
 LAKEFS_ENDPOINT_URL = strict_env("LAKEFS_ENDPOINT_URL")
 LAKEFS_ACCESS_KEY_ID = strict_env("LAKEFS_ACCESS_KEY_ID")
 LAKEFS_SECRET_ACCESS_KEY = strict_env("LAKEFS_SECRET_ACCESS_KEY")
+ZENODO_ACCESS_TOKEN = strict_env("ZENODO_ACCESS_TOKEN")
 
 userCodeRoot = Path(__file__).parent.parent.parent.absolute()
 
 DAGSTER_YAML_CONFIG: str = os.path.join(userCodeRoot, "dagster.yaml")
 
-assert Path(
-    DAGSTER_YAML_CONFIG
-).exists(), f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
-assert Path(
-    "/tmp/geoconnex/"
-).exists(), "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
+assert Path(DAGSTER_YAML_CONFIG).exists(), (
+    f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
+)
+assert Path("/tmp/geoconnex/").exists(), (
+    "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
+)

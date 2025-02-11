@@ -3,7 +3,7 @@
 
 from datetime import datetime
 from typing import Optional
-from dagster import OpExecutionContext, asset, get_dagster_logger
+from dagster import AssetExecutionContext, asset, get_dagster_logger
 import requests
 from userCode.lib.classes import S3, RcloneClient
 from userCode.lib.dagster import all_dependencies_materialized
@@ -11,6 +11,7 @@ from userCode.lib.env import (
     GLEANER_GRAPH_URL,
     GLEANERIO_DATAGRAPH_ENDPOINT,
     RUNNING_AS_TEST_OR_DEV,
+    ZENODO_ACCESS_TOKEN,
 )
 from userCode.lib.lakefs import LakeFSClient
 from userCode.pipeline import finished_individual_crawl
@@ -24,7 +25,7 @@ outside of the triplestore.
 
 
 @asset(deps=[finished_individual_crawl])
-def export_graph_as_nquads(context: OpExecutionContext) -> Optional[str]:
+def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
     """Export the graphdb to nquads"""
 
     if not all_dependencies_materialized(context, "finished_individual_crawl"):
@@ -69,7 +70,7 @@ def export_graph_as_nquads(context: OpExecutionContext) -> Optional[str]:
 
 @asset()
 def nquads_to_renci(
-    context: OpExecutionContext,
+    context: AssetExecutionContext,
     rclone_config: str,
     export_graph_as_nquads: Optional[str],  # contains the path to the nquads
 ):
@@ -99,3 +100,59 @@ def nquads_to_renci(
         lakefs_client=lakefs_client,
     )
     lakefs_client.merge_branch_into_main(branch="develop")
+
+
+@asset
+def nquads_to_zenodo(
+    context: AssetExecutionContext, export_graph_as_nquads: Optional[str]
+):
+    """Upload nquads to zenodo"""
+    if (
+        not all_dependencies_materialized(context, "finished_individual_crawl")
+        or not export_graph_as_nquads
+    ):
+        get_dagster_logger().warning(
+            "Skipping zenodo copy as all dependencies are not materialized"
+        )
+        return
+
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning(
+            "Skipping zenodo copy as we are running in test mode"
+        )
+        return
+
+    ZENODO_API_URL = "https://zenodo.org/api/deposit/depositions"
+
+    headers = {
+        "Authorization": f"Bearer {ZENODO_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+    # Create a new deposit
+    response = requests.post(ZENODO_API_URL, json={}, headers=headers)
+    response.raise_for_status()  # Ensure request was successful
+    deposit = response.json()
+
+    # Extract Deposit ID
+    deposit_id = deposit["id"]
+    get_dagster_logger().info(f"Deposit created with ID: {deposit_id}")
+
+    with open("outputfile.nq", "rb") as f:
+        files = {"file": f}
+
+        upload_url = f"{ZENODO_API_URL}/{deposit_id}/files"
+        response = requests.post(
+            upload_url,
+            files=files,
+            headers={"Authorization": f"Bearer {ZENODO_ACCESS_TOKEN}"},
+        )
+        response.raise_for_status()  # Ensure request was successful
+
+    get_dagster_logger().info("File uploaded successfully.")
+
+    # Publish the deposit (optional)
+    # publish_url = f"{ZENODO_API_URL}/{deposit_id}/actions/publish"
+    # response = requests.post(publish_url, headers=headers)
+    # response.raise_for_status()
+    # get_dagster_logger().info("Deposit published successfully.")

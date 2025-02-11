@@ -3,10 +3,10 @@
 
 import json
 from dagster import (
+    AssetExecutionContext,
     AssetKey,
     DagsterInstance,
     DynamicPartitionsDefinition,
-    OpExecutionContext,
     RunFailureSensorContext,
     get_dagster_logger,
 )
@@ -61,7 +61,7 @@ def dagster_log_with_parsed_level(structural_log_message: str) -> None:
 
 
 def all_dependencies_materialized(
-    context: OpExecutionContext, dependency_asset_key: str
+    context: AssetExecutionContext, dependency_asset_key: str
 ) -> bool:
     """Check if all partitions of a given asset are materialized"""
     instance = context.instance
