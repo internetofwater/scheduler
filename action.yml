@@ -26,6 +26,8 @@ runs:
     - name: Set NABU_IMAGE and Run Dev Mode
       shell: bash
       run: |
+        python3 main.py pull --profiles localInfra production
+        python3 main.py build --profiles localInfra production
         python3 main.py dev --detach
 
     - name: Debug Docker Containers
