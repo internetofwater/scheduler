@@ -33,3 +33,7 @@ For testing:
 ## Production
 
 Run `python3 main.py prod` to run a production deployment. This will spin up everything and containerize dagster. You will need to specify your s3 container in the `.env` file.
+
+## Credit
+
+This repository is a heavily modified version of https://github.com/gleanerio/scheduler and licensed under Apache 2.0
