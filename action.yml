@@ -26,7 +26,7 @@ runs:
     - name: Set NABU_IMAGE and Run Dev Mode
       shell: bash
       run: |
-        python3 main.py dev --detach
+        python3 main.py dev --detach --build
 
     - name: Debug Docker Containers
       shell: bash

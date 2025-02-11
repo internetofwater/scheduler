@@ -23,8 +23,9 @@ services:
 
   # GraphDB service for storage
   graphdb:
-    image: khaller/graphdb-free
     container_name: scheduler_graphdb
+    build:
+      context: ./graphdb
     ports:
       - "7200:7200"
     environment:
@@ -34,26 +35,6 @@ services:
       - dagster_network
     volumes:
       - graphdb_data:/opt/graphdb/data
-    profiles:
-      - localInfra
-      - production
-
-  # Creates repositories in GraphDB
-  createrepositories:
-    image: alpine/curl
-    depends_on:
-      - graphdb
-    entrypoint: >
-      /bin/sh -c "
-        sleep 5;
-        curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@graphdb/iow-config.ttl';
-        curl -X POST http://graphdb:7200/rest/repositories -H 'Content-Type: multipart/form-data' -F 'config=@graphdb/iowprov-config.ttl';
-        sleep infinity;
-      "
-    networks:
-      - dagster_network
-    volumes:
-      - ./graphdb:/graphdb
     profiles:
       - localInfra
       - production
@@ -80,7 +61,6 @@ services:
 
   # Dagster Webserver
   dagster_webserver:
-    image: dagster_webserver_image
     container_name: dagster_webserver
     build:
       context: ..
@@ -114,7 +94,6 @@ services:
 
   # Dagster Daemon
   dagster_daemon:
-    image: dagster_daemon_image
     container_name: dagster_daemon
     build:
       context: ..
@@ -143,7 +122,6 @@ services:
 
   # Dagster User Code
   dagster_user_code:
-    image: dagster_user_code_image
     container_name: dagster_user_code
     build:
       context: ..
