@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from datetime import datetime
-from typing import Optional
+from typing import ClassVar, Optional
 from dagster import AssetExecutionContext, asset, get_dagster_logger
 import requests
 from userCode.lib.classes import S3, RcloneClient
@@ -15,7 +15,7 @@ from userCode.lib.env import (
 )
 from userCode.lib.lakefs import LakeFSClient
 from userCode.pipeline import finished_individual_crawl
-
+from threading import Lock
 
 """
 This file defines all geoconenx exports that move data
@@ -24,48 +24,80 @@ outside of the triplestore.
 """
 
 
+class ExportState:
+    """Global state variable for keeping track of crawl exports
+    A client should try to get the lock; once it is acquired
+    They should check if the export has already been done
+    and if not, after exporting, set the state to true
+    """
+
+    lock: Lock = Lock()
+    did_export_nq: ClassVar[bool] = False
+    did_export_to_renci: ClassVar[bool] = False
+    did_export_to_zenodo: ClassVar[bool] = False
+
+    @classmethod
+    def reset(cls):
+        """Reset the state of each export to signify that none have completed for a new crawl"""
+        cls.did_export_nq = False
+        cls.did_export_to_renci = False
+        cls.did_export_to_zenodo = False
+
+
 @asset(deps=[finished_individual_crawl])
 def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
     """Export the graphdb to nquads"""
 
     if not all_dependencies_materialized(context, "finished_individual_crawl"):
+        get_dagster_logger().warning(
+            "Skipping nquads export as all dependencies are not materialized"
+        )
         return
 
-    base_url = (
-        GLEANER_GRAPH_URL if not RUNNING_AS_TEST_OR_DEV() else "http://localhost:7200"
-    )
+    with ExportState.lock:
+        if ExportState.did_export_nq:
+            get_dagster_logger().warning(
+                "Skipping nquads export as we have already exported to nquads"
+            )
+            return
 
-    # Define the repository name and endpoint
-    endpoint = (
-        f"{base_url}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}/statements?infer=false"
-    )
-
-    get_dagster_logger().info(
-        f"Exporting graphdb to nquads; fetching data from {endpoint}"
-    )
-    # Download the nq export
-    response = requests.get(
-        endpoint,
-        headers={
-            "Accept": "application/n-quads",
-        },
-    )
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Save the response content to a file
-        with open("outputfile.nq", "wb") as f:
-            f.write(response.content)
-        get_dagster_logger().info("Export of graphdb to nquads successful")
-    else:
-        raise RuntimeError(
-            f"Export failed, status code: {response.status_code} with response {response.text}"
+        base_url = (
+            GLEANER_GRAPH_URL
+            if not RUNNING_AS_TEST_OR_DEV()
+            else "http://localhost:7200"
         )
 
-    s3_client = S3()
-    filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}"
-    s3_client.load(response.content, filename)
-    return filename
+        # Define the repository name and endpoint
+        endpoint = f"{base_url}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}/statements?infer=false"
+
+        get_dagster_logger().info(
+            f"Exporting graphdb to nquads; fetching data from {endpoint}"
+        )
+        # Download the nq export
+        response = requests.get(
+            endpoint,
+            headers={
+                "Accept": "application/n-quads",
+            },
+        )
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            # Save the response content to a file
+            with open("outputfile.nq", "wb") as f:
+                f.write(response.content)
+            get_dagster_logger().info("Export of graphdb to nquads successful")
+        else:
+            raise RuntimeError(
+                f"Export failed, status code: {response.status_code} with response {response.text}"
+            )
+
+        s3_client = S3()
+        filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}"
+        s3_client.load(response.content, filename)
+
+        ExportState.did_export_nq = True
+        return filename
 
 
 @asset()
@@ -83,23 +115,30 @@ def nquads_to_renci(
             "Skipping rclone copy as all dependencies are not materialized"
         )
         return
-
-    if RUNNING_AS_TEST_OR_DEV():
+    elif RUNNING_AS_TEST_OR_DEV():
         get_dagster_logger().warning(
             "Skipping rclone copy as we are running in test mode"
         )
         return
 
-    rclone_client = RcloneClient(rclone_config)
-    lakefs_client = LakeFSClient("geoconnex")
+    with ExportState.lock:
+        if ExportState.did_export_to_renci:
+            get_dagster_logger().warning(
+                "Skipping copy as we have already exported to renci"
+            )
+            return
 
-    rclone_client.copy_to_lakefs(
-        destination_branch="develop",
-        destination_filename="iow-dump.nq",
-        path_to_file=export_graph_as_nquads,
-        lakefs_client=lakefs_client,
-    )
-    lakefs_client.merge_branch_into_main(branch="develop")
+        rclone_client = RcloneClient(rclone_config)
+        lakefs_client = LakeFSClient("geoconnex")
+
+        rclone_client.copy_to_lakefs(
+            destination_branch="develop",
+            destination_filename="iow-dump.nq",
+            path_to_file=export_graph_as_nquads,
+            lakefs_client=lakefs_client,
+        )
+        lakefs_client.merge_branch_into_main(branch="develop")
+        ExportState.did_export_to_renci = True
 
 
 @asset
@@ -115,8 +154,7 @@ def nquads_to_zenodo(
             "Skipping zenodo copy as all dependencies are not materialized"
         )
         return
-
-    if RUNNING_AS_TEST_OR_DEV():
+    elif RUNNING_AS_TEST_OR_DEV():
         get_dagster_logger().warning(
             "Skipping zenodo copy as we are running in test mode"
         )
@@ -130,6 +168,13 @@ def nquads_to_zenodo(
     }
 
     # Create a new deposit
+    with ExportState.lock:
+        if ExportState.did_export_to_zenodo:
+            get_dagster_logger().warning(
+                "Skipping zenodo copy as we have already exported to zenodo"
+            )
+        return
+
     response = requests.post(ZENODO_API_URL, json={}, headers=headers)
     response.raise_for_status()  # Ensure request was successful
     deposit = response.json()
@@ -151,8 +196,28 @@ def nquads_to_zenodo(
 
     get_dagster_logger().info("File uploaded successfully.")
 
-    # Publish the deposit (optional)
-    # publish_url = f"{ZENODO_API_URL}/{deposit_id}/actions/publish"
-    # response = requests.post(publish_url, headers=headers)
-    # response.raise_for_status()
-    # get_dagster_logger().info("Deposit published successfully.")
+    metadata = {
+        "metadata": {
+            "title": "Geoconnex Graph",
+            "upload_type": "dataset",
+            "description": "This file represents the n-quads export of all content contained in the Geoconnex graph database. Documentation and background can be found at https://docs.geoconnex.us/",
+            "creators": [
+                {
+                    "name": "Internet of Water Coalition",
+                    "affiliation": "Internet of Water Coalition",
+                }
+            ],
+        }
+    }
+
+    metadata_url = f"{ZENODO_API_URL}/{deposit_id}"
+    response = requests.put(metadata_url, json=metadata, headers=headers)
+    response.raise_for_status()
+    ExportState.did_export_to_zenodo = True
+
+
+# Publish the deposit (optional)
+# publish_url = f"{ZENODO_API_URL}/{deposit_id}/actions/publish"
+# response = requests.post(publish_url, headers=headers)
+# response.raise_for_status()
+# get_dagster_logger().info("Deposit published successfully.")

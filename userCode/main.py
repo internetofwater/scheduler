@@ -16,6 +16,7 @@ from dagster import (
     materialize,
 )
 import dagster_slack
+from threading import Lock
 
 from userCode.pipeline import gleaner_config
 
@@ -41,6 +42,8 @@ harvest_job = define_asset_job(
     selection=AssetSelection.all(),
 )
 
+export_lock = Lock()
+
 
 @schedule(
     cron_schedule="@weekly",
@@ -54,6 +57,8 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
 
     get_dagster_logger().info("Deleting old partition status before new crawl")
     filter_partitions(context.instance, "sources_partitions_def", keys_to_keep=set())
+    get_dagster_logger().info("Clearing export state")
+    exports.ExportState.reset()
 
     result = materialize([gleaner_config], instance=context.instance)
     if not result.success:
