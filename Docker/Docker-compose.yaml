@@ -29,8 +29,8 @@ services:
     ports:
       - "7200:7200"
     environment:
-      - JAVA_XMX=8g
-      - JAVA_XMS=4g
+      - JAVA_XMX=12g
+      - JAVA_XMS=6g
     networks:
       - dagster_network
     volumes:
