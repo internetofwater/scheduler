@@ -85,7 +85,6 @@ def run_scheduler_docker_image(
         network="dagster_network",
         volumes=volumeMapping,
         # Ensures the container gets a fair share of CPU
-        cpu_shares=1024,
         cpu_quota=50000,
     )
 

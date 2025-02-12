@@ -148,8 +148,6 @@ services:
   scheduler_headless:
     image: chromedp/headless-shell:latest
     container_name: scheduler_headless
-    ports:
-      - "9222:9222"
     networks:
       - dagster_network
     environment:
