@@ -58,8 +58,6 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
     get_dagster_logger().info("Deleting old partition status before new crawl")
     filter_partitions(context.instance, "sources_partitions_def", keys_to_keep=set())
     get_dagster_logger().info("Clearing export state")
-    exports.ExportState.reset()
-
     result = materialize([gleaner_config], instance=context.instance)
     if not result.success:
         raise Exception(f"Failed to materialize gleaner_config!: {result}")
