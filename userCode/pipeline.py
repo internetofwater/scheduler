@@ -17,6 +17,7 @@ from dagster import (
     asset,
     asset_check,
     get_dagster_logger,
+    materialize,
 )
 import docker
 import requests
@@ -518,3 +519,6 @@ def nabu_orgs_prefix(context: AssetExecutionContext):
 def finished_individual_crawl(context: AssetExecutionContext):
     """Dummy asset signifying the geoconnex crawl is completed once the orgs and prov nq files are in the graphdb and the graph is synced with the s3 bucket"""
     pass
+
+
+materialize([gleaner_config, rclone_binary])
