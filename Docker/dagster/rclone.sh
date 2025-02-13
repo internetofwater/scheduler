@@ -2,8 +2,7 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-
-set -e
+set -euxo pipefail
 
 # Detect platform
 OS=$(uname -s)
@@ -37,8 +36,8 @@ curl -O "$URL"
 # Unzip and install
 unzip "$FILENAME"
 cd rclone-*-${OS}-${ARCH}
-sudo cp rclone /usr/bin/
-sudo chown root:root /usr/bin/rclone
-sudo chmod 755 /usr/bin/rclone
+cp rclone /usr/bin/
+chown root:root /usr/bin/rclone
+chmod 755 /usr/bin/rclone
 
 echo "Installation complete!"
