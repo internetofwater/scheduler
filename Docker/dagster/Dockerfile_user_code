@@ -1,10 +1,13 @@
 FROM python:3.10-slim
 
+# Install curl
+RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
+
 # Base requirements
 COPY requirements.txt user_code_requirements.txt
 RUN pip install -r user_code_requirements.txt
 
-# configs and runtime code
+# Configs and runtime code
 WORKDIR /opt/dagster/app
 COPY userCode/ /opt/dagster/app/userCode
 COPY dagster.yaml /opt/dagster/app/
@@ -13,6 +16,9 @@ COPY dagster.yaml /opt/dagster/app/
 EXPOSE 4000
 # Set the home variable so the code locations are loaded properly
 ENV DAGSTER_HOME=/opt/dagster/app
+
+COPY ./Docker/dagster/rclone.sh /opt/dagster/app/rclone.sh
+RUN /opt/dagster/app/rclone.sh
 
 COPY ./Docker/dagster/entrypoint.sh /opt/dagster/app/entrypoint.sh
 

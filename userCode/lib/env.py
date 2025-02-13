@@ -46,9 +46,6 @@ def assert_all_vars():
         raise Exception(errors)
 
 
-assert_all_vars()
-
-
 def strict_env_int(key: str):
     """Get an env var and ensure it is an int"""
     val = os.environ.get(key)
