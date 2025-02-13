@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 from dagster import (
     AssetCheckResult,
     AssetExecutionContext,
+    BackfillPolicy,
     asset,
     asset_check,
     get_dagster_logger,
@@ -47,7 +48,7 @@ or dagster sensors that trigger it, just the core pipeline
 """
 
 
-@asset
+@asset(backfill_policy=BackfillPolicy.single_run())
 def nabu_config():
     """The nabuconfig.yaml used for nabu"""
     get_dagster_logger().info("Creating nabu config")
@@ -75,7 +76,7 @@ def ensure_local_bin_in_path():
     return local_bin
 
 
-@asset
+@asset(backfill_policy=BackfillPolicy.single_run())
 def rclone_binary():
     """Download the rclone binary to a user-writable location in the PATH."""
     local_bin = ensure_local_bin_in_path()
@@ -155,7 +156,7 @@ def rclone_binary():
     print("Installation complete.")
 
 
-@asset(deps=[rclone_binary])
+@asset(deps=[rclone_binary], backfill_policy=BackfillPolicy.single_run())
 def rclone_config() -> str:
     """Create the rclone config by templating the rclone.conf.j2 template"""
     get_dagster_logger().info("Creating rclone config")
@@ -164,7 +165,7 @@ def rclone_config() -> str:
     return templated_conf
 
 
-@asset
+@asset(backfill_policy=BackfillPolicy.single_run())
 def gleaner_config(context: AssetExecutionContext):
     """The gleanerconfig.yaml used for gleaner"""
     get_dagster_logger().info("Creating gleaner config")
@@ -279,7 +280,7 @@ def gleaner_links_are_valid():
     )
 
 
-@asset()
+@asset(backfill_policy=BackfillPolicy.single_run())
 def docker_client_environment():
     """Set up dagster by pulling both the gleaner and nabu images and moving the config files into docker configs"""
     get_dagster_logger().info("Initializing docker client and pulling images: ")
