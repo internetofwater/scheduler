@@ -1,6 +1,21 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+python_logs:
+  dagster_handler_config:
+    filters: {}
+    formatters:
+      simple:
+        format: "%(asctime)s - %(levelname)s - %(message)s" # Example format
+    handlers:
+      console:
+        class: logging.StreamHandler
+        level: ERROR
+        formatter: simple
+  managed_python_loggers:
+    - dagster
+  python_log_level: ERROR
+
 scheduler:
   module: dagster.core.scheduler
   class: DagsterDaemonScheduler
