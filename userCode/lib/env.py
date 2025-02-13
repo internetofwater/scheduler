@@ -46,7 +46,6 @@ def assert_all_vars():
         raise Exception(errors)
 
 
-assert_all_vars()
 
 
 def strict_env_int(key: str):
