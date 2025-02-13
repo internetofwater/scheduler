@@ -13,7 +13,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - scheduler_minio_data:/data
+      - ./mnt/scheduler_minio_data:/data
     env_file:
       - "../.env"
     networks:
@@ -34,7 +34,7 @@ services:
     networks:
       - dagster_network
     volumes:
-      - graphdb_data:/opt/graphdb/data
+      - ./mnt/graphdb_data:/opt/graphdb/data
     profiles:
       - localInfra
       - production
@@ -44,7 +44,7 @@ services:
     image: postgres:11
     container_name: dagster_postgres
     volumes:
-      - dagster_postgres_data:/var/lib/postgresql/data
+      - ./mnt/dagster_postgres_data:/var/lib/postgresql/data
     env_file:
       - "../.env"
     ports:
