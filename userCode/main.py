@@ -4,6 +4,7 @@
 from dagster import (
     AssetSelection,
     RunRequest,
+    sensor,
     DefaultScheduleStatus,
     DefaultSensorStatus,
     Definitions,
@@ -40,6 +41,11 @@ harvest_job = define_asset_job(
     description="harvest a source for the geoconnex graphdb",
     selection=AssetSelection.all(),
 )
+
+
+@sensor(asset_selection=AssetSelection.keys("gleaner_config", "rclone_binary"))
+def on_dagster_start(context):
+    yield RunRequest(run_key="dagster_startup")
 
 
 @schedule(
