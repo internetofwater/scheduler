@@ -5,3 +5,5 @@ FROM khaller/graphdb-free:10.8.3
 
 COPY ./iow-config.ttl /repository.init/iow/config.ttl
 COPY ./iowprov-config.ttl /repository.init/iowprov/config.ttl
+
+VOLUME [ "/repository.init" ]
