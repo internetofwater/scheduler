@@ -7,3 +7,5 @@ COPY ./iow-config.ttl /repository.init/iow/config.ttl
 COPY ./iowprov-config.ttl /repository.init/iowprov/config.ttl
 
 VOLUME [ "/repository.init" ]
+
+CMD [ "-Dgraphdb.workbench.maxConnections=500" ]
