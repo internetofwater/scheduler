@@ -30,6 +30,8 @@ services:
       - "7200:7200"
     environment:
       - GDB_HEAP_SIZE=${GDB_HEAP_SIZE:-8g}
+    mem_limit: ${GDB_HEAP_SIZE:-4g}
+    memswap_limit: ${GDB_HEAP_SIZE:-4g}
     networks:
       - dagster_network
     volumes:
