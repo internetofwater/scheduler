@@ -30,15 +30,13 @@ services:
       - "7200:7200"
     environment:
       - GDB_HEAP_SIZE=${GDB_HEAP_SIZE:-4g}
-    mem_limit: ${GDB_MEM_SIZE:-8g}
-    memswap_limit: ${GDB_MEM_SIZE:-8g}
+    cpu_shares: 1024
     networks:
       - dagster_network
     volumes:
       - graphdb_data:/opt/graphdb/data
     profiles:
       - localInfra
-      - production
 
   # PostgreSQL database for Dagster
   dagster_postgres:
@@ -54,6 +52,7 @@ services:
       - 5432
     networks:
       - dagster_network
+    cpu_shares: 1024
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres_db"]
       interval: 10s
@@ -79,6 +78,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
+    cpu_shares: 512
     depends_on:
       dagster_postgres:
         condition: service_healthy
@@ -107,6 +107,7 @@ services:
       # we mount the docker sock to allow us to spawn nabu / gleaner containers
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
+    cpu_shares: 1024
     depends_on:
       dagster_postgres:
         condition: service_healthy
@@ -130,6 +131,7 @@ services:
     restart: always
     networks:
       - dagster_network
+    cpu_shares: 1024
     environment:
       - DAGSTER_CURRENT_IMAGE=dagster_user_code_image
       - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
@@ -153,6 +155,7 @@ services:
       - "9222:9222"
     networks:
       - dagster_network
+    cpu_shares: 512
     environment:
       - SERVICE_PORTS=9222
     profiles:
