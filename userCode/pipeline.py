@@ -477,7 +477,7 @@ def nabu_orgs_release(context: AssetExecutionContext):
         "nabuconfig.yaml",
         "release",
         "--prefix",
-        "orgs",
+        "orgs/",
         "--repository",
         GLEANERIO_DATAGRAPH_ENDPOINT,
     ]
