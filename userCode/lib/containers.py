@@ -1,3 +1,6 @@
+# Copyright 2025 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 from userCode.lib.types import cli_modes
 from userCode.lib.env import GLEANER_IMAGE, NABU_IMAGE, NABU_PROFILING
 from userCode.lib.utils import run_scheduler_docker_image

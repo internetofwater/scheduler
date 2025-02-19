@@ -94,5 +94,3 @@ def slack_error_fn(context: RunFailureSensorContext) -> str:
         return f"Error for partition: {source_being_crawled}: {context.failure_event.message}"
     else:
         return f"Error: {context.failure_event.message}"
-
-
