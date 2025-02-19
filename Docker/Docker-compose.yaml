@@ -95,10 +95,6 @@ services:
     build:
       context: ..
       dockerfile: ./Docker/dagster/Dockerfile_dagster
-    deploy:
-      resources:
-        reservations:
-          cpus: "1.0"
     restart: on-failure
     entrypoint:
       - dagster-daemon
