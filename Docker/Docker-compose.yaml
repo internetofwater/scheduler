@@ -80,8 +80,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
     depends_on:
-      dagster_postgres:
-        condition: service_healthy
       dagster_user_code:
         condition: service_started
     env_file:
@@ -108,8 +106,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
     depends_on:
-      dagster_postgres:
-        condition: service_healthy
       dagster_user_code:
         condition: service_started
     env_file:
