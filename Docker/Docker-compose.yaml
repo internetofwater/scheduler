@@ -84,8 +84,6 @@ services:
         condition: service_started
     env_file:
       - "../.env"
-    environment:
-      - DAGSTER_POSTGRES_HOST=dagster_postgres
     networks:
       - dagster_network
     profiles:
@@ -110,8 +108,6 @@ services:
         condition: service_started
     env_file:
       - "../.env"
-    environment:
-      - DAGSTER_POSTGRES_HOST=dagster_postgres
     networks:
       - dagster_network
     profiles:
@@ -130,7 +126,6 @@ services:
       - DAGSTER_CURRENT_IMAGE=dagster_user_code_image
       - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
       - GLEANER_IMAGE=${GLEANER_IMAGE:-internetofwater/gleaner:latest}
-      - DAGSTER_POSTGRES_HOST=dagster_postgres
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # we mount the temp dir to allow us to access the nabu / gleaner configs from host
