@@ -23,6 +23,7 @@ import docker
 import requests
 import yaml
 from userCode.lib.classes import S3
+from userCode.lib.containers import GleanerContainer, NabuContainer
 from userCode.lib.dagster import filter_partitions
 from userCode.lib.env import (
     GLEANER_HEADLESS_ENDPOINT,
@@ -35,7 +36,6 @@ from userCode.lib.env import (
 )
 from userCode.lib.utils import (
     remove_non_alphanumeric,
-    run_scheduler_docker_image,
     template_gleaner_or_nabu,
     template_rclone,
 )
@@ -330,140 +330,97 @@ def can_contact_headless():
 )
 def gleaner(context: AssetExecutionContext):
     """Get the jsonld for each site in the gleaner config"""
-    source = context.partition_key
-    ARGS = ["--cfg", "gleanerconfig.yaml", "--source", source, "--rude"]
-
-    run_scheduler_docker_image(
-        source,
-        GLEANER_IMAGE,
-        ARGS,
-        "gleaner",
-        volumeMapping=["/tmp/geoconnex/gleanerconfig.yaml:/app/gleanerconfig.yaml"],
+    GleanerContainer(context.partition_key).run(
+        ["--cfg", "gleanerconfig.yaml", "--source", context.partition_key, "--rude"]
     )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
 def nabu_release(context: AssetExecutionContext):
     """Construct an nq file from all of the jsonld produced by gleaner"""
-    source = context.partition_key
-    ARGS = [
-        "release",
-        "--cfg",
-        "nabuconfig.yaml",
-        "--prefix",
-        "summoned/" + source,
-    ]
-    run_scheduler_docker_image(
-        source,
-        NABU_IMAGE,
-        ARGS,
-        "release",
-        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
+    NabuContainer("release", context.partition_key).run(
+        [
+            "release",
+            "--cfg",
+            "nabuconfig.yaml",
+            "--prefix",
+            "summoned/" + context.partition_key,
+        ]
     )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_release])
 def nabu_object(context: AssetExecutionContext):
     """Take the nq file from s3 and use the sparql API to upload it into the graph"""
-    source = context.partition_key
-    ARGS = [
-        "--cfg",
-        "nabuconfig.yaml",
-        "object",
-        f"graphs/latest/{source}_release.nq",
-        "--repository",
-        GLEANERIO_DATAGRAPH_ENDPOINT,
-    ]
-    run_scheduler_docker_image(
-        source,
-        NABU_IMAGE,
-        ARGS,
-        "object",
-        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
+    NabuContainer("object", context.partition_key).run(
+        [
+            "--cfg",
+            "nabuconfig.yaml",
+            "object",
+            f"graphs/latest/{context.partition_key}_release.nq",
+            "--repository",
+            GLEANERIO_DATAGRAPH_ENDPOINT,
+        ]
     )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_object])
 def nabu_prune(context: AssetExecutionContext):
     """Synchronize the graph with s3 by adding/removing from the graph"""
-    source = context.partition_key
-    ARGS = [
-        "--cfg",
-        "nabuconfig.yaml",
-        "prune",
-        "--prefix",
-        "summoned/" + source,
-        "--repository",
-        GLEANERIO_DATAGRAPH_ENDPOINT,
-    ]
-    run_scheduler_docker_image(
-        source,
-        NABU_IMAGE,
-        ARGS,
-        "prune",
-        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
+    NabuContainer("prune", context.partition_key).run(
+        [
+            "--cfg",
+            "nabuconfig.yaml",
+            "prune",
+            "--prefix",
+            "summoned/" + context.partition_key,
+            "--repository",
+            GLEANERIO_DATAGRAPH_ENDPOINT,
+        ]
     )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_prov_release(context):
+def nabu_prov_release(context: AssetExecutionContext):
     """Construct an nq file from all of the jsonld prov produced by gleaner.
     Used for tracing data lineage"""
-    source = context.partition_key
-    ARGS = [
-        "--cfg",
-        "nabuconfig.yaml",
-        "release",
-        "--prefix",
-        "prov/" + source,
-    ]
-    run_scheduler_docker_image(
-        source,
-        NABU_IMAGE,
-        ARGS,
-        "prov-release",
-        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
+    NabuContainer("prov-release", context.partition_key).run(
+        [
+            "--cfg",
+            "nabuconfig.yaml",
+            "release",
+            "--prefix",
+            "prov/" + context.partition_key,
+        ]
     )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
 def nabu_prov_clear(context: AssetExecutionContext):
     """Clears the prov graph before putting the new nq in"""
-    source = context.partition_key
-    ARGS = [
-        "--cfg",
-        "nabuconfig.yaml",
-        "clear",
-        "--repository",
-        GLEANERIO_PROVGRAPH_ENDPOINT,
-    ]
-    run_scheduler_docker_image(
-        source,
-        NABU_IMAGE,
-        ARGS,
-        "prov-clear",
-        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
+    NabuContainer("prov-clear", context.partition_key).run(
+        [
+            "--cfg",
+            "nabuconfig.yaml",
+            "clear",
+            "--repository",
+            GLEANERIO_PROVGRAPH_ENDPOINT,
+        ]
     )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_clear, nabu_prov_release])
-def nabu_prov_object(context):
+def nabu_prov_object(context: AssetExecutionContext):
     """Take the nq file from s3 and use the sparql API to upload it into the prov graph repository"""
-    source = context.partition_key
-    ARGS = [
-        "--cfg",
-        "nabuconfig.yaml",
-        "object",
-        f"graphs/latest/{source}_prov.nq",
-        "--repository",
-        GLEANERIO_PROVGRAPH_ENDPOINT,
-    ]
-    run_scheduler_docker_image(
-        source,
-        NABU_IMAGE,
-        ARGS,
-        "prov-object",
-        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
+    NabuContainer("prov-object", context.partition_key).run(
+        [
+            "--cfg",
+            "nabuconfig.yaml",
+            "object",
+            f"graphs/latest/{context.partition_key}_prov.nq",
+            "--repository",
+            GLEANERIO_PROVGRAPH_ENDPOINT,
+        ]
     )
 
 
@@ -471,44 +428,32 @@ def nabu_prov_object(context):
 def nabu_orgs_release(context: AssetExecutionContext):
     """Construct an nq file for the metadata of all the organizations. Their data is not included in this step.
     This is just flat metadata"""
-    source = context.partition_key
-    ARGS = [
-        "--cfg",
-        "nabuconfig.yaml",
-        "release",
-        "--prefix",
-        "orgs/",
-        "--repository",
-        GLEANERIO_DATAGRAPH_ENDPOINT,
-    ]
-    run_scheduler_docker_image(
-        source,
-        NABU_IMAGE,
-        ARGS,
-        "orgs-release",
-        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
+    NabuContainer("orgs-release", context.partition_key).run(
+        [
+            "--cfg",
+            "nabuconfig.yaml",
+            "release",
+            "--prefix",
+            "orgs/",
+            "--repository",
+            GLEANERIO_DATAGRAPH_ENDPOINT,
+        ]
     )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_orgs_release])
 def nabu_orgs_prefix(context: AssetExecutionContext):
     """Move the orgs nq file(s) into the graphdb"""
-    source = context.partition_key
-    ARGS = [
-        "--cfg",
-        "nabuconfig.yaml",
-        "prefix",
-        "--prefix",
-        "orgs",
-        "--repository",
-        GLEANERIO_DATAGRAPH_ENDPOINT,
-    ]
-    run_scheduler_docker_image(
-        source,
-        NABU_IMAGE,
-        ARGS,
-        "orgs",
-        volumeMapping=["/tmp/geoconnex/nabuconfig.yaml:/app/nabuconfig.yaml"],
+    NabuContainer("orgs", context.partition_key).run(
+        [
+            "--cfg",
+            "nabuconfig.yaml",
+            "prefix",
+            "--prefix",
+            "orgs",
+            "--repository",
+            GLEANERIO_DATAGRAPH_ENDPOINT,
+        ]
     )
 
 
