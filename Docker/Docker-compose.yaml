@@ -37,7 +37,6 @@ services:
       - graphdb_data:/opt/graphdb/data
     profiles:
       - localInfra
-      - production
 
   # PostgreSQL database for Dagster
   dagster_postgres:
@@ -58,6 +57,8 @@ services:
       interval: 10s
       timeout: 8s
       retries: 5
+    profiles:
+      - localInfra
 
   # Dagster Webserver
   dagster_webserver:
