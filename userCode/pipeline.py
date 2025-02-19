@@ -10,7 +10,7 @@ from threading import Thread
 from urllib.parse import urlparse
 import zipfile
 from aiohttp import ClientSession
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, ResultSet
 from dagster import (
     AssetCheckResult,
     AssetExecutionContext,
@@ -177,9 +177,12 @@ def gleaner_config(context: AssetExecutionContext):
     templated_base: dict = yaml.safe_load(template_gleaner_or_nabu(input_file))
 
     r = requests.get(REMOTE_GLEANER_SITEMAP)
+    r.raise_for_status()
     xml = r.text
-    sitemapTags = BeautifulSoup(xml, features="xml").find_all("sitemap")
-    Lines: list[str] = [sitemap.findNext("loc").text for sitemap in sitemapTags]
+    sitemapTags: ResultSet = BeautifulSoup(xml, features="xml").find_all("sitemap")
+    Lines: list[str] = [
+        tag.text for tag in (sitemap.find_next("loc") for sitemap in sitemapTags) if tag
+    ]
 
     sources = []
     names: set[str] = set()
