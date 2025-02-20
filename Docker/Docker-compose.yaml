@@ -119,10 +119,6 @@ services:
     build:
       context: ..
       dockerfile: ./Docker/dagster/Dockerfile_user_code
-    deploy:
-      resources:
-        reservations:
-          cpus: "1.0"
     restart: always
     networks:
       - dagster_network
