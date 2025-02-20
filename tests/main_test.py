@@ -15,7 +15,7 @@ from userCode.pipeline import sources_partitions_def
 
 from dagster import AssetsDefinition, AssetSpec, SourceAsset
 
-from .lib.helpers import execute_sparql, clear_graph
+from .helpers import execute_sparql, clear_graph
 
 
 def assert_data_is_linked_in_graph():
@@ -105,6 +105,12 @@ def test_e2e():
     assert_data_is_linked_in_graph()
     # Don't want to actually transfer the file but should check it is installed
     assert_rclone_is_installed_properly()
+
+    assert (
+        definitions.get_job_def("export_nquads")
+        .execute_in_process(instance=instance)
+        .success
+    )
 
 
 def test_dynamic_partitions():
