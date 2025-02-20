@@ -193,8 +193,8 @@ def main():
 
 
 if __name__ == "__main__":
-    assert dir_of_this_script() == os.getcwd(), (
-        "Please run this script from the root of the repository"
-    )
+    assert (
+        dir_of_this_script() == os.getcwd()
+    ), "Please run this script from the root of the repository"
     os.makedirs("/tmp/geoconnex", exist_ok=True)
     main()
