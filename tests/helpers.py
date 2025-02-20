@@ -3,6 +3,11 @@
 
 import requests
 
+"""
+All functions in this file are helpers for testing
+and are not needed in the main pipeline
+"""
+
 
 def clear_graph():
     """Reset the graph before running tests to make sure we are operating on fresh graph"""
