@@ -1,9 +1,11 @@
 # Geoconnex Scheduler
 
-The geoconnex scheduler crawls geoconnex partner data on a schedule and uploads it to the geoconnex graph.
+The [Geoconnex](https://docs.geoconnex.us/) scheduler crawls Geoconnex partner data on a schedule and synchronizes with the Geoconnex graph database. 
 
-- it crawls data with gleaner
-- it syncs data with the graphdb using nabu
+- it crawls data with [Gleaner](https://github.com/internetofwater/gleaner/) and downloads it to an S3 bucket
+- it syncs data between the S3 bucket and the graphdb using [Nabu](https://github.com/internetofwater/nabu/)
+
+For more information about the Geoconnex project generally and how it aims to improve water data infrastructure, see the [Geoconnex docs](https://docs.geoconnex.us/).
 
 ## How to use
 
@@ -15,7 +17,7 @@ In both `dev` and `prod` modes you can append either `--build` or `--detach` to 
 
 We use `uv` for dependency management. You need to be in an environment that matches the [pinned python version](./.python-version)
 
-- Once you are n that environment run `uv sync` to install dependencies
+- Once you are in that environment run `uv sync` to install dependencies
 
 You need to run 2 commands from the root of the repo to get a dev environment
 
@@ -32,8 +34,10 @@ For testing:
 
 ## Production
 
-Run `python3 main.py prod` to run a production deployment. This will spin up everything and containerize dagster. You will need to specify your s3 container in the `.env` file.
+- Run `python3 main.py prod` to run a production deployment. This will spin up everything and containerize dagster. You will need to specify your s3 container in the `.env` file.
+- All deployment and infrastructure as code work is contained within the [harvest.geoconnex.us](https://github.com/internetofwater/harvest.geoconnex.us) repo
 
-## Credit
 
-This repository is a heavily modified version of https://github.com/gleanerio/scheduler and licensed under Apache 2.0
+## Licensing
+
+This repository is a heavily modified version of https://github.com/gleanerio/scheduler and is licensed under Apache 2.0
