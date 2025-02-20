@@ -97,6 +97,7 @@ REMOTE_GLEANER_SITEMAP = strict_env("REMOTE_GLEANER_SITEMAP")
 LAKEFS_ENDPOINT_URL = strict_env("LAKEFS_ENDPOINT_URL")
 LAKEFS_ACCESS_KEY_ID = strict_env("LAKEFS_ACCESS_KEY_ID")
 LAKEFS_SECRET_ACCESS_KEY = strict_env("LAKEFS_SECRET_ACCESS_KEY")
+ZENODO_ACCESS_TOKEN = strict_env("ZENODO_ACCESS_TOKEN")
 
 userCodeRoot = Path(__file__).parent.parent.parent.absolute()
 

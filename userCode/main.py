@@ -38,7 +38,13 @@ pipeline for Geoconnex.
 harvest_job = define_asset_job(
     "harvest_source",
     description="harvest a source for the geoconnex graphdb",
-    selection=AssetSelection.all(),
+    selection=AssetSelection.all() - AssetSelection.groups("exports"),
+)
+
+export_job = define_asset_job(
+    "export_nquads",
+    description="export the graphdb as nquads to all partner endpoints",
+    selection=AssetSelection.groups("exports"),
 )
 
 
@@ -54,7 +60,7 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
 
     get_dagster_logger().info("Deleting old partition status before new crawl")
     filter_partitions(context.instance, "sources_partitions_def", keys_to_keep=set())
-
+    get_dagster_logger().info("Clearing export state")
     result = materialize([gleaner_config], instance=context.instance)
     if not result.success:
         raise Exception(f"Failed to materialize gleaner_config!: {result}")
@@ -79,6 +85,7 @@ definitions = Definitions(
     assets=load_assets_from_modules([pipeline, exports]),
     schedules=[crawl_entire_graph_schedule],
     asset_checks=load_asset_checks_from_modules([pipeline, exports]),
+    jobs=[harvest_job, export_job],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(
             channel="#cgs-iow-bots",
