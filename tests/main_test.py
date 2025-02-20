@@ -155,7 +155,7 @@ def test_dynamic_partitions():
         "sources_partitions_def", "ref_mainstems_mainstems__0"
     )
 
-    # Make sure that
+    # Make sure that partitions are deleted
     partitionsAfterDelete = instance.get_dynamic_partitions("sources_partitions_def")
     assert "ref_mainstems_mainstems__0" not in partitionsAfterDelete
     assert "ref_dams_dams__0" in partitionsAfterDelete
