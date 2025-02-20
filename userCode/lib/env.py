@@ -103,11 +103,11 @@ userCodeRoot = Path(__file__).parent.parent.parent.absolute()
 
 DAGSTER_YAML_CONFIG: str = os.path.join(userCodeRoot, "dagster.yaml")
 
-assert Path(
-    DAGSTER_YAML_CONFIG
-).exists(), f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
-assert Path(
-    "/tmp/geoconnex/"
-).exists(), "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
+assert Path(DAGSTER_YAML_CONFIG).exists(), (
+    f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
+)
+assert Path("/tmp/geoconnex/").exists(), (
+    "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
+)
 
 NABU_PROFILING = strict_env("NABU_PROFILING")

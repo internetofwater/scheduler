@@ -16,7 +16,6 @@ from dagster import (
     materialize,
 )
 import dagster_slack
-from threading import Lock
 
 from userCode.pipeline import gleaner_config
 
@@ -39,10 +38,14 @@ pipeline for Geoconnex.
 harvest_job = define_asset_job(
     "harvest_source",
     description="harvest a source for the geoconnex graphdb",
-    selection=AssetSelection.all(),
+    selection=AssetSelection.all() - AssetSelection.groups("exports"),
 )
 
-export_lock = Lock()
+export_job = define_asset_job(
+    "export_nquads",
+    description="export the graphdb as nquads to all partner endpoints",
+    selection=AssetSelection.groups("exports"),
+)
 
 
 @schedule(
@@ -82,6 +85,7 @@ definitions = Definitions(
     assets=load_assets_from_modules([pipeline, exports]),
     schedules=[crawl_entire_graph_schedule],
     asset_checks=load_asset_checks_from_modules([pipeline, exports]),
+    jobs=[harvest_job, export_job],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(
             channel="#cgs-iow-bots",

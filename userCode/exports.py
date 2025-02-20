@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Optional
 from dagster import (
     AssetExecutionContext,
-    AutomationCondition,
     asset,
     get_dagster_logger,
 )
@@ -28,31 +27,29 @@ outside of the triplestore.
 """
 
 
-run_once_at_end_of_pipeline: AutomationCondition = (
-    # only run automatically if all dependencies are materialized
-    AutomationCondition.all_deps_match(
-        ~AutomationCondition.missing().since_last_handled()
-    ).newly_true()
-    # only run automatically if no backfill is in progress
-    & AutomationCondition.all_deps_match(
-        ~AutomationCondition.backfill_in_progress().since_last_handled()
-    ).newly_true()
-    # only run automatically if it is part of a pipeline in progress
-    & AutomationCondition.in_progress().since_last_handled().newly_true()
-)
+def skip_export(context: AssetExecutionContext) -> bool:
+    """Skip export if all dependencies are not materialized or we are running in test mode"""
+    if not all_dependencies_materialized(context, "finished_individual_crawl"):
+        get_dagster_logger().warning(
+            "Skipping export as all dependencies are not materialized"
+        )
+        return True
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning(
+            "Dependencies are materialized, but skipping export as we are running in test mode"
+        )
+        return True
+    return False
 
 
 @asset(
     deps=[finished_individual_crawl],
-    automation_condition=run_once_at_end_of_pipeline,
+    group_name="exports",
 )
 def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
     """Export the graphdb to nquads"""
 
-    if not all_dependencies_materialized(context, "finished_individual_crawl"):
-        get_dagster_logger().warning(
-            "Skipping nquads export as all dependencies are not materialized"
-        )
+    if skip_export(context):
         return
 
     base_url = (
@@ -94,7 +91,7 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
 
 
 @asset(
-    automation_condition=run_once_at_end_of_pipeline,
+    group_name="exports",
 )
 def nquads_to_renci(
     context: AssetExecutionContext,
@@ -102,18 +99,7 @@ def nquads_to_renci(
     export_graph_as_nquads: Optional[str],  # contains the path to the nquads
 ):
     """Upload the nquads to the renci bucket in lakefs"""
-    if (
-        not all_dependencies_materialized(context, "finished_individual_crawl")
-        or not export_graph_as_nquads
-    ):
-        get_dagster_logger().warning(
-            "Skipping rclone copy as all dependencies are not materialized"
-        )
-        return
-    elif RUNNING_AS_TEST_OR_DEV():
-        get_dagster_logger().warning(
-            "Skipping rclone copy as we are running in test mode"
-        )
+    if skip_export(context) or not export_graph_as_nquads:
         return
 
     rclone_client = RcloneClient(rclone_config)
@@ -129,24 +115,13 @@ def nquads_to_renci(
 
 
 @asset(
-    automation_condition=run_once_at_end_of_pipeline,
+    group_name="exports",
 )
 def nquads_to_zenodo(
     context: AssetExecutionContext, export_graph_as_nquads: Optional[str]
 ):
     """Upload nquads to zenodo"""
-    if (
-        not all_dependencies_materialized(context, "finished_individual_crawl")
-        or not export_graph_as_nquads
-    ):
-        get_dagster_logger().warning(
-            "Skipping zenodo copy as all dependencies are not materialized"
-        )
-        return
-    elif RUNNING_AS_TEST_OR_DEV():
-        get_dagster_logger().warning(
-            "Skipping zenodo copy as we are running in test mode"
-        )
+    if skip_export(context) or not export_graph_as_nquads:
         return
 
     ZENODO_API_URL = "https://zenodo.org/api/deposit/depositions"
