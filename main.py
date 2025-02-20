@@ -13,6 +13,10 @@ This file is the CLI for managing Docker Compose-based infrastructure.
 """
 
 
+def dir_of_this_script():
+    return os.path.dirname(os.path.abspath(__file__))
+
+
 def check_dotenv():
     if not os.path.exists(".env"):
         if not sys.stdin.isatty():
@@ -170,7 +174,9 @@ def main():
             "DAGSTER_POSTGRES_HOST=dagster_postgres docker compose --profile localInfra --profile production -f Docker/Docker-compose.yaml down"
         )
     elif args.command == "dagster-dev":
-        run_subprocess("DAGSTER_POSTGRES_HOST=0.0.0.0 dagster dev")
+        run_subprocess(
+            f"DAGSTER_HOME={dir_of_this_script()} DAGSTER_POSTGRES_HOST=0.0.0.0 dagster dev"
+        )
     elif args.command == "build":
         execute_compose(profiles=args.profiles, actions=["build"])
     elif args.command == "pull":
@@ -187,8 +193,8 @@ def main():
 
 
 if __name__ == "__main__":
-    assert (
-        os.path.dirname(os.path.abspath(__file__)) == os.getcwd()
-    ), "Please run this script from the root of the repository"
+    assert dir_of_this_script() == os.getcwd(), (
+        "Please run this script from the root of the repository"
+    )
     os.makedirs("/tmp/geoconnex", exist_ok=True)
     main()

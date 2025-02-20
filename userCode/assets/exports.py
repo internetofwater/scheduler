@@ -18,7 +18,7 @@ from userCode.lib.env import (
     ZENODO_ACCESS_TOKEN,
 )
 from userCode.lib.lakefs import LakeFSClient
-from userCode.pipeline import finished_individual_crawl
+from userCode.assets.pipeline import finished_individual_crawl
 
 """
 This file defines all geoconenx exports that move data

@@ -13,3 +13,4 @@ def setup_before_tests():
     # we want to use localhost to connect. We have to set this here since
     # we don't want to put it in the .env necessarily
     os.environ["DAGSTER_POSTGRES_HOST"] = "localhost"
+    os.environ["DAGSTER_HOME"] = os.path.join(os.path.dirname(__file__), "..", "..")
