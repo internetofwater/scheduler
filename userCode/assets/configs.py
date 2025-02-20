@@ -14,7 +14,6 @@ from bs4 import BeautifulSoup, ResultSet
 from dagster import (
     AssetCheckResult,
     AssetExecutionContext,
-    BackfillPolicy,
     asset,
     asset_check,
     get_dagster_logger,
@@ -23,13 +22,10 @@ import docker
 import requests
 import yaml
 from userCode.lib.classes import S3
-from userCode.lib.containers import GleanerContainer, NabuContainer
 from userCode.lib.dagster import filter_partitions
 from userCode.lib.env import (
     GLEANER_HEADLESS_ENDPOINT,
     GLEANER_IMAGE,
-    GLEANERIO_DATAGRAPH_ENDPOINT,
-    GLEANERIO_PROVGRAPH_ENDPOINT,
     NABU_IMAGE,
     REMOTE_GLEANER_SITEMAP,
     RUNNING_AS_TEST_OR_DEV,
@@ -39,7 +35,6 @@ from userCode.lib.utils import (
     template_gleaner_or_nabu,
     template_rclone,
 )
-from userCode.lib.dagster import sources_partitions_def
 
 """
 This file defines all of the core assets that make up the
@@ -48,12 +43,12 @@ or dagster sensors that trigger it, just the core pipeline
 """
 
 
-@asset(backfill_policy=BackfillPolicy.single_run())
+@asset(group_name="configs")
 def nabu_config():
     """The nabuconfig.yaml used for nabu"""
     get_dagster_logger().info("Creating nabu config")
     input_file = os.path.join(
-        os.path.dirname(__file__), "templates", "nabuconfig.yaml.j2"
+        os.path.dirname(__file__), "..", "templates", "nabuconfig.yaml.j2"
     )
     templated_data = template_gleaner_or_nabu(input_file)
     conf = yaml.safe_load(templated_data)
@@ -68,17 +63,16 @@ def nabu_config():
         f.write(templated_data)
 
 
-def ensure_local_bin_in_path():
-    """Ensure ~/.local/bin is in the PATH."""
-    local_bin = os.path.expanduser("~/.local/bin")
-    if local_bin not in os.environ["PATH"].split(os.pathsep):
-        os.environ["PATH"] += os.pathsep + local_bin
-    return local_bin
-
-
-@asset(backfill_policy=BackfillPolicy.single_run())
+@asset(group_name="configs")
 def rclone_binary():
     """Download the rclone binary to a user-writable location in the PATH."""
+
+    def ensure_local_bin_in_path():
+        local_bin = os.path.expanduser("~/.local/bin")
+        if local_bin not in os.environ["PATH"].split(os.pathsep):
+            os.environ["PATH"] += os.pathsep + local_bin
+        return local_bin
+
     local_bin = ensure_local_bin_in_path()
     os.makedirs(local_bin, exist_ok=True)
 
@@ -156,21 +150,23 @@ def rclone_binary():
     print("Installation complete.")
 
 
-@asset(deps=[rclone_binary], backfill_policy=BackfillPolicy.single_run())
+@asset(deps=[rclone_binary], group_name="configs")
 def rclone_config() -> str:
     """Create the rclone config by templating the rclone.conf.j2 template"""
     get_dagster_logger().info("Creating rclone config")
-    input_file = os.path.join(os.path.dirname(__file__), "templates", "rclone.conf.j2")
+    input_file = os.path.join(
+        os.path.dirname(__file__), "..", "templates", "rclone.conf.j2"
+    )
     templated_conf: str = template_rclone(input_file)
     return templated_conf
 
 
-@asset(backfill_policy=BackfillPolicy.single_run())
+@asset(group_name="configs")
 def gleaner_config(context: AssetExecutionContext):
     """The gleanerconfig.yaml used for gleaner"""
     get_dagster_logger().info("Creating gleaner config")
     input_file = os.path.join(
-        os.path.dirname(__file__), "templates", "gleanerconfig.yaml.j2"
+        os.path.dirname(__file__), "..", "templates", "gleanerconfig.yaml.j2"
     )
 
     # Fill in the config with the common minio configuration
@@ -283,7 +279,7 @@ def gleaner_links_are_valid():
     )
 
 
-@asset(backfill_policy=BackfillPolicy.single_run())
+@asset(group_name="configs")
 def docker_client_environment():
     """Set up dagster by pulling both the gleaner and nabu images and moving the config files into docker configs"""
     get_dagster_logger().info("Initializing docker client and pulling images: ")
@@ -325,145 +321,3 @@ def can_contact_headless():
             "endpoint": GLEANER_HEADLESS_ENDPOINT,
         },
     )
-
-
-@asset(
-    partitions_def=sources_partitions_def,
-    deps=[docker_client_environment, gleaner_config, nabu_config],
-)
-def gleaner(context: AssetExecutionContext):
-    """Get the jsonld for each site in the gleaner config"""
-    GleanerContainer(context.partition_key).run(
-        ["--cfg", "gleanerconfig.yaml", "--source", context.partition_key, "--rude"]
-    )
-
-
-@asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_release(context: AssetExecutionContext):
-    """Construct an nq file from all of the jsonld produced by gleaner"""
-    NabuContainer("release", context.partition_key).run(
-        [
-            "release",
-            "--cfg",
-            "nabuconfig.yaml",
-            "--prefix",
-            "summoned/" + context.partition_key,
-        ]
-    )
-
-
-@asset(partitions_def=sources_partitions_def, deps=[nabu_release])
-def nabu_object(context: AssetExecutionContext):
-    """Take the nq file from s3 and use the sparql API to upload it into the graph"""
-    NabuContainer("object", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "object",
-            f"graphs/latest/{context.partition_key}_release.nq",
-            "--repository",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
-    )
-
-
-@asset(partitions_def=sources_partitions_def, deps=[nabu_object])
-def nabu_prune(context: AssetExecutionContext):
-    """Synchronize the graph with s3 by adding/removing from the graph"""
-    NabuContainer("prune", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "prune",
-            "--prefix",
-            "summoned/" + context.partition_key,
-            "--repository",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
-    )
-
-
-@asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_prov_release(context: AssetExecutionContext):
-    """Construct an nq file from all of the jsonld prov produced by gleaner.
-    Used for tracing data lineage"""
-    NabuContainer("prov-release", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "release",
-            "--prefix",
-            "prov/" + context.partition_key,
-        ]
-    )
-
-
-@asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_prov_clear(context: AssetExecutionContext):
-    """Clears the prov graph before putting the new nq in"""
-    NabuContainer("prov-clear", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "clear",
-            "--repository",
-            GLEANERIO_PROVGRAPH_ENDPOINT,
-        ]
-    )
-
-
-@asset(partitions_def=sources_partitions_def, deps=[nabu_prov_clear, nabu_prov_release])
-def nabu_prov_object(context: AssetExecutionContext):
-    """Take the nq file from s3 and use the sparql API to upload it into the prov graph repository"""
-    NabuContainer("prov-object", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "object",
-            f"graphs/latest/{context.partition_key}_prov.nq",
-            "--repository",
-            GLEANERIO_PROVGRAPH_ENDPOINT,
-        ]
-    )
-
-
-@asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_orgs_release(context: AssetExecutionContext):
-    """Construct an nq file for the metadata of all the organizations. Their data is not included in this step.
-    This is just flat metadata"""
-    NabuContainer("orgs-release", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "release",
-            "--prefix",
-            "orgs/",
-            "--repository",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
-    )
-
-
-@asset(partitions_def=sources_partitions_def, deps=[nabu_orgs_release])
-def nabu_orgs_prefix(context: AssetExecutionContext):
-    """Move the orgs nq file(s) into the graphdb"""
-    NabuContainer("orgs", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "prefix",
-            "--prefix",
-            "orgs",
-            "--repository",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
-    )
-
-
-@asset(
-    partitions_def=sources_partitions_def,
-    deps=[nabu_orgs_prefix, nabu_prune],
-)
-def finished_individual_crawl(context: AssetExecutionContext):
-    """Dummy asset signifying the geoconnex crawl is completed once the orgs and prov nq files are in the graphdb and the graph is synced with the s3 bucket"""
-    pass

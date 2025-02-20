@@ -1,6 +1,6 @@
 # Geoconnex Scheduler
 
-The [Geoconnex](https://docs.geoconnex.us/) scheduler crawls Geoconnex partner data on a schedule and synchronizes with the Geoconnex graph database. 
+The [Geoconnex](https://docs.geoconnex.us/) scheduler crawls Geoconnex partner data on a schedule and synchronizes with the Geoconnex graph database.
 
 - it crawls data with [Gleaner](https://github.com/internetofwater/gleaner/) and downloads it to an S3 bucket
 - it syncs data between the S3 bucket and the graphdb using [Nabu](https://github.com/internetofwater/nabu/)
@@ -36,7 +36,6 @@ For testing:
 
 - Run `python3 main.py prod` to run a production deployment. This will spin up everything and containerize dagster. You will need to specify your s3 container in the `.env` file.
 - All deployment and infrastructure as code work is contained within the [harvest.geoconnex.us](https://github.com/internetofwater/harvest.geoconnex.us) repo
-
 
 ## Licensing
 
