@@ -10,7 +10,7 @@ cli_modes: TypeAlias = Literal[
     # All the cli modes that nabu can run
     "release",
     "object",
-    "prune",
+    "sync",
     "prov-release",
     "prov-clear",
     "prov-object",
