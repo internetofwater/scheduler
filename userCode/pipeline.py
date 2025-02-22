@@ -368,13 +368,13 @@ def nabu_object(context: AssetExecutionContext):
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_object])
-def nabu_prune(context: AssetExecutionContext):
+def nabu_sync(context: AssetExecutionContext):
     """Synchronize the graph with s3 by adding/removing from the graph"""
-    NabuContainer("prune", context.partition_key).run(
+    NabuContainer("sync", context.partition_key).run(
         [
             "--cfg",
             "nabuconfig.yaml",
-            "prune",
+            "sync",
             "--prefix",
             "summoned/" + context.partition_key,
             "--repository",
@@ -462,7 +462,7 @@ def nabu_orgs_prefix(context: AssetExecutionContext):
 
 @asset(
     partitions_def=sources_partitions_def,
-    deps=[nabu_orgs_prefix, nabu_prune],
+    deps=[nabu_orgs_prefix, nabu_sync],
 )
 def finished_individual_crawl(context: AssetExecutionContext):
     """Dummy asset signifying the geoconnex crawl is completed once the orgs and prov nq files are in the graphdb and the graph is synced with the s3 bucket"""
