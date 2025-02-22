@@ -15,7 +15,7 @@ from userCode.lib.env import (
     LAKEFS_SECRET_ACCESS_KEY,
 )
 from userCode.lib.lakefs import LakeFSClient
-from userCode.pipeline import rclone_config
+from userCode.assets.configs import rclone_config
 
 
 @pytest.fixture

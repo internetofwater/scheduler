@@ -7,11 +7,10 @@ from dagster import (
     load_assets_from_modules,
     materialize,
 )
-from userCode import pipeline
 from userCode.lib.classes import RcloneClient
 import userCode.main as main
 from userCode.main import definitions
-from userCode.pipeline import sources_partitions_def
+from userCode.assets.pipeline import sources_partitions_def
 
 from dagster import AssetsDefinition, AssetSpec, SourceAsset
 
@@ -57,34 +56,18 @@ def test_e2e():
     clear_graph()
 
     instance = DagsterInstance.ephemeral()
-    assets = load_assets_from_modules([pipeline])
-    # It is possible to load certain asset types that cannot be passed into
-    # Materialize so we filter them to avoid a pyright type error
-    filtered_assets = [
-        asset
-        for asset in assets
-        if isinstance(asset, (AssetsDefinition, AssetSpec, SourceAsset))
-    ]
-    # These three assets are needed to generate the dynamic partition.
-    result = materialize(
-        assets=filtered_assets,
-        selection=["nabu_config", "gleaner_config", "docker_client_environment"],
-        instance=instance,
+    assert (
+        definitions.get_job_def("configs").execute_in_process(instance=instance).success
     )
-    assert result.success
-
-    resolved_job = definitions.get_job_def("harvest_source")
 
     all_partitions = sources_partitions_def.get_partition_keys(
         dynamic_partitions_store=instance
     )
     assert len(all_partitions) > 0, "Partitions were not generated"
 
-    result = resolved_job.execute_in_process(
+    assert definitions.get_job_def("harvest_source").execute_in_process(
         instance=instance, partition_key="ref_mainstems_mainstems__0"
-    )
-
-    assert result.success, "Job execution failed for partition 'mainstems__0'"
+    ), "Job execution failed for partition 'mainstems__0'"
 
     query = """
     select * where {
