@@ -86,8 +86,6 @@ def up(profiles: list[str], build: bool = False, detach: bool = False):
     command = f"docker compose {profileCommand} -f Docker/Docker-compose.yaml up"
     if "production" not in profiles:
         command = "DAGSTER_POSTGRES_HOST=0.0.0.0 " + command
-    else:
-        command = "DAGSTER_POSTGRES_HOST=dagster_postgres " + command
     if build:
         command += " --build"
     if detach:
@@ -171,7 +169,7 @@ def main():
 
     if args.command == "down":
         run_subprocess(
-            "DAGSTER_POSTGRES_HOST=dagster_postgres docker compose --profile localInfra --profile production -f Docker/Docker-compose.yaml down"
+            "docker compose --profile localInfra --profile production -f Docker/Docker-compose.yaml down"
         )
     elif args.command == "dagster-dev":
         run_subprocess(
