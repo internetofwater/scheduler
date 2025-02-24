@@ -8,12 +8,14 @@ All functions in this file are helpers for testing
 and are not needed in the main pipeline
 """
 
+GRAPH_URL_IN_TESTING = "http://localhost:7200/repositories/iow"
+
 
 def clear_graph():
     """Reset the graph before running tests to make sure we are operating on fresh graph"""
     query = "CLEAR ALL"
     response = requests.post(
-        "http://localhost:7200/repositories/iow/statements",
+        f"{GRAPH_URL_IN_TESTING}/statements",
         data=query,
         headers={"Content-Type": "application/sparql-update"},
     )
@@ -41,11 +43,10 @@ def insert_triples_as_graph(graph_name: str, triples: str):
 
 def execute_sparql(query: str) -> dict[str, list[str]]:
     """Run a sparql query on graphdb and return the results"""
-    endpoint = "http://localhost:7200/repositories/iow"
 
     # Execute the SPARQL query
     response = requests.get(
-        endpoint,
+        GRAPH_URL_IN_TESTING,
         params={"query": query},
         headers={"Accept": "application/sparql-results+json"},
     )

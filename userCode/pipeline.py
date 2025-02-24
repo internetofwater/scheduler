@@ -369,21 +369,7 @@ def nabu_prov_release(context: AssetExecutionContext):
     )
 
 
-@asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_prov_clear(context: AssetExecutionContext):
-    """Clears the prov graph before putting the new nq in"""
-    NabuContainer("prov-clear", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "clear",
-            "--repository",
-            GLEANERIO_PROVGRAPH_ENDPOINT,
-        ]
-    )
-
-
-@asset(partitions_def=sources_partitions_def, deps=[nabu_prov_clear, nabu_prov_release])
+@asset(partitions_def=sources_partitions_def, deps=[nabu_prov_release])
 def nabu_prov_object(context: AssetExecutionContext):
     """Take the nq file from s3 and use the sparql API to upload it into the prov graph repository"""
     NabuContainer("prov-object", context.partition_key).run(
