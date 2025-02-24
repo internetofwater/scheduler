@@ -38,9 +38,9 @@ def assert_data_is_linked_in_graph():
     """
     resultDict = execute_sparql(query)
     # make sure that the florida canal monitoring location is on the florida river mainstem
-    assert len(resultDict["monitoringLocation"]) > 0, (
-        "There were no linked monitoring locations for the Florida River Mainstem"
-    )
+    assert (
+        len(resultDict["monitoringLocation"]) > 0
+    ), "There were no linked monitoring locations for the Florida River Mainstem"
     assert (
         "https://geoconnex.us/cdss/gages/FLOCANCO" in resultDict["monitoringLocation"]
     )
@@ -101,9 +101,9 @@ def test_e2e():
     """
 
     resultDict = execute_sparql(objects_query)
-    assert "Florida River" in resultDict["o"], (
-        "The Florida River Mainstem was not found in the graph"
-    )
+    assert (
+        "Florida River" in resultDict["o"]
+    ), "The Florida River Mainstem was not found in the graph"
 
     all_graphs = resolved_job.execute_in_process(
         instance=instance, partition_key="cdss_co_gages__0"
