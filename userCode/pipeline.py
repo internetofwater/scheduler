@@ -339,35 +339,6 @@ def gleaner(context: AssetExecutionContext):
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_release(context: AssetExecutionContext):
-    """Construct an nq file from all of the jsonld produced by gleaner"""
-    NabuContainer("release", context.partition_key).run(
-        [
-            "release",
-            "--cfg",
-            "nabuconfig.yaml",
-            "--prefix",
-            "summoned/" + context.partition_key,
-        ]
-    )
-
-
-@asset(partitions_def=sources_partitions_def, deps=[nabu_release])
-def nabu_object(context: AssetExecutionContext):
-    """Take the nq file from s3 and use the sparql API to upload it into the graph"""
-    NabuContainer("object", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "object",
-            f"graphs/latest/{context.partition_key}_release.nq",
-            "--repository",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
-    )
-
-
-@asset(partitions_def=sources_partitions_def, deps=[nabu_object])
 def nabu_sync(context: AssetExecutionContext):
     """Synchronize the graph with s3 by adding/removing from the graph"""
     NabuContainer("sync", context.partition_key).run(
@@ -429,7 +400,7 @@ def nabu_prov_object(context: AssetExecutionContext):
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
 def nabu_orgs_release(context: AssetExecutionContext):
-    """Construct an nq file for the metadata of all the organizations. Their data is not included in this step.
+    """Construct an nq file for the metadata of an organization. The metadata about their water data is not included in this step.
     This is just flat metadata"""
     NabuContainer("orgs-release", context.partition_key).run(
         [
@@ -437,7 +408,7 @@ def nabu_orgs_release(context: AssetExecutionContext):
             "nabuconfig.yaml",
             "release",
             "--prefix",
-            "orgs/",
+            f"orgs/{context.partition_key}",
             "--repository",
             GLEANERIO_DATAGRAPH_ENDPOINT,
         ]
@@ -453,7 +424,7 @@ def nabu_orgs_prefix(context: AssetExecutionContext):
             "nabuconfig.yaml",
             "prefix",
             "--prefix",
-            "orgs",
+            f"orgs/{context.partition_key}",
             "--repository",
             GLEANERIO_DATAGRAPH_ENDPOINT,
         ]
