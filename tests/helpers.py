@@ -20,6 +20,25 @@ def clear_graph():
     assert response.ok, response.text
 
 
+def insert_triples_as_graph(graph_name: str, triples: str):
+    """Insert a named graph into the triplestore. Useful for testing"""
+    sparql_update = f"""
+        INSERT DATA {{
+            GRAPH <{graph_name}> {{
+                {triples}
+            }}
+        }}
+        """
+    # we have to post against the statements url with the proper header
+    # since it is an update and not a general stateless query
+    response = requests.post(
+        "http://localhost:7200/repositories/iow/statements",
+        data=sparql_update,
+        headers={"Content-Type": "application/sparql-update"},
+    )
+    assert response.ok, response.text
+
+
 def execute_sparql(query: str) -> dict[str, list[str]]:
     """Run a sparql query on graphdb and return the results"""
     endpoint = "http://localhost:7200/repositories/iow"

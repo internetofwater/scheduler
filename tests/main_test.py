@@ -15,7 +15,7 @@ from userCode.pipeline import sources_partitions_def
 
 from dagster import AssetsDefinition, AssetSpec, SourceAsset
 
-from .helpers import execute_sparql, clear_graph
+from .helpers import execute_sparql, clear_graph, insert_triples_as_graph
 
 
 def assert_data_is_linked_in_graph():
@@ -55,6 +55,14 @@ def assert_rclone_is_installed_properly():
 def test_e2e():
     """Run the e2e test on the entire geoconnex graph"""
     clear_graph()
+    # insert a dummy graph before running that should be dropped after syncing ref_mainstems_mainstems__0
+    insert_triples_as_graph(
+        "urn:iow:summoned:ref_mainstems_mainstems__0:DUMMY_PREFIX_TO_DROP",
+        """
+        <http://example.org/resource/1> <http://example.org/property/name> "Alice" .
+        <http://example.org/resource/2> <http://example.org/property/name> "Bob" .
+        """,
+    )
 
     instance = DagsterInstance.ephemeral()
     assets = load_assets_from_modules([pipeline])
@@ -66,12 +74,12 @@ def test_e2e():
         if isinstance(asset, (AssetsDefinition, AssetSpec, SourceAsset))
     ]
     # These three assets are needed to generate the dynamic partition.
-    result = materialize(
+    all_graphs = materialize(
         assets=filtered_assets,
         selection=["nabu_config", "gleaner_config", "docker_client_environment"],
         instance=instance,
     )
-    assert result.success
+    assert all_graphs.success
 
     resolved_job = definitions.get_job_def("harvest_source")
 
@@ -80,27 +88,27 @@ def test_e2e():
     )
     assert len(all_partitions) > 0, "Partitions were not generated"
 
-    result = resolved_job.execute_in_process(
+    all_graphs = resolved_job.execute_in_process(
         instance=instance, partition_key="ref_mainstems_mainstems__0"
     )
 
-    assert result.success, "Job execution failed for partition 'mainstems__0'"
+    assert all_graphs.success, "Job execution failed for partition 'mainstems__0'"
 
-    query = """
+    objects_query = """
     select * where {
         <https://geoconnex.us/ref/mainstems/42750> <https://schema.org/name> ?o .
     } limit 100
     """
 
-    resultDict = execute_sparql(query)
+    resultDict = execute_sparql(objects_query)
     assert (
         "Florida River" in resultDict["o"]
     ), "The Florida River Mainstem was not found in the graph"
 
-    result = resolved_job.execute_in_process(
+    all_graphs = resolved_job.execute_in_process(
         instance=instance, partition_key="cdss_co_gages__0"
     )
-    assert result.success, "Job execution failed for partition 'cdss_co_gages__0'"
+    assert all_graphs.success, "Job execution failed for partition 'cdss_co_gages__0'"
 
     assert_data_is_linked_in_graph()
     # Don't want to actually transfer the file but should check it is installed
@@ -111,6 +119,21 @@ def test_e2e():
         .execute_in_process(instance=instance)
         .success
     )
+
+    all_graphs = execute_sparql("""
+    SELECT DISTINCT ?g 
+    WHERE { 
+        GRAPH ?g { 
+            ?s ?p ?o .
+        } 
+    }
+    """)
+    # make sure we have 2 orgs graphs since we crawled 2 sources so far
+    # urn:iow:orgs is nabu's way of serializing the s3 prefix 'orgs/'
+    assert sum("urn:iow:orgs" in g for g in all_graphs["g"]) == 2
+    assert not any(
+        "DUMMY_PREFIX_TO_DROP" in g for g in all_graphs["g"]
+    ), "The dummy graph we inserted crawling was not dropped correctly"
 
 
 def test_dynamic_partitions():
