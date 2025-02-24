@@ -21,6 +21,7 @@ def clear_graph():
 
 
 def insert_triples_as_graph(graph_name: str, triples: str):
+    """Insert a named graph into the triplestore. Useful for testing"""
     sparql_update = f"""
         INSERT DATA {{
             GRAPH <{graph_name}> {{

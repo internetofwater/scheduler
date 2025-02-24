@@ -131,7 +131,9 @@ def test_e2e():
     # make sure we have 2 orgs graphs since we crawled 2 sources so far
     # urn:iow:orgs is nabu's way of serializing the s3 prefix 'orgs/'
     assert sum("urn:iow:orgs" in g for g in all_graphs["g"]) == 2
-    assert sum("DUMMY_PREFIX_TO_DROP" in g for g in all_graphs["g"]) == 0
+    assert not any("DUMMY_PREFIX_TO_DROP" in g for g in all_graphs["g"]), (
+        "The dummy graph we inserted crawling was not dropped correctly"
+    )
 
 
 def test_dynamic_partitions():
