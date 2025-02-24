@@ -1,6 +1,7 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 from userCode.lib.types import cli_modes
 from userCode.lib.env import GLEANER_IMAGE, NABU_IMAGE, NABU_PROFILING
 from userCode.lib.utils import run_scheduler_docker_image
@@ -36,6 +37,10 @@ class NabuContainer:
     def run(self, args: list[str]):
         if NABU_PROFILING:
             args.append("--trace")
+
+        nabu_log_level = os.environ.get("NABU_LOG_LEVEL")
+        if nabu_log_level:
+            args.append(f"--log-level={nabu_log_level}")
 
         run_scheduler_docker_image(
             self.source,
