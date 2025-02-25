@@ -9,7 +9,6 @@ from dagster import (
     Definitions,
     ScheduleEvaluationContext,
     define_asset_job,
-    get_dagster_logger,
     load_asset_checks_from_modules,
     load_assets_from_modules,
     schedule,
@@ -17,11 +16,15 @@ from dagster import (
 )
 import dagster_slack
 
-from userCode.pipeline import gleaner_config
+from userCode.pipeline import (
+    gleaner_config,
+    gleaner_links_are_valid,
+    rclone_binary,
+    docker_client_environment,
+)
 
 
 from .lib.dagster import slack_error_fn
-from .lib.dagster import filter_partitions
 from .lib.env import (
     RUNNING_AS_TEST_OR_DEV,
     strict_env,
@@ -56,25 +59,31 @@ export_job = define_asset_job(
     else DefaultScheduleStatus.RUNNING,
 )
 def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
-    get_dagster_logger().info("Schedule triggered.")
+    context.log.info("Schedule triggered.")
 
-    get_dagster_logger().info("Deleting old partition status before new crawl")
-    filter_partitions(context.instance, "sources_partitions_def", keys_to_keep=set())
-    get_dagster_logger().info("Clearing export state")
-    result = materialize([gleaner_config], instance=context.instance)
+    result = materialize(
+        [
+            gleaner_config,
+            gleaner_links_are_valid,
+            rclone_binary,
+            docker_client_environment,
+        ],
+        instance=context.instance,
+    )
     if not result.success:
         raise Exception(f"Failed to materialize gleaner_config!: {result}")
 
     partition_keys = context.instance.get_dynamic_partitions("sources_partitions_def")
-    get_dagster_logger().info(f"Found partition keys: {partition_keys}")
+    context.log.info(f"Found partition keys: {partition_keys}")
 
     if not partition_keys:
         raise Exception("No partition keys found after materializing gleaner_config!")
 
     for partition_key in partition_keys:
+        context.log.info(f"Creating run for {partition_key}")
         yield RunRequest(
             job_name="harvest_source",
-            run_key="havest_weekly",
+            run_key=partition_key,
             partition_key=partition_key,
             tags={"run_type": "harvest_weekly"},
         )
