@@ -38,12 +38,14 @@ def create_max_length_container_name(source: str, action_name: str):
     """Docker containers cannot be named longer than 63 characters; we trim the source if it is very long and would cause an issue"""
     MAX_DOCKER_CONTAINER_NAME = 63
 
-    charsToUse = MAX_DOCKER_CONTAINER_NAME - len(source)
+    charsToUse = MAX_DOCKER_CONTAINER_NAME - 1 - len(source)
     if len(action_name) > charsToUse:
         action_name = action_name[:charsToUse]
 
     result = f"{source}_{action_name}"
-    assert len(result) <= MAX_DOCKER_CONTAINER_NAME
+    assert (
+        len(result) <= MAX_DOCKER_CONTAINER_NAME
+    ), f"Got container name of size, {len(result)}"
     return result
 
 
