@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from datetime import datetime
-import io
 from typing import Optional
 from dagster import (
     AssetExecutionContext,
@@ -63,23 +62,6 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
         f"Exporting graphdb to nquads; fetching data from {endpoint}"
     )
 
-    class StreamingIO(io.RawIOBase):
-        def __init__(self, iterator):
-            self.iterator = iterator
-            self.buffer = b""
-
-        def readable(self):
-            return True
-
-        def read(self, size=-1):
-            while len(self.buffer) < size or size == -1:
-                try:
-                    self.buffer += next(self.iterator)
-                except StopIteration:
-                    break
-            result, self.buffer = self.buffer[:size], self.buffer[size:]
-            return result
-
     with requests.get(
         endpoint,
         headers={"Accept": "application/n-quads"},
@@ -89,15 +71,12 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
         s3_client = S3()
         filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
 
-        stream = StreamingIO(r.iter_content(chunk_size=8192))
-
-        s3_client.load_stream(
-            stream,
-            filename,
-            -1,
-            content_type="application/n-quads",
-        )
-
+        # Ensure the stream is correctly wrapped as a text stream
+        s3_client = S3()
+        filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
+        # Use the streaming multipart upload method
+        r.raw.decode_content = True
+        s3_client.load_stream(r.raw, filename, -1, content_type="application/n-quads")
         assert s3_client.object_has_content(filename)
 
         return filename
