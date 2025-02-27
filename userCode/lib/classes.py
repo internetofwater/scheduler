@@ -5,7 +5,7 @@ import io
 from pathlib import Path
 import subprocess
 import sys
-from typing import Any, BinaryIO
+from typing import Any
 from dagster import get_dagster_logger
 from minio import Minio
 from urllib3 import BaseHTTPResponse
@@ -64,7 +64,7 @@ class S3:
         get_dagster_logger().info(f"Uploaded '{remote_path.split('/')[-1]}'")
 
     def load_stream(
-        self, stream: BinaryIO, remote_path: str, content_length: int, content_type: str
+        self, stream, remote_path: str, content_length: int, content_type: str
     ):
         """Stream data into S3 without loading it all into memory"""
         self.client.put_object(
