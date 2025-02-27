@@ -135,28 +135,17 @@ def nquads_to_zenodo(
     deposit_id = deposit["id"]
     get_dagster_logger().info(f"Deposit created with ID: {deposit_id}")
 
-    # Construct upload URL
-    upload_url = f"{ZENODO_API_URL}/{deposit_id}/files"
-
-    # Upload file with proper format
-    files = {
-        "file": (
-            f"nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq",
-            stream,
-            "application/n-quads",
-        )
-    }
-
+    # Use the deposit ID to upload the file
     response = requests.post(
-        upload_url,
-        files=files,
+        f"{ZENODO_API_URL}/{deposit_id}/files",
+        data=stream,
         headers={"Authorization": f"Bearer {ZENODO_ACCESS_TOKEN}"},
     )
     response.raise_for_status()
 
     get_dagster_logger().info("File uploaded successfully.")
 
-    # Add metadata
+    # Add metadata to the upload
     metadata = {
         "metadata": {
             "title": "Geoconnex Graph",
