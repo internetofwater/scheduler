@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from datetime import datetime
+import os
 from typing import Optional
 from dagster import (
     AssetExecutionContext,
@@ -16,6 +17,7 @@ from userCode.lib.env import (
     GLEANERIO_DATAGRAPH_ENDPOINT,
     RUNNING_AS_TEST_OR_DEV,
     ZENODO_ACCESS_TOKEN,
+    ZENODO_SANDBOX_ACCESS_TOKEN,
 )
 from userCode.lib.lakefs import LakeFSClient
 from userCode.pipeline import finished_individual_crawl
@@ -110,19 +112,40 @@ def nquads_to_renci(
     group_name="exports",
 )
 def nquads_to_zenodo(
-    context: AssetExecutionContext, export_graph_as_nquads: Optional[str]
+    context: AssetExecutionContext,
+    export_graph_as_nquads: Optional[str],
 ):
-    """Upload nquads to Zenodo"""
-    if skip_export(context) or not export_graph_as_nquads:
+    """Upload nquads to Zenodo as a new deposit"""
+    # check if we are running in test mode and thus want to upload to the sandbox
+    SANDBOX_MODE = (
+        ZENODO_SANDBOX_ACCESS_TOKEN != "unset" and "PYTEST_CURRENT_TEST" in os.environ
+    )
+
+    if (
+        skip_export(context)
+        # if we are running against a test sandbox, allow the user to upload
+        and not SANDBOX_MODE
+    ) or (not export_graph_as_nquads):
         return
 
     # Read file stream from S3
     stream = S3().read_stream(export_graph_as_nquads)
 
-    ZENODO_API_URL = "https://zenodo.org/api/deposit/depositions"
+    ZENODO_API_URL = (
+        "https://zenodo.org/api/deposit/depositions"
+        if not SANDBOX_MODE
+        else "https://sandbox.zenodo.org/api/deposit/depositions"
+    )
+
+    if SANDBOX_MODE:
+        ZENODO_API_URL = "https://sandbox.zenodo.org/api/deposit/depositions"
+        TOKEN = ZENODO_SANDBOX_ACCESS_TOKEN
+    else:
+        ZENODO_API_URL = "https://zenodo.org/api/deposit/depositions"
+        TOKEN = ZENODO_ACCESS_TOKEN
 
     headers = {
-        "Authorization": f"Bearer {ZENODO_ACCESS_TOKEN}",
+        "Authorization": f"Bearer {TOKEN}",
         "Content-Type": "application/json",
     }
 
@@ -138,9 +161,10 @@ def nquads_to_zenodo(
     # Use the deposit ID to upload the file
     response = requests.post(
         f"{ZENODO_API_URL}/{deposit_id}/files",
-        data=stream,
-        headers={"Authorization": f"Bearer {ZENODO_ACCESS_TOKEN}"},
+        files={"file": ("nquads.nt", stream)},
+        headers={"Authorization": f"Bearer {TOKEN}"},
     )
+
     response.raise_for_status()
 
     get_dagster_logger().info("File uploaded successfully.")
@@ -165,11 +189,15 @@ def nquads_to_zenodo(
     response.raise_for_status()
 
     get_dagster_logger().info(f"Metadata updated for deposit ID {deposit_id}")
-    return deposit_id
 
-
-# Publish the deposit (optional)
-# publish_url = f"{ZENODO_API_URL}/{deposit_id}/actions/publish"
-# response = requests.post(publish_url, headers=headers)
-# response.raise_for_status()
-# get_dagster_logger().info("Deposit published successfully.")
+    """
+    In zenodo you cannot delete a deposit after it has been published.
+    Thus, the code below is commented out. It is safer not to automatically
+    publish the deposit. However the code below is tested and works.
+    """
+    # publish the deposit; thus making it no longer tagged as a draft
+    # publish_url = f"{ZENODO_API_URL}/{deposit_id}/actions/publish"
+    # response = requests.post(publish_url, headers=headers)
+    # response.raise_for_status()
+    # get_dagster_logger().info("Deposit published successfully.")
+    # return deposit_id
