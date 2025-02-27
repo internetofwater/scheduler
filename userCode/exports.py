@@ -48,6 +48,8 @@ def skip_export(context: AssetExecutionContext) -> bool:
 )
 def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
     """Export the graphdb to nquads"""
+    if skip_export(context):
+        return
 
     base_url = (
         GLEANER_GRAPH_URL if not RUNNING_AS_TEST_OR_DEV() else "http://localhost:7200"
@@ -68,11 +70,12 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
         stream=True,
     ) as r:
         r.raise_for_status()
-        # Ensure the stream is correctly wrapped as a text stream
         s3_client = S3()
         filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
-        # Use the streaming multipart upload method
+        # decode content makes it so nquads are returned as text and not
+        # binary data that isnt readable
         r.raw.decode_content = True
+        # r.raw is a file-like object and thus can be read as a stream
         s3_client.load_stream(r.raw, filename, -1, content_type="application/n-quads")
         assert s3_client.object_has_content(filename)
 
