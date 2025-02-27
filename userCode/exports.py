@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from datetime import datetime
+import io
 from typing import Optional
 from dagster import (
     AssetExecutionContext,
@@ -49,9 +50,6 @@ def skip_export(context: AssetExecutionContext) -> bool:
 def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
     """Export the graphdb to nquads"""
 
-    if skip_export(context):
-        return
-
     base_url = (
         GLEANER_GRAPH_URL if not RUNNING_AS_TEST_OR_DEV() else "http://localhost:7200"
     )
@@ -64,30 +62,45 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
     get_dagster_logger().info(
         f"Exporting graphdb to nquads; fetching data from {endpoint}"
     )
-    # Download the nq export
-    response = requests.get(
-        endpoint,
-        headers={
-            "Accept": "application/n-quads",
-        },
-    )
 
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Save the response content to a file
-        with open("outputfile.nq", "wb") as f:
-            f.write(response.content)
-        get_dagster_logger().info("Export of graphdb to nquads successful")
-    else:
-        raise RuntimeError(
-            f"Export failed, status code: {response.status_code} with response {response.text}"
+    class StreamingIO(io.RawIOBase):
+        def __init__(self, iterator):
+            self.iterator = iterator
+            self.buffer = b""
+
+        def readable(self):
+            return True
+
+        def read(self, size=-1):
+            while len(self.buffer) < size or size == -1:
+                try:
+                    self.buffer += next(self.iterator)
+                except StopIteration:
+                    break
+            result, self.buffer = self.buffer[:size], self.buffer[size:]
+            return result
+
+    with requests.get(
+        endpoint,
+        headers={"Accept": "application/n-quads"},
+        stream=True,
+    ) as r:
+        r.raise_for_status()
+        s3_client = S3()
+        filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
+
+        stream = StreamingIO(r.iter_content(chunk_size=8192))
+
+        s3_client.load_stream(
+            stream,
+            filename,
+            -1,
+            content_type="application/n-quads",
         )
 
-    s3_client = S3()
-    filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}"
-    s3_client.load(response.content, filename)
+        assert s3_client.object_has_content(filename)
 
-    return filename
+        return filename
 
 
 @asset(
@@ -120,9 +133,12 @@ def nquads_to_renci(
 def nquads_to_zenodo(
     context: AssetExecutionContext, export_graph_as_nquads: Optional[str]
 ):
-    """Upload nquads to zenodo"""
+    """Upload nquads to Zenodo"""
     if skip_export(context) or not export_graph_as_nquads:
         return
+
+    # Read file stream from S3
+    stream = S3().read_stream(export_graph_as_nquads)
 
     ZENODO_API_URL = "https://zenodo.org/api/deposit/depositions"
 
@@ -131,27 +147,37 @@ def nquads_to_zenodo(
         "Content-Type": "application/json",
     }
 
+    # Create a new deposit
     response = requests.post(ZENODO_API_URL, json={}, headers=headers)
-    response.raise_for_status()  # Ensure request was successful
+    response.raise_for_status()
     deposit = response.json()
 
     # Extract Deposit ID
     deposit_id = deposit["id"]
     get_dagster_logger().info(f"Deposit created with ID: {deposit_id}")
 
-    with open("outputfile.nq", "rb") as f:
-        files = {"file": f}
+    # Construct upload URL
+    upload_url = f"{ZENODO_API_URL}/{deposit_id}/files"
 
-        upload_url = f"{ZENODO_API_URL}/{deposit_id}/files"
-        response = requests.post(
-            upload_url,
-            files=files,
-            headers={"Authorization": f"Bearer {ZENODO_ACCESS_TOKEN}"},
+    # Upload file with proper format
+    files = {
+        "file": (
+            f"nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq",
+            stream,
+            "application/n-quads",
         )
-        response.raise_for_status()  # Ensure request was successful
+    }
+
+    response = requests.post(
+        upload_url,
+        files=files,
+        headers={"Authorization": f"Bearer {ZENODO_ACCESS_TOKEN}"},
+    )
+    response.raise_for_status()
 
     get_dagster_logger().info("File uploaded successfully.")
 
+    # Add metadata
     metadata = {
         "metadata": {
             "title": "Geoconnex Graph",
@@ -169,6 +195,9 @@ def nquads_to_zenodo(
     metadata_url = f"{ZENODO_API_URL}/{deposit_id}"
     response = requests.put(metadata_url, json=metadata, headers=headers)
     response.raise_for_status()
+
+    get_dagster_logger().info(f"Metadata updated for deposit ID {deposit_id}")
+    return deposit_id
 
 
 # Publish the deposit (optional)
