@@ -68,9 +68,6 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
         stream=True,
     ) as r:
         r.raise_for_status()
-        s3_client = S3()
-        filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
-
         # Ensure the stream is correctly wrapped as a text stream
         s3_client = S3()
         filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"

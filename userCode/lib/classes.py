@@ -79,7 +79,8 @@ class S3:
             f"Uploaded '{remote_path.split('/')[-1]}' via streaming"
         )
 
-    def read(self, remote_path: str):
+    def read(self, remote_path: str) -> bytes:
+        """Read an object from S3 and return it as bytes"""
         logger = get_dagster_logger()
         logger.info(f"S3 endpoint that dagster will connect to: {self.endpoint}")
         logger.info(f"S3 Address that gleaner will use: {GLEANER_MINIO_ADDRESS}")
