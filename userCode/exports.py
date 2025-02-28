@@ -79,7 +79,9 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
         # binary data that isnt readable
         r.raw.decode_content = True
         # r.raw is a file-like object and thus can be read as a stream
-        s3_client.load_stream(r.raw, filename, -1, content_type="application/n-quads")
+        s3_client.load_stream(
+            r.raw, filename, -1, content_type="application/octet-stream"
+        )
         assert s3_client.object_has_content(filename)
 
         return filename
