@@ -26,6 +26,8 @@ from .env import (
     RUNNING_AS_TEST_OR_DEV,
 )
 
+CHUNK_SIZE = 5 * 1024 * 1024
+
 
 class S3:
     def __init__(self):
@@ -73,7 +75,7 @@ class S3:
             stream,
             content_length,
             content_type=content_type,
-            part_size=10 * 1024 * 1024,
+            part_size=CHUNK_SIZE,
         )
         get_dagster_logger().info(
             f"Uploaded '{remote_path.split('/')[-1]}' via streaming"
@@ -189,3 +191,11 @@ class RcloneClient:
                 """"The lakefs client copied a file but no new changes were detected on the remote lakefs cluster. 
                 This is a sign that either the file was already present or something may be wrong"""
             )
+
+
+class StreamWrapper(io.RawIOBase):
+    def __init__(self, response):
+        self.response = response.iter_content(chunk_size=CHUNK_SIZE)
+
+    def read(self, size=-1):
+        return next(self.response, b"")
