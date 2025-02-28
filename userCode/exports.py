@@ -58,19 +58,20 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
     )
 
     # Define the repository name and endpoint
-    endpoint = (
-        f"{base_url}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}/statements?infer=false"
-    )
+    endpoint = f"{base_url}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}"
+
+    query = "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }"
+
+    headers = {
+        "Content-Type": "application/sparql-query",
+        "Accept": "application/n-quads",
+    }
 
     get_dagster_logger().info(
-        f"Exporting graphdb to nquads; fetching data from {endpoint}"
+        f"Exporting GraphDB to nquads; fetching data from {endpoint}"
     )
 
-    with requests.get(
-        endpoint,
-        headers={"Accept": "application/n-quads"},
-        stream=True,
-    ) as r:
+    with requests.post(endpoint, headers=headers, data=query, stream=True) as r:
         r.raise_for_status()
         s3_client = S3()
         filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
