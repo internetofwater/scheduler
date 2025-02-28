@@ -15,7 +15,7 @@ from userCode.pipeline import sources_partitions_def
 
 from dagster import AssetsDefinition, AssetSpec, SourceAsset
 
-from .helpers import execute_sparql, clear_graph, insert_triples_as_graph
+from .helpers import SparqlClient
 
 
 def assert_data_is_linked_in_graph():
@@ -26,7 +26,7 @@ def assert_data_is_linked_in_graph():
     } limit 100
     """
 
-    resultDict = execute_sparql(query)
+    resultDict = SparqlClient().execute_sparql(query)
     assert "FLORIDA FARMERS CANAL" in resultDict["o"]
 
     query = """
@@ -36,7 +36,7 @@ def assert_data_is_linked_in_graph():
         ?monitoringLocation hyf:referencedPosition/hyf:HY_IndirectPosition/hyf:linearElement <https://geoconnex.us/ref/mainstems/42750> .
     } limit 100 
     """
-    resultDict = execute_sparql(query)
+    resultDict = SparqlClient().execute_sparql(query)
     # make sure that the florida canal monitoring location is on the florida river mainstem
     assert (
         len(resultDict["monitoringLocation"]) > 0
@@ -54,9 +54,9 @@ def assert_rclone_is_installed_properly():
 
 def test_e2e():
     """Run the e2e test on the entire geoconnex graph"""
-    clear_graph()
+    SparqlClient().clear_graph()
     # insert a dummy graph before running that should be dropped after syncing ref_mainstems_mainstems__0
-    insert_triples_as_graph(
+    SparqlClient().insert_triples_as_graph(
         "urn:iow:summoned:ref_mainstems_mainstems__0:DUMMY_PREFIX_TO_DROP",
         """
         <http://example.org/resource/1> <http://example.org/property/name> "Alice" .
@@ -100,7 +100,7 @@ def test_e2e():
     } limit 100
     """
 
-    resultDict = execute_sparql(objects_query)
+    resultDict = SparqlClient().execute_sparql(objects_query)
     assert (
         "Florida River" in resultDict["o"]
     ), "The Florida River Mainstem was not found in the graph"
@@ -120,7 +120,7 @@ def test_e2e():
         .success
     )
 
-    all_graphs = execute_sparql("""
+    all_graphs = SparqlClient().execute_sparql("""
     SELECT DISTINCT ?g 
     WHERE { 
         GRAPH ?g { 
