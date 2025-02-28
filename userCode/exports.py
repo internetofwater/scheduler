@@ -1,6 +1,7 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+import concurrent.futures
 from datetime import datetime
 import os
 from typing import Optional
@@ -10,7 +11,8 @@ from dagster import (
     get_dagster_logger,
 )
 import requests
-from userCode.lib.classes import S3, RcloneClient, StreamWrapper
+import tempfile
+from userCode.lib.classes import S3, RcloneClient
 from userCode.lib.dagster import all_dependencies_materialized
 from userCode.lib.env import (
     GLEANER_GRAPH_URL,
@@ -59,7 +61,7 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
 
     # Define the repository name and endpoint
     endpoint = f"{base_url}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}"
-
+    size_endpoint = f"{base_url}/repositories/iow/size"  # Endpoint for graph size
     query = "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }"
 
     headers = {
@@ -67,19 +69,63 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
         "Accept": "application/n-quads",
     }
 
-    get_dagster_logger().info(
-        f"Exporting GraphDB to nquads; fetching data from {endpoint}"
-    )
+    # Get the size of the graph
+    get_dagster_logger().info(f"Fetching graph size from {size_endpoint}")
+    response = requests.get(size_endpoint)
+    response.raise_for_status()
+    total_data_size = response.json()
 
-    with requests.post(endpoint, headers=headers, data=query, stream=True) as r:
-        r.raise_for_status()
+    get_dagster_logger().info(f"Graph size: {total_data_size} triples")
+
+    # Create a temporary file to accumulate the nquads
+    with tempfile.NamedTemporaryFile() as tmp_file:
+        tmp_filename = tmp_file.name
+        get_dagster_logger().info(
+            f"Using temporary file {tmp_filename} for concatenation"
+        )
+
+        # Split the download work into chunks (based on the total size)
+        chunk_size = 10000000  # Number of triples per chunk, adjust accordingly
+        chunk_offsets = range(0, total_data_size, chunk_size)
+
+        # Function to handle streaming and appending each chunk to the file
+        def process_chunk(offset: int):
+            query_with_offset = f"{query} OFFSET {offset} LIMIT {chunk_size}"
+
+            # Sending request for a chunk of data
+            with requests.post(
+                endpoint, headers=headers, data=query_with_offset, stream=True
+            ) as r:
+                r.raise_for_status()
+
+                # Append the chunk to the temporary file
+                with open(
+                    tmp_filename, "ab"
+                ) as tmp_file:  # 'ab' mode for appending in binary mode
+                    tmp_file.write(r.raw.read())
+
+                get_dagster_logger().info(
+                    f"Chunk starting at OFFSET {offset} added to file"
+                )
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_offset = {
+                executor.submit(process_chunk, offset): offset
+                for offset in chunk_offsets
+            }
+
+            # Wait for all futures to complete
+            concurrent.futures.wait(future_to_offset)
+
+        # After all chunks are processed, upload the final file to S3
         s3_client = S3()
         filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
 
-        s3_client.load_stream(
-            StreamWrapper(r), filename, -1, content_type="application/octet-stream"
-        )
-        assert s3_client.object_has_content(filename)
+        # Upload the concatenated file
+        with open(tmp_filename, "rb") as tmp_file:
+            s3_client.load_stream(tmp_file, filename)
+
+        get_dagster_logger().info(f"Export completed, file saved as {filename}")
 
         return filename
 
