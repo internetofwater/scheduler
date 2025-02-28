@@ -26,7 +26,7 @@ from .env import (
     RUNNING_AS_TEST_OR_DEV,
 )
 
-CHUNK_SIZE = 5 * 1024 * 1024
+CHUNK_SIZE = 64 * 1024
 
 
 class S3:
@@ -75,7 +75,6 @@ class S3:
             stream,
             content_length,
             content_type=content_type,
-            part_size=CHUNK_SIZE,
         )
         get_dagster_logger().info(
             f"Uploaded '{remote_path.split('/')[-1]}' via streaming"
