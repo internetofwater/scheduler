@@ -26,6 +26,8 @@ from .env import (
     RUNNING_AS_TEST_OR_DEV,
 )
 
+RCLONE_PATH = "rclone" if RUNNING_AS_TEST_OR_DEV() else "/root/.local/bin/rclone"
+
 
 class S3:
     def __init__(self):
@@ -54,14 +56,7 @@ class S3:
 
     def object_has_content(self, remote_path: str) -> bool:
         obj = self.client.stat_object(GLEANER_MINIO_BUCKET, remote_path)
-        return any(
-            [
-                obj is not None and obj.size is not None and obj.size != 0,
-                obj is not None
-                and obj.metadata is not None
-                and float(obj.metadata.get("x-goog-stored-content-length", 0)) > 0,
-            ]
-        )
+        return obj is not None and obj.size is not None and obj.size != 0
 
     def load(self, data: Any, remote_path: str):
         """Load arbitrary data into s3 bucket"""
@@ -78,12 +73,7 @@ class S3:
         get_dagster_logger().info(f"Uploaded '{remote_path.split('/')[-1]}'")
 
     def load_stream(
-        self,
-        stream,
-        remote_path: str,
-        content_length: int,
-        content_type: str,
-        headers={},
+        self, stream, remote_path: str, content_length: int, content_type: str
     ):
         """Stream data into S3 without loading it all into memory"""
         self.client.put_object(
@@ -92,8 +82,7 @@ class S3:
             stream,
             content_length,
             content_type=content_type,
-            part_size=8 * 1024 * 1024,
-            metadata=headers,
+            part_size=32 * 1024 * 1024,
         )
         get_dagster_logger().info(
             f"Uploaded '{remote_path.split('/')[-1]}' via streaming"
@@ -133,7 +122,7 @@ class RcloneClient:
         """
         # Run the command and capture its output
         result = subprocess.run(
-            ["rclone", "config", "file"],
+            [RCLONE_PATH, "config", "file"],
             text=True,  # Ensure output is returned as a string
             stdout=subprocess.PIPE,  # Capture standard output
             stderr=subprocess.PIPE,  # Capture standard error
@@ -195,9 +184,9 @@ class RcloneClient:
 
         new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
 
-        self._run_subprocess(
-            f"rclone copyto minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch}/{destination_filename} -v"
-        )
+        cmd = f"{RCLONE_PATH} copyto minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch}/{destination_filename} -v"
+        get_dagster_logger().info(f"Running bash command: {cmd}")
+        self._run_subprocess(cmd)
 
         if list(new_branch.uncommitted()):
             new_branch.commit(
