@@ -14,7 +14,7 @@ no_check_bucket = true
 
 [minio]
 type = s3
-provider = Minio
+provider = {% if GLEANERIO_MINIO_USE_SSL -%}GCS{%- else -%}Minio{%- endif %}
 env_auth = false
 access_key_id = {{ MINIO_ACCESS_KEY }}
 secret_access_key = {{ MINIO_SECRET_KEY }}
