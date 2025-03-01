@@ -8,7 +8,7 @@ import sys
 from typing import Any
 from dagster import get_dagster_logger
 from minio import Minio
-from urllib3 import BaseHTTPResponse
+from urllib3 import BaseHTTPResponse, PoolManager, Retry
 from lakefs.client import Client
 
 from userCode.lib.lakefs import LakeFSClient
@@ -40,6 +40,13 @@ class S3:
             secure=GLEANER_MINIO_USE_SSL,
             access_key=GLEANER_MINIO_ACCESS_KEY,
             secret_key=GLEANER_MINIO_SECRET_KEY,
+            http_client=PoolManager(
+                num_pools=40,
+                maxsize=40,
+                retries=Retry(
+                    total=3, backoff_factor=2, status_forcelist=[500, 502, 503, 504]
+                ),
+            ),
         )
 
         if not self.client.bucket_exists(GLEANER_MINIO_BUCKET):
@@ -73,7 +80,7 @@ class S3:
             stream,
             content_length,
             content_type=content_type,
-            part_size=10 * 1024 * 1024,
+            part_size=64 * 1024 * 1024,
         )
         get_dagster_logger().info(
             f"Uploaded '{remote_path.split('/')[-1]}' via streaming"
