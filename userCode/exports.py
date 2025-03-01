@@ -85,7 +85,7 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
         )
 
         # Split the download work into chunks (based on the total size)
-        chunk_size = 10000000  # Number of triples per chunk, adjust accordingly
+        chunk_size = 50000000  # Number of triples per chunk
         chunk_offsets = range(0, total_data_size, chunk_size)
 
         # Function to handle streaming and appending each chunk to the file
