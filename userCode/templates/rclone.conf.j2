@@ -18,5 +18,4 @@ provider = Minio
 env_auth = false
 access_key_id = {{ MINIO_ACCESS_KEY }}
 secret_access_key = {{ MINIO_SECRET_KEY }}
-# Must be http since minio is not configured to use https
-endpoint = http://{{ GLEANERIO_MINIO_ADDRESS }}:{{ GLEANERIO_MINIO_PORT }}
+endpoint = http{%- if GLEANERIO_MINIO_USE_SSL -%}s{%- endif -%}://{{ GLEANERIO_MINIO_ADDRESS }}:{{ GLEANERIO_MINIO_PORT }}
