@@ -58,17 +58,23 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
     )
 
     # Define the repository name and endpoint
-    endpoint = (
-        f"{base_url}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}/statements?infer=false"
-    )
+    endpoint = f"{base_url}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}"
+
+    query = "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }"
+
+    headers = {
+        "Content-Type": "application/sparql-query",
+        "Accept": "application/n-quads",
+    }
 
     get_dagster_logger().info(
         f"Exporting graphdb to nquads; fetching data from {endpoint}"
     )
 
-    with requests.get(
+    with requests.post(
         endpoint,
-        headers={"Accept": "application/n-quads"},
+        headers=headers,
+        data=query,
         stream=True,
     ) as r:
         r.raise_for_status()
@@ -76,9 +82,9 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
         filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
         # decode content makes it so nquads are returned as text and not
         # binary data that isnt readable
-        r.raw.decode_content = True
-        # r.raw is a file-like object and thus can be read as a stream
-        s3_client.load_stream(r.raw, filename, -1, content_type="application/n-quads")
+        s3_client.load_stream(
+            r.raw, filename, -1, content_type="application/n-quads", headers=r.headers
+        )
         assert s3_client.object_has_content(filename)
 
         return filename
