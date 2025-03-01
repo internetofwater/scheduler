@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from datetime import datetime
+import os
 from typing import Optional
 from dagster import (
     AssetExecutionContext,
@@ -16,6 +17,7 @@ from userCode.lib.env import (
     GLEANERIO_DATAGRAPH_ENDPOINT,
     RUNNING_AS_TEST_OR_DEV,
     ZENODO_ACCESS_TOKEN,
+    ZENODO_SANDBOX_ACCESS_TOKEN,
 )
 from userCode.lib.lakefs import LakeFSClient
 from userCode.pipeline import finished_individual_crawl
@@ -48,7 +50,6 @@ def skip_export(context: AssetExecutionContext) -> bool:
 )
 def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
     """Export the graphdb to nquads"""
-
     if skip_export(context):
         return
 
@@ -64,30 +65,23 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
     get_dagster_logger().info(
         f"Exporting graphdb to nquads; fetching data from {endpoint}"
     )
-    # Download the nq export
-    response = requests.get(
+
+    with requests.get(
         endpoint,
-        headers={
-            "Accept": "application/n-quads",
-        },
-    )
+        headers={"Accept": "application/n-quads"},
+        stream=True,
+    ) as r:
+        r.raise_for_status()
+        s3_client = S3()
+        filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
+        # decode content makes it so nquads are returned as text and not
+        # binary data that isnt readable
+        r.raw.decode_content = True
+        # r.raw is a file-like object and thus can be read as a stream
+        s3_client.load_stream(r.raw, filename, -1, content_type="application/n-quads")
+        assert s3_client.object_has_content(filename)
 
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Save the response content to a file
-        with open("outputfile.nq", "wb") as f:
-            f.write(response.content)
-        get_dagster_logger().info("Export of graphdb to nquads successful")
-    else:
-        raise RuntimeError(
-            f"Export failed, status code: {response.status_code} with response {response.text}"
-        )
-
-    s3_client = S3()
-    filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}"
-    s3_client.load(response.content, filename)
-
-    return filename
+        return filename
 
 
 @asset(
@@ -118,40 +112,64 @@ def nquads_to_renci(
     group_name="exports",
 )
 def nquads_to_zenodo(
-    context: AssetExecutionContext, export_graph_as_nquads: Optional[str]
+    context: AssetExecutionContext,
+    export_graph_as_nquads: Optional[str],
 ):
-    """Upload nquads to zenodo"""
-    if skip_export(context) or not export_graph_as_nquads:
+    """Upload nquads to Zenodo as a new deposit"""
+    # check if we are running in test mode and thus want to upload to the sandbox
+    SANDBOX_MODE = (
+        ZENODO_SANDBOX_ACCESS_TOKEN != "unset" and "PYTEST_CURRENT_TEST" in os.environ
+    )
+
+    if (
+        skip_export(context)
+        # if we are running against a test sandbox, allow the user to upload
+        and not SANDBOX_MODE
+    ) or (not export_graph_as_nquads):
         return
 
-    ZENODO_API_URL = "https://zenodo.org/api/deposit/depositions"
+    # Read file stream from S3
+    stream = S3().read_stream(export_graph_as_nquads)
+
+    ZENODO_API_URL = (
+        "https://zenodo.org/api/deposit/depositions"
+        if not SANDBOX_MODE
+        else "https://sandbox.zenodo.org/api/deposit/depositions"
+    )
+
+    if SANDBOX_MODE:
+        ZENODO_API_URL = "https://sandbox.zenodo.org/api/deposit/depositions"
+        TOKEN = ZENODO_SANDBOX_ACCESS_TOKEN
+    else:
+        ZENODO_API_URL = "https://zenodo.org/api/deposit/depositions"
+        TOKEN = ZENODO_ACCESS_TOKEN
 
     headers = {
-        "Authorization": f"Bearer {ZENODO_ACCESS_TOKEN}",
+        "Authorization": f"Bearer {TOKEN}",
         "Content-Type": "application/json",
     }
 
+    # Create a new deposit
     response = requests.post(ZENODO_API_URL, json={}, headers=headers)
-    response.raise_for_status()  # Ensure request was successful
+    response.raise_for_status()
     deposit = response.json()
 
     # Extract Deposit ID
     deposit_id = deposit["id"]
     get_dagster_logger().info(f"Deposit created with ID: {deposit_id}")
 
-    with open("outputfile.nq", "rb") as f:
-        files = {"file": f}
+    # Use the deposit ID to upload the file
+    response = requests.post(
+        f"{ZENODO_API_URL}/{deposit_id}/files",
+        files={"file": ("nquads.nt", stream)},
+        headers={"Authorization": f"Bearer {TOKEN}"},
+    )
 
-        upload_url = f"{ZENODO_API_URL}/{deposit_id}/files"
-        response = requests.post(
-            upload_url,
-            files=files,
-            headers={"Authorization": f"Bearer {ZENODO_ACCESS_TOKEN}"},
-        )
-        response.raise_for_status()  # Ensure request was successful
+    response.raise_for_status()
 
     get_dagster_logger().info("File uploaded successfully.")
 
+    # Add metadata to the upload
     metadata = {
         "metadata": {
             "title": "Geoconnex Graph",
@@ -170,9 +188,16 @@ def nquads_to_zenodo(
     response = requests.put(metadata_url, json=metadata, headers=headers)
     response.raise_for_status()
 
+    get_dagster_logger().info(f"Metadata updated for deposit ID {deposit_id}")
 
-# Publish the deposit (optional)
-# publish_url = f"{ZENODO_API_URL}/{deposit_id}/actions/publish"
-# response = requests.post(publish_url, headers=headers)
-# response.raise_for_status()
-# get_dagster_logger().info("Deposit published successfully.")
+    """
+    In zenodo you cannot delete a deposit after it has been published.
+    Thus, the code below is commented out. It is safer not to automatically
+    publish the deposit. However the code below is tested and works.
+    """
+    # publish the deposit; thus making it no longer tagged as a draft
+    # publish_url = f"{ZENODO_API_URL}/{deposit_id}/actions/publish"
+    # response = requests.post(publish_url, headers=headers)
+    # response.raise_for_status()
+    # get_dagster_logger().info("Deposit published successfully.")
+    # return deposit_id

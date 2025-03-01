@@ -45,6 +45,10 @@ class S3:
         if not self.client.bucket_exists(GLEANER_MINIO_BUCKET):
             self.client.make_bucket(GLEANER_MINIO_BUCKET)
 
+    def object_has_content(self, remote_path: str) -> bool:
+        obj = self.client.stat_object(GLEANER_MINIO_BUCKET, remote_path)
+        return obj is not None and obj.size is not None and obj.size != 0
+
     def load(self, data: Any, remote_path: str):
         """Load arbitrary data into s3 bucket"""
         f = io.BytesIO()
@@ -59,7 +63,24 @@ class S3:
         )
         get_dagster_logger().info(f"Uploaded '{remote_path.split('/')[-1]}'")
 
-    def read(self, remote_path: str):
+    def load_stream(
+        self, stream, remote_path: str, content_length: int, content_type: str
+    ):
+        """Stream data into S3 without loading it all into memory"""
+        self.client.put_object(
+            GLEANER_MINIO_BUCKET,
+            remote_path,
+            stream,
+            content_length,
+            content_type=content_type,
+            part_size=10 * 1024 * 1024,
+        )
+        get_dagster_logger().info(
+            f"Uploaded '{remote_path.split('/')[-1]}' via streaming"
+        )
+
+    def read(self, remote_path: str) -> bytes:
+        """Read an object from S3 and return it as bytes"""
         logger = get_dagster_logger()
         logger.info(f"S3 endpoint that dagster will connect to: {self.endpoint}")
         logger.info(f"S3 Address that gleaner will use: {GLEANER_MINIO_ADDRESS}")
@@ -72,6 +93,13 @@ class S3:
         response.close()
         response.release_conn()
         return data
+
+    def read_stream(self, remote_path: str):
+        """Read an object from S3 as a stream"""
+        response: BaseHTTPResponse = self.client.get_object(
+            GLEANER_MINIO_BUCKET, remote_path
+        )
+        return response  # Return the stream directly
 
 
 class RcloneClient:
@@ -153,7 +181,8 @@ class RcloneClient:
 
         if list(new_branch.uncommitted()):
             new_branch.commit(
-                message=f"Adding {path_to_file} automatically from the geoconnex scheduler"
+                message=f"Adding {path_to_file} automatically from the geoconnex scheduler",
+                metadata={},
             )
         else:
             get_dagster_logger().warning(
