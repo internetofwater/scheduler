@@ -26,8 +26,6 @@ from .env import (
     RUNNING_AS_TEST_OR_DEV,
 )
 
-RCLONE_PATH = "rclone" if RUNNING_AS_TEST_OR_DEV() else "/root/.local/bin/rclone"
-
 
 class S3:
     def __init__(self):
@@ -56,7 +54,14 @@ class S3:
 
     def object_has_content(self, remote_path: str) -> bool:
         obj = self.client.stat_object(GLEANER_MINIO_BUCKET, remote_path)
-        return obj is not None and obj.size is not None and obj.size != 0
+        return any(
+            [
+                obj is not None and obj.size is not None and obj.size != 0,
+                obj is not None
+                and obj.metadata is not None
+                and float(obj.metadata.get("x-goog-stored-content-length", 0)) > 0,
+            ]
+        )
 
     def load(self, data: Any, remote_path: str):
         """Load arbitrary data into s3 bucket"""
@@ -73,7 +78,12 @@ class S3:
         get_dagster_logger().info(f"Uploaded '{remote_path.split('/')[-1]}'")
 
     def load_stream(
-        self, stream, remote_path: str, content_length: int, content_type: str
+        self,
+        stream,
+        remote_path: str,
+        content_length: int,
+        content_type: str,
+        headers={},
     ):
         """Stream data into S3 without loading it all into memory"""
         self.client.put_object(
@@ -82,7 +92,8 @@ class S3:
             stream,
             content_length,
             content_type=content_type,
-            part_size=32 * 1024 * 1024,
+            part_size=8 * 1024 * 1024,
+            metadata=headers,
         )
         get_dagster_logger().info(
             f"Uploaded '{remote_path.split('/')[-1]}' via streaming"
@@ -109,6 +120,9 @@ class S3:
             GLEANER_MINIO_BUCKET, remote_path
         )
         return response  # Return the stream directly
+
+
+RCLONE_PATH = "rclone" if RUNNING_AS_TEST_OR_DEV() else "/root/.local/bin/rclone"
 
 
 class RcloneClient:
@@ -184,11 +198,12 @@ class RcloneClient:
 
         new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
 
-        cmd = f"{RCLONE_PATH} copyto minio:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch}/{destination_filename} -v"
-        get_dagster_logger().info(f"Running bash command: {cmd}")
-        self._run_subprocess(cmd)
+        self._run_subprocess(
+            f"{RCLONE_PATH} copyto s3:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch}/{destination_filename} -v"
+        )
 
         if list(new_branch.uncommitted()):
+            get_dagster_logger().info(f"Commiting file to: {destination_branch}")
             new_branch.commit(
                 message=f"Adding {path_to_file} automatically from the geoconnex scheduler",
                 metadata={},

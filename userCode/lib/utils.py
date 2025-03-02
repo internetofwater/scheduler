@@ -132,6 +132,7 @@ def template_rclone(input_template_file_path: str) -> str:
             "GLEANERIO_MINIO_PORT",
             "GLEANERIO_MINIO_USE_SSL",
             "GLEANERIO_MINIO_BUCKET",
+            "GLEANERIO_MINIO_REGION",
             "MINIO_SECRET_KEY",
             "MINIO_ACCESS_KEY",
         ]
@@ -146,7 +147,9 @@ def template_rclone(input_template_file_path: str) -> str:
     template = env.get_template(os.path.basename(input_template_file_path))
 
     # Render the template with the context
-    return template.render(**vars_in_rclone_config)
+    return template.render(
+        **vars_in_rclone_config, RUNNING_AS_TEST_OR_DEV=RUNNING_AS_TEST_OR_DEV()
+    )
 
 
 def template_gleaner_or_nabu(input_template_file_path: str) -> str:
