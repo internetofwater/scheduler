@@ -119,7 +119,12 @@ class S3:
         response: BaseHTTPResponse = self.client.get_object(
             GLEANER_MINIO_BUCKET, remote_path
         )
-        return response  # Return the stream directly
+        try:
+            for chunk in response.stream(8 * 1024 * 1024):
+                yield chunk
+        finally:
+            response.close()
+            response.release_conn()
 
 
 class RcloneClient:

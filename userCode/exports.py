@@ -164,9 +164,9 @@ def nquads_to_zenodo(
     get_dagster_logger().info(f"Deposit created with ID: {deposit_id}")
 
     # Use the deposit ID to upload the file
-    response = requests.post(
-        f"{ZENODO_API_URL}/{deposit_id}/files",
-        files={"file": ("nquads.nt", stream)},
+    response = requests.put(
+        deposit["links"]["bucket"] + "/" + "nquads.nt",
+        data=stream,
         headers={"Authorization": f"Bearer {TOKEN}"},
     )
 
