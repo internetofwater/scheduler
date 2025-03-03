@@ -12,7 +12,7 @@ secret_access_key = {{ LAKEFS_SECRET_ACCESS_KEY}}
 endpoint = {{ LAKEFS_ENDPOINT_URL }}
 no_check_bucket = true
 
-{% if not RUNNING_AS_TEST_OR_DEV -%}
+{% if RUNNING_AS_TEST_OR_DEV -%}
 [s3]
 type = s3
 provider = Minio

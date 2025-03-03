@@ -122,11 +122,12 @@ class S3:
         return response  # Return the stream directly
 
 
-RCLONE_PATH = "rclone" if RUNNING_AS_TEST_OR_DEV() else "/root/.local/bin/rclone"
-
-
 class RcloneClient:
     """Helper class to transfer files from minio to lakefs using rclone"""
+
+    @staticmethod
+    def rclone_client():
+        return "rclone" if RUNNING_AS_TEST_OR_DEV() else "/root/.local/bin/rclone"
 
     @classmethod
     def get_config_path(cls) -> Path:
@@ -136,7 +137,7 @@ class RcloneClient:
         """
         # Run the command and capture its output
         result = subprocess.run(
-            [RCLONE_PATH, "config", "file"],
+            [cls.rclone_client(), "config", "file"],
             text=True,  # Ensure output is returned as a string
             stdout=subprocess.PIPE,  # Capture standard output
             stderr=subprocess.PIPE,  # Capture standard error
@@ -198,9 +199,9 @@ class RcloneClient:
 
         new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
 
-        self._run_subprocess(
-            f"{RCLONE_PATH} copyto s3:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch}/{destination_filename} -v"
-        )
+        cmd_to_run = f"{self.rclone_client()} copyto s3:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch}/{destination_filename} -v"
+        get_dagster_logger().info(f"Running bash command: {cmd_to_run}")
+        self._run_subprocess(cmd_to_run)
 
         if list(new_branch.uncommitted()):
             get_dagster_logger().info(f"Commiting file to: {destination_branch}")
