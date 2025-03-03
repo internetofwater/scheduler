@@ -204,7 +204,7 @@ class RcloneClient:
 
         new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
 
-        cmd_to_run = f"{self.rclone_client()} copyto storage:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch}/{destination_filename} -v --s3-upload-concurrency 8"
+        cmd_to_run = f"{self.rclone_client()} copyto s3:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch}/{destination_filename} -v --s3-upload-concurrency 8"
         get_dagster_logger().info(f"Running bash command: {cmd_to_run}")
         self._run_subprocess(cmd_to_run)
 
