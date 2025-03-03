@@ -22,11 +22,9 @@ secret_access_key = {{ MINIO_SECRET_KEY }}
 endpoint = http://{{ GLEANERIO_MINIO_ADDRESS }}:{{ GLEANERIO_MINIO_PORT }}
 {%- else -%}
 [s3]
-type = s3
-provider = GCS
-env_auth = false
-region   = {{ GLEANERIO_MINIO_REGION }}
-access_key_id = {{ MINIO_ACCESS_KEY }}
-secret_access_key = {{ MINIO_SECRET_KEY }}
-endpoint = https://{{ GLEANERIO_MINIO_ADDRESS }}
+type = google cloud storage
+object_acl = projectPrivate
+bucket_acl = publicReadWrite
+location = {{ GLEANERIO_MINIO_REGION }}
+env_auth = true
 {%- endif %}
