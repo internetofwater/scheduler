@@ -113,9 +113,7 @@ def nquads_to_renci(
     lakefs_client.merge_branch_into_main(branch="develop")
 
 
-@asset(
-    group_name="exports",
-)
+@asset(group_name="exports", deps=[nquads_to_renci])
 def nquads_to_zenodo(
     context: AssetExecutionContext,
     export_graph_as_nquads: Optional[str],
