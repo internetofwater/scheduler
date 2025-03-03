@@ -81,9 +81,11 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
         filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
 
         s3_client = S3()
-        s3_client.load_stream(
-            r.raw, filename, -1, content_type="application/n-quads", headers=r.headers
-        )
+        # decode content makes it so nquads are returned as text and not
+        # binary data that isnt readable
+        r.raw.decode_content = True
+        # r.raw is a file-like object and thus can be read as a stream
+        s3_client.load_stream(r.raw, filename, -1, content_type="application/n-quads")
         assert s3_client.object_has_content(filename)
 
         return filename
