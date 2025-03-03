@@ -18,9 +18,9 @@ class GleanerContainer:
         self.name = "gleaner"
         self.source = source
 
-        assert Path("/tmp/geoconnex/").exists(), (
-            "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
-        )
+        assert Path(
+            "/tmp/geoconnex/"
+        ).exists(), "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
 
     def run(self, args: list[str]):
         run_scheduler_docker_image(
