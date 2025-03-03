@@ -4,7 +4,7 @@
 import os
 from pathlib import Path
 from userCode.lib.types import cli_modes
-from userCode.lib.env import GLEANER_IMAGE, NABU_IMAGE, NABU_PROFILING
+from userCode.lib.env import GLEANER_IMAGE, NABU_BATCH_SIZE, NABU_IMAGE, NABU_PROFILING
 from userCode.lib.utils import run_scheduler_docker_image
 
 
@@ -18,9 +18,9 @@ class GleanerContainer:
         self.name = "gleaner"
         self.source = source
 
-        assert Path(
-            "/tmp/geoconnex/"
-        ).exists(), "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
+        assert Path("/tmp/geoconnex/").exists(), (
+            "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
+        )
 
     def run(self, args: list[str]):
         run_scheduler_docker_image(
@@ -42,6 +42,8 @@ class NabuContainer:
     def run(self, args: list[str]):
         if NABU_PROFILING:
             args.append("--trace")
+
+        args.append(f"--upsert-batch-size={NABU_BATCH_SIZE}")
 
         nabu_log_level = os.environ.get("NABU_LOG_LEVEL")
         if nabu_log_level:

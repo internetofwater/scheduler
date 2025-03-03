@@ -104,9 +104,10 @@ userCodeRoot = Path(__file__).parent.parent.parent.absolute()
 
 DAGSTER_YAML_CONFIG: str = os.path.join(userCodeRoot, "dagster.yaml")
 
-assert Path(
-    DAGSTER_YAML_CONFIG
-).exists(), f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
+assert Path(DAGSTER_YAML_CONFIG).exists(), (
+    f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
+)
 
 
 NABU_PROFILING = strict_env("NABU_PROFILING")
+NABU_BATCH_SIZE = strict_env_int("NABU_BATCH_SIZE")
