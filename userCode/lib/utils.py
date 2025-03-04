@@ -147,9 +147,7 @@ def template_rclone(input_template_file_path: str) -> str:
     template = env.get_template(os.path.basename(input_template_file_path))
 
     # Render the template with the context
-    return template.render(
-        **vars_in_rclone_config, RUNNING_AS_TEST_OR_DEV=RUNNING_AS_TEST_OR_DEV()
-    )
+    return template.render(**vars_in_rclone_config)
 
 
 def template_gleaner_or_nabu(input_template_file_path: str) -> str:

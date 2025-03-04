@@ -78,14 +78,12 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
         stream=True,
     ) as r:
         r.raise_for_status()
-        filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
+        filename = f"backups/nquads_{datetime.now().strftime('%Y%m%d_%H%M%S')}.nq.gz"
 
         s3_client = S3()
-        # decode content makes it so nquads are returned as text and not
-        # binary data that isnt readable
-        r.raw.decode_content = True
-        # r.raw is a file-like object and thus can be read as a stream
-        s3_client.load_stream(r.raw, filename, -1, content_type="application/n-quads")
+        s3_client.load_stream(
+            r.raw, filename, -1, content_type="application/n-quads", headers=r.headers
+        )
         assert s3_client.object_has_content(filename)
 
         return filename
@@ -108,7 +106,7 @@ def nquads_to_renci(
 
     rclone_client.copy_to_lakefs(
         destination_branch="develop",
-        destination_filename="iow-dump.nq",
+        destination_filename="geoconnex-graph.nq",
         path_to_file=export_graph_as_nquads,
         lakefs_client=lakefs_client,
     )
@@ -165,7 +163,7 @@ def nquads_to_zenodo(
 
     # Use the deposit ID to upload the file
     response = requests.put(
-        deposit["links"]["bucket"] + "/" + "nquads.nt",
+        deposit["links"]["bucket"] + "/geoconnex-graph.nq",
         data=stream,
         headers={"Authorization": f"Bearer {TOKEN}"},
     )
@@ -179,7 +177,11 @@ def nquads_to_zenodo(
         "metadata": {
             "title": "Geoconnex Graph",
             "upload_type": "dataset",
-            "description": "This file represents the n-quads export of all content contained in the Geoconnex graph database. Documentation and background can be found at https://geoconnex.us",
+            "description": (
+                "This file represents the n-quads export of all content "
+                "contained in the Geoconnex graph database. Documentation "
+                "and background can be found at https://geoconnex.us"
+            ),
             "creators": [
                 {
                     "name": "Internet of Water Coalition",

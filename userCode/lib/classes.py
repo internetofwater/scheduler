@@ -120,7 +120,7 @@ class S3:
             GLEANER_MINIO_BUCKET, remote_path
         )
         try:
-            for chunk in response.stream(8 * 1024 * 1024):
+            for chunk in response.stream(8 * 1024 * 1024, decode_content=True):
                 yield chunk
         finally:
             response.close()
@@ -130,10 +130,6 @@ class S3:
 class RcloneClient:
     """Helper class to transfer files from minio to lakefs using rclone"""
 
-    @staticmethod
-    def rclone_client():
-        return "rclone" if RUNNING_AS_TEST_OR_DEV() else "/root/.local/bin/rclone"
-
     @classmethod
     def get_config_path(cls) -> Path:
         """
@@ -142,7 +138,7 @@ class RcloneClient:
         """
         # Run the command and capture its output
         result = subprocess.run(
-            [cls.rclone_client(), "config", "file"],
+            ["rclone", "config", "file"],
             text=True,  # Ensure output is returned as a string
             stdout=subprocess.PIPE,  # Capture standard output
             stderr=subprocess.PIPE,  # Capture standard error
@@ -204,7 +200,13 @@ class RcloneClient:
 
         new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
 
-        cmd_to_run = f"{self.rclone_client()} copyto s3:{GLEANER_MINIO_BUCKET}/{path_to_file} lakefs:geoconnex/{destination_branch}/{destination_filename} -v --s3-upload-concurrency 8"
+        src_ = (
+            f"s3:{GLEANER_MINIO_BUCKET}/{path_to_file} --s3-decompress"
+            if RUNNING_AS_TEST_OR_DEV()
+            else f"gs:{GLEANER_MINIO_BUCKET}/{path_to_file} --gcs-decompress"
+        )
+        dst_ = f"lakefs:geoconnex/{destination_branch}/{destination_filename} --s3-upload-concurrency 8"
+        cmd_to_run = f"rclone copyto {src_} {dst_} -v"
         get_dagster_logger().info(f"Running bash command: {cmd_to_run}")
         self._run_subprocess(cmd_to_run)
 
