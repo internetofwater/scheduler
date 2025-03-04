@@ -205,7 +205,7 @@ class RcloneClient:
         src_ = (
             f"s3:{GLEANER_MINIO_BUCKET}/{path_to_file} --s3-decompress"
             if RUNNING_AS_TEST_OR_DEV()
-            else f"gs:{GLEANER_MINIO_BUCKET}/{path_to_file} --gcs-decompress"
+            else f"gs:{GLEANER_MINIO_BUCKET}/{path_to_file} --gcs-decompress --s3-use-accept-encoding-gzip=true --s3-might-gzip=true"
         )
         dst_ = f"lakefs:geoconnex/{destination_branch}/{destination_filename} --s3-upload-concurrency 8"
         cmd_to_run = f"rclone copyto {src_} {dst_} -v"
