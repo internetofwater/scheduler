@@ -207,12 +207,17 @@ class RcloneClient:
         new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
 
         src_ = (
-            f"s3:{GLEANER_MINIO_BUCKET}/{path_to_file} --s3-decompress"
+            f"s3:{GLEANER_MINIO_BUCKET}/{path_to_file} "
             if RUNNING_AS_TEST_OR_DEV()
-            else f"gs:{GLEANER_MINIO_BUCKET}/{path_to_file} --gcs-decompress --s3-use-accept-encoding-gzip=true --s3-might-gzip=true"
+            else f"gs:{GLEANER_MINIO_BUCKET}/{path_to_file}"
         )
         dst_ = f"lakefs:geoconnex/{destination_branch}/{destination_filename} --s3-upload-concurrency 8"
-        cmd_to_run = f"{self.get_rclone()} copyto {src_} {dst_} -v"
+        opts_ = (
+            "-v"
+            if destination_filename.endswith(".gz")
+            else "-v --s3-decompress --gcs-decompress --s3-use-accept-encoding-gzip=true --s3-might-gzip=true"
+        )
+        cmd_to_run = " ".join([self.get_rclone(), "copyto", src_, dst_, opts_])
         get_dagster_logger().info(f"Running bash command: {cmd_to_run}")
         self._run_subprocess(cmd_to_run)
 

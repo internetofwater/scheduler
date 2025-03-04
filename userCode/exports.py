@@ -106,14 +106,14 @@ def nquads_to_renci(
 
     rclone_client.copy_to_lakefs(
         destination_branch="develop",
-        destination_filename="geoconnex-graph.nq",
+        destination_filename="geoconnex-graph.nq.gz",
         path_to_file=export_graph_as_nquads,
         lakefs_client=lakefs_client,
     )
     lakefs_client.merge_branch_into_main(branch="develop")
 
 
-@asset(group_name="exports", deps=[nquads_to_renci])
+@asset(group_name="exports")
 def nquads_to_zenodo(
     context: AssetExecutionContext,
     export_graph_as_nquads: Optional[str],
@@ -130,9 +130,6 @@ def nquads_to_zenodo(
         and not SANDBOX_MODE
     ) or (not export_graph_as_nquads):
         return
-
-    # Read file stream from S3
-    stream = S3().read_stream(export_graph_as_nquads)
 
     ZENODO_API_URL = (
         "https://zenodo.org/api/deposit/depositions"
@@ -160,6 +157,10 @@ def nquads_to_zenodo(
     # Extract Deposit ID
     deposit_id = deposit["id"]
     get_dagster_logger().info(f"Deposit created with ID: {deposit_id}")
+
+    # Read file stream from S3
+    # we are not decoding the content to upsert it as gzip to zenodo
+    stream = S3().read_stream(export_graph_as_nquads, decode_content=False)
 
     # Use the deposit ID to upload the file
     response = requests.put(
