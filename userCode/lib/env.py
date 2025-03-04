@@ -110,3 +110,4 @@ assert Path(
 
 
 NABU_PROFILING = strict_env("NABU_PROFILING")
+NABU_BATCH_SIZE = strict_env_int("NABU_BATCH_SIZE")
