@@ -26,6 +26,8 @@ from .env import (
     RUNNING_AS_TEST_OR_DEV,
 )
 
+EIGHT_MB = 8 * 1024 * 1024
+
 
 class S3:
     def __init__(self):
@@ -92,7 +94,7 @@ class S3:
             stream,
             content_length,
             content_type=content_type,
-            part_size=8 * 1024 * 1024,
+            part_size=EIGHT_MB,
             metadata=headers,
         )
         get_dagster_logger().info(
@@ -120,9 +122,7 @@ class S3:
             GLEANER_MINIO_BUCKET, remote_path
         )
         try:
-            for chunk in response.stream(
-                8 * 1024 * 1024, decode_content=decode_content
-            ):
+            for chunk in response.stream(EIGHT_MB, decode_content=decode_content):
                 yield chunk
         finally:
             response.close()
@@ -206,18 +206,18 @@ class RcloneClient:
 
         new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
 
-        src_ = (
+        src = (
             f"s3:{GLEANER_MINIO_BUCKET}/{path_to_file} "
             if RUNNING_AS_TEST_OR_DEV()
             else f"gs:{GLEANER_MINIO_BUCKET}/{path_to_file}"
         )
-        dst_ = f"lakefs:geoconnex/{destination_branch}/{destination_filename} --s3-upload-concurrency 8"
-        opts_ = (
+        dst = f"lakefs:geoconnex/{destination_branch}/{destination_filename} --s3-upload-concurrency 8"
+        opts = (
             "-v"
             if destination_filename.endswith(".gz")
             else "-v --s3-decompress --gcs-decompress --s3-use-accept-encoding-gzip=true --s3-might-gzip=true"
         )
-        cmd_to_run = " ".join([self.get_rclone(), "copyto", src_, dst_, opts_])
+        cmd_to_run = " ".join([self.get_rclone(), "copyto", src, dst, opts])
         get_dagster_logger().info(f"Running bash command: {cmd_to_run}")
         self._run_subprocess(cmd_to_run)
 
