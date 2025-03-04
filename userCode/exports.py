@@ -163,7 +163,7 @@ def nquads_to_zenodo(
 
     # Use the deposit ID to upload the file
     response = requests.put(
-        deposit["links"]["bucket"] + "/geoconnex-graph.nq",
+        deposit["links"]["bucket"] + "/geoconnex-graph.nq.gz",
         data=stream,
         headers={"Authorization": f"Bearer {TOKEN}"},
     )

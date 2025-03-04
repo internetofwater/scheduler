@@ -114,13 +114,15 @@ class S3:
         response.release_conn()
         return data
 
-    def read_stream(self, remote_path: str):
+    def read_stream(self, remote_path: str, decode_content: bool = False):
         """Read an object from S3 as a stream"""
         response: BaseHTTPResponse = self.client.get_object(
             GLEANER_MINIO_BUCKET, remote_path
         )
         try:
-            for chunk in response.stream(8 * 1024 * 1024, decode_content=True):
+            for chunk in response.stream(
+                8 * 1024 * 1024, decode_content=decode_content
+            ):
                 yield chunk
         finally:
             response.close()
