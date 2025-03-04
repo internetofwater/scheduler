@@ -21,6 +21,6 @@ def test_s3_read_stream():
     stream = S3().read_stream("streamKey")
     assert stream is not None
     data = b""
-    for chunk in stream.stream(amt=1024 * 1024):
+    for chunk in stream:
         data += chunk
     assert data == longData

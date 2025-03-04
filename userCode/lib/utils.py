@@ -132,6 +132,7 @@ def template_rclone(input_template_file_path: str) -> str:
             "GLEANERIO_MINIO_PORT",
             "GLEANERIO_MINIO_USE_SSL",
             "GLEANERIO_MINIO_BUCKET",
+            "GLEANERIO_MINIO_REGION",
             "MINIO_SECRET_KEY",
             "MINIO_ACCESS_KEY",
         ]
