@@ -132,6 +132,10 @@ class S3:
 class RcloneClient:
     """Helper class to transfer files from minio to lakefs using rclone"""
 
+    @staticmethod
+    def get_rclone():
+        return "rclone" if RUNNING_AS_TEST_OR_DEV() else "/root/.local/bin/rclone"
+
     @classmethod
     def get_config_path(cls) -> Path:
         """
@@ -140,7 +144,7 @@ class RcloneClient:
         """
         # Run the command and capture its output
         result = subprocess.run(
-            ["rclone", "config", "file"],
+            [cls.get_rclone(), "config", "file"],
             text=True,  # Ensure output is returned as a string
             stdout=subprocess.PIPE,  # Capture standard output
             stderr=subprocess.PIPE,  # Capture standard error
@@ -208,7 +212,7 @@ class RcloneClient:
             else f"gs:{GLEANER_MINIO_BUCKET}/{path_to_file} --gcs-decompress --s3-use-accept-encoding-gzip=true --s3-might-gzip=true"
         )
         dst_ = f"lakefs:geoconnex/{destination_branch}/{destination_filename} --s3-upload-concurrency 8"
-        cmd_to_run = f"rclone copyto {src_} {dst_} -v"
+        cmd_to_run = f"{self.get_rclone()} copyto {src_} {dst_} -v"
         get_dagster_logger().info(f"Running bash command: {cmd_to_run}")
         self._run_subprocess(cmd_to_run)
 
