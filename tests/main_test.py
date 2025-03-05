@@ -38,9 +38,9 @@ def assert_data_is_linked_in_graph():
     """
     resultDict = SparqlClient().execute_sparql(query)
     # make sure that the florida canal monitoring location is on the florida river mainstem
-    assert len(resultDict["monitoringLocation"]) > 0, (
-        "There were no linked monitoring locations for the Florida River Mainstem"
-    )
+    assert (
+        len(resultDict["monitoringLocation"]) > 0
+    ), "There were no linked monitoring locations for the Florida River Mainstem"
     assert (
         "https://geoconnex.us/cdss/gages/FLOCANCO" in resultDict["monitoringLocation"]
     )
@@ -100,9 +100,9 @@ def test_e2e():
     """
 
     resultDict = SparqlClient().execute_sparql(objects_query)
-    assert "Florida River" in resultDict["o"], (
-        "The Florida River Mainstem was not found in the graph"
-    )
+    assert (
+        "Florida River" in resultDict["o"]
+    ), "The Florida River Mainstem was not found in the graph"
 
     assert harvest_job.execute_in_process(
         instance=instance, partition_key="cdss_co_gages__0"
@@ -130,9 +130,9 @@ def test_e2e():
     # urn:iow:orgs is nabu's way of serializing the s3 prefix 'orgs/'
     NUM_ORG_GRAPHS = sum("urn:iow:orgs" in g for g in all_graphs["g"])
     assert NUM_ORG_GRAPHS == 2
-    assert not any("DUMMY_PREFIX_TO_DROP" in g for g in all_graphs["g"]), (
-        "The dummy graph we inserted crawling was not dropped correctly"
-    )
+    assert not any(
+        "DUMMY_PREFIX_TO_DROP" in g for g in all_graphs["g"]
+    ), "The dummy graph we inserted crawling was not dropped correctly"
 
     # make sure that prov graphs were generated for the mainstem run
     mainstem_prov_graphs = SparqlClient(repository="iowprov").execute_sparql("""
@@ -144,9 +144,9 @@ def test_e2e():
         FILTER(CONTAINS(STR(?g), "urn:iow:prov:ref_mainstems_mainstems__0"))
         }
         """)
-    assert len(mainstem_prov_graphs["g"]) > 0, (
-        "prov graphs were not generated for the mainstem run"
-    )
+    assert (
+        len(mainstem_prov_graphs["g"]) > 0
+    ), "prov graphs were not generated for the mainstem run"
 
 
 def test_dynamic_partitions():
