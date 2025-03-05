@@ -58,27 +58,32 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
     )
 
     # Define the repository name and endpoint
-    endpoint = (
-        f"{base_url}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}/statements?infer=false"
-    )
+    endpoint = f"{base_url}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}"
+
+    query = "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }"
+
+    headers = {
+        "Content-Type": "application/sparql-query",
+        "Accept": "application/n-quads",
+    }
 
     get_dagster_logger().info(
         f"Exporting graphdb to nquads; fetching data from {endpoint}"
     )
 
-    with requests.get(
+    with requests.post(
         endpoint,
-        headers={"Accept": "application/n-quads"},
+        headers=headers,
+        data=query,
         stream=True,
     ) as r:
         r.raise_for_status()
+        filename = f"backups/nquads_{datetime.now().strftime('%Y%m%d_%H%M%S')}.nq.gz"
+
         s3_client = S3()
-        filename = f"backups/nquads_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.nq"
-        # decode content makes it so nquads are returned as text and not
-        # binary data that isnt readable
-        r.raw.decode_content = True
-        # r.raw is a file-like object and thus can be read as a stream
-        s3_client.load_stream(r.raw, filename, -1, content_type="application/n-quads")
+        s3_client.load_stream(
+            r.raw, filename, -1, content_type="application/n-quads", headers=r.headers
+        )
         assert s3_client.object_has_content(filename)
 
         return filename
@@ -101,16 +106,14 @@ def nquads_to_renci(
 
     rclone_client.copy_to_lakefs(
         destination_branch="develop",
-        destination_filename="iow-dump.nq",
+        destination_filename="geoconnex-graph.nq.gz",
         path_to_file=export_graph_as_nquads,
         lakefs_client=lakefs_client,
     )
     lakefs_client.merge_branch_into_main(branch="develop")
 
 
-@asset(
-    group_name="exports",
-)
+@asset(group_name="exports")
 def nquads_to_zenodo(
     context: AssetExecutionContext,
     export_graph_as_nquads: Optional[str],
@@ -127,9 +130,6 @@ def nquads_to_zenodo(
         and not SANDBOX_MODE
     ) or (not export_graph_as_nquads):
         return
-
-    # Read file stream from S3
-    stream = S3().read_stream(export_graph_as_nquads)
 
     ZENODO_API_URL = (
         "https://zenodo.org/api/deposit/depositions"
@@ -158,10 +158,14 @@ def nquads_to_zenodo(
     deposit_id = deposit["id"]
     get_dagster_logger().info(f"Deposit created with ID: {deposit_id}")
 
+    # Read file stream from S3
+    # we are not decoding the content to upsert it as gzip to zenodo
+    stream = S3().read_stream(export_graph_as_nquads, decode_content=False)
+
     # Use the deposit ID to upload the file
-    response = requests.post(
-        f"{ZENODO_API_URL}/{deposit_id}/files",
-        files={"file": ("nquads.nt", stream)},
+    response = requests.put(
+        deposit["links"]["bucket"] + "/geoconnex-graph.nq.gz",
+        data=stream,
         headers={"Authorization": f"Bearer {TOKEN}"},
     )
 
@@ -174,7 +178,11 @@ def nquads_to_zenodo(
         "metadata": {
             "title": "Geoconnex Graph",
             "upload_type": "dataset",
-            "description": "This file represents the n-quads export of all content contained in the Geoconnex graph database. Documentation and background can be found at https://docs.geoconnex.us/",
+            "description": (
+                "This file represents the n-quads export of all content "
+                "contained in the Geoconnex graph database. Documentation "
+                "and background can be found at https://geoconnex.us"
+            ),
             "creators": [
                 {
                     "name": "Internet of Water Coalition",
