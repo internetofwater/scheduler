@@ -11,7 +11,7 @@ and are not needed in the main pipeline
 
 
 class SparqlClient:
-    def __init__(self, repository: Literal["iow", "prov"] = "iow"):
+    def __init__(self, repository: Literal["iow", "iowprov"] = "iow"):
         GRAPH_URL_IN_TESTING = "http://localhost:7200/repositories/"
         self.url = GRAPH_URL_IN_TESTING + repository
 
