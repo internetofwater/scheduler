@@ -23,6 +23,9 @@ class GleanerContainer:
         ).exists(), "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
 
     def run(self, args: list[str]):
+        if gleaner_log_level := os.environ.get("GLEANER_LOG_LEVEL"):
+            args.append(f"--log-level={gleaner_log_level}")
+
         run_scheduler_docker_image(
             self.source,
             GLEANER_IMAGE,
@@ -45,8 +48,7 @@ class NabuContainer:
 
         args.append(f"--upsert-batch-size={NABU_BATCH_SIZE}")
 
-        nabu_log_level = os.environ.get("NABU_LOG_LEVEL")
-        if nabu_log_level:
+        if nabu_log_level := os.environ.get("NABU_LOG_LEVEL"):
             args.append(f"--log-level={nabu_log_level}")
 
         run_scheduler_docker_image(
