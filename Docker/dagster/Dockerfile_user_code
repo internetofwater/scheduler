@@ -16,9 +16,5 @@ ENV DAGSTER_HOME=/opt/dagster/app
 
 COPY ./Docker/dagster/entrypoint.sh /opt/dagster/app/entrypoint.sh
 
-RUN apt-get update \
-    && apt-get install -y curl busybox \
-    && curl -sSL https://rclone.org/install.sh | bash
-
 # This needs to be a CMD and not an ENTRYPOINT for some reason; it appears that docker swarm might pass implicit arguments and thus not work if it is an ENTRYPOINT
 CMD [ "/opt/dagster/app/entrypoint.sh" ]

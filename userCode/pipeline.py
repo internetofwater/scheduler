@@ -69,8 +69,8 @@ def nabu_config():
 
 
 def ensure_local_bin_in_path():
-    """Ensure ~/.local/bin is in the PATH."""
-    local_bin = os.path.expanduser("~/.local/bin")
+    """Ensure /usr/bin is in the PATH."""
+    local_bin = os.path.expanduser("/usr/bin")
     if local_bin not in os.environ["PATH"].split(os.pathsep):
         os.environ["PATH"] += os.pathsep + local_bin
     return local_bin
@@ -82,7 +82,7 @@ def rclone_binary():
     local_bin = ensure_local_bin_in_path()
     os.makedirs(local_bin, exist_ok=True)
 
-    # Check if rclone is already installed in ~/.local/bin
+    # Check if rclone is already installed in /usr/bin
     rclone_path = os.path.join(local_bin, "rclone")
     if os.path.isfile(rclone_path):
         print(f"Rclone is already installed at {rclone_path}.")
@@ -139,7 +139,7 @@ def rclone_binary():
 
     extracted_path = os.path.join("rclone_extracted", extracted_dir)
 
-    # Copy the Rclone binary to ~/.local/bin
+    # Copy the Rclone binary to /usr/bin
     rclone_binary = os.path.join(extracted_path, "rclone")
     if not os.path.isfile(rclone_binary):
         raise FileNotFoundError("Rclone binary not found in extracted directory.")
