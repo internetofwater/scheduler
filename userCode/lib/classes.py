@@ -26,7 +26,7 @@ from .env import (
     RUNNING_AS_TEST_OR_DEV,
 )
 
-EIGHT_MB = 8 * 1024 * 1024
+SIXTEEN_MB = 16 * 1024 * 1024
 
 
 class S3:
@@ -94,7 +94,7 @@ class S3:
             stream,
             content_length,
             content_type=content_type,
-            part_size=EIGHT_MB,
+            part_size=SIXTEEN_MB,
             metadata=headers,
         )
         get_dagster_logger().info(
@@ -122,7 +122,7 @@ class S3:
             GLEANER_MINIO_BUCKET, remote_path
         )
         try:
-            for chunk in response.stream(EIGHT_MB, decode_content=decode_content):
+            for chunk in response.stream(SIXTEEN_MB, decode_content=decode_content):
                 yield chunk
         finally:
             response.close()
