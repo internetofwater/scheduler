@@ -52,7 +52,7 @@ export_job = define_asset_job(
 
 
 @schedule(
-    cron_schedule="@weekly",
+    cron_schedule="0 0 * * 6",
     job=harvest_job,
     default_status=DefaultScheduleStatus.STOPPED
     if RUNNING_AS_TEST_OR_DEV()
