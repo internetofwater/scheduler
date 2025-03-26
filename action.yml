@@ -65,4 +65,3 @@ runs:
         source .venv/bin/activate
         pip install -r requirements.txt
         GLEANER_IMAGE="${{ inputs.gleaner_image }}" NABU_IMAGE="${{ inputs.nabu_image }}" pytest -x -vv --cov-branch --cov-report=xml
-
