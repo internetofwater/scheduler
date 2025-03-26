@@ -30,3 +30,4 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: internetofwater/scheduler
+          directory: ${{ github.action_path }}
