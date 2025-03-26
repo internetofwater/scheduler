@@ -28,6 +28,7 @@ jobs:
       - name: Download a single artifact
         uses: actions/download-artifact@v4
         with:
+          github-token: ${{ secrets.GH_PAT }} # token with actions:read permissions on target repo
           name: scheduler-code-coverage-report
 
       - name: Upload coverage reports to Codecov
@@ -35,5 +36,4 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: internetofwater/scheduler
-          directory: ${{ github.action_path }}
           fail_ci_if_error: true
