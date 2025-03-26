@@ -72,4 +72,3 @@ runs:
         name: scheduler-code-coverage-report
         path: coverage.xml
         if-no-files-found: error
-
