@@ -25,9 +25,15 @@ jobs:
           nabu_image: internetofwater/nabu:latest
           gleaner_image: internetofwater/gleaner:latest
 
+      - name: Download a single artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: scheduler-code-coverage-report
+
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: internetofwater/scheduler
           directory: ${{ github.action_path }}
+          fail_ci_if_error: true

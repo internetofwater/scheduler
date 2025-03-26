@@ -25,3 +25,4 @@ rclone.zip
 outputfile.nq
 
 .coverage
+coverage.xml
