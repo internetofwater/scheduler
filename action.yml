@@ -64,7 +64,7 @@ runs:
         python -m venv .venv
         source .venv/bin/activate
         pip install -r requirements.txt
-        GLEANER_IMAGE="${{ inputs.gleaner_image }}" NABU_IMAGE="${{ inputs.nabu_image }}" pytest -x -vv --cov-branch --cov-report=xml
+        GLEANER_IMAGE="${{ inputs.gleaner_image }}" NABU_IMAGE="${{ inputs.nabu_image }}" pytest -x -vv --cov-branch --cov-report=xml --cov
         if [ ! -f coverage.xml ]; then
           echo "Coverage report not found!"
           exit 1
