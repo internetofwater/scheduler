@@ -24,6 +24,7 @@ dependencies = [
     "requests>=2.32.3",
     "pytest-dotenv>=0.5.2",
     "pytest-cov>=6.0.0",
+    "pyright>=1.1.398",
 ]
 
 [tool.dagster]
