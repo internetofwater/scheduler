@@ -25,7 +25,6 @@ jobs:
           nabu_image: internetofwater/nabu:latest
           gleaner_image: internetofwater/gleaner:latest
 
-    
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:

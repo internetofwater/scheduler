@@ -1,5 +1,5 @@
 # Copyright 2025 Lincoln Institute of Land Policy
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
 
 name: Pyright Type Checks
 
@@ -11,19 +11,19 @@ jobs:
   pyright:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          cache: "pip"
-          python-version: "3.10"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
-      - run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          pip install -r requirements.txt
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
 
-      - run: echo "$PWD/.venv/bin" >> $GITHUB_PATH
+      - name: Install the project
+        run: uv sync --all-extras --dev --all-packages --all-groups
 
-      - uses: jakebailey/pyright-action@v2
-        with:
-          pylance-version: latest-release
+      - name: Run type checks
+        run: uv run pyright
