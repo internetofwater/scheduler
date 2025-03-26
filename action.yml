@@ -71,7 +71,6 @@ runs:
         fi
         echo "Absolute path of coverage.xml: $(realpath coverage.xml)"
 
-
     - name: Archive code coverage results
       uses: actions/upload-artifact@v4
       with:
