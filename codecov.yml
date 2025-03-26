@@ -1,0 +1,17 @@
+# This codecov file is used to configure codecov.io
+# it just gives us information on each PR but does not 
+# return failure status regardless of coverage.
+# the goal of codecov integration is mainly for 
+# informational purposes and not to block iteration
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+# disable github annotations from spamming the diff view
+github_checks:
+    annotations: false

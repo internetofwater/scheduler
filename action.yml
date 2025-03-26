@@ -64,4 +64,10 @@ runs:
         python -m venv .venv
         source .venv/bin/activate
         pip install -r requirements.txt
-        GLEANER_IMAGE="${{ inputs.gleaner_image }}" NABU_IMAGE="${{ inputs.nabu_image }}" pytest -x -vv
+        GLEANER_IMAGE="${{ inputs.gleaner_image }}" NABU_IMAGE="${{ inputs.nabu_image }}" pytest -x -vv --cov-branch --cov-report=xml
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: internetofwater/scheduler
