@@ -69,6 +69,7 @@ runs:
           echo "Coverage report not found!"
           exit 1
         fi
+        echo "Absolute path of coverage.xml: $(realpath coverage.xml)"
 
 
     - name: Archive code coverage results
