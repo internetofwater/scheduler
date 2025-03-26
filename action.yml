@@ -70,5 +70,6 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: scheduler-code-coverage-report
-        path: ${{ github.action_path }}coverage.xml
+        path: ${{ github.workspace }}/coverage.xml
         if-no-files-found: error
+
