@@ -13,5 +13,5 @@ def test_user_code_root():
     path = os.path.join(userCodeRoot, "main.py")
     assert os.path.isfile(path)
 
-    path = os.path.join(userCodeRoot, "NON_EXISTENT.py")
+    path = os.path.join(userCodeRoot, "NON_EXISTENT_FILE.py")
     assert not os.path.isfile(path)
