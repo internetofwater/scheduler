@@ -1,8 +1,11 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 from typing import Literal
 import requests
+
+from userCode.lib.classes import RcloneClient
 
 """
 All functions in this file are helpers for testing
@@ -72,3 +75,9 @@ class SparqlClient:
                     raise ValueError(f"Variable {var} not found in the result")
 
         return mapping
+
+
+def assert_rclone_is_installed_properly():
+    location = RcloneClient.get_config_path()
+    assert location.parent.exists(), f"{location} does not exist"
+    assert os.system("rclone version") == 0
