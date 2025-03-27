@@ -9,10 +9,6 @@ from dagster import (
     get_dagster_logger,
 )
 import docker
-import docker.errors
-import docker.models
-import docker.models.containers
-import docker.models.services
 from jinja2 import Environment, FileSystemLoader
 import jinja2
 from .dagster import (
@@ -43,9 +39,9 @@ def create_max_length_container_name(source: str, action_name: str):
         action_name = action_name[:charsToUse]
 
     result = f"{source}_{action_name}"
-    assert (
-        len(result) <= MAX_DOCKER_CONTAINER_NAME
-    ), f"Got container name of size, {len(result)}"
+    assert len(result) <= MAX_DOCKER_CONTAINER_NAME, (
+        f"Got container name of size, {len(result)}"
+    )
     return result
 
 
