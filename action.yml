@@ -65,7 +65,7 @@ runs:
 
     - name: Install the project
       shell: bash
-      run: uv sync 
+      run: uv sync
 
     - name: Run tests that don't require secrets
       shell: bash

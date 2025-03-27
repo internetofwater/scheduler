@@ -11,13 +11,13 @@
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "python.testing.pytestArgs": ["userCode", "-vv", "--color=yes"],
-    "files.exclude": {
-      // hide cache folders in every subdirectory
-      "**/__pycache__/": true,
-      "**/.pytest_cache/": true,
-      // hide build artifacts / dependency installations
-      "**/*.egg-info/": true,
-      ".venv/": true,
-      ".ruff_cache/": true
-    },
+  "files.exclude": {
+    // hide cache folders in every subdirectory
+    "**/__pycache__/": true,
+    "**/.pytest_cache/": true,
+    // hide build artifacts / dependency installations
+    "**/*.egg-info/": true,
+    ".venv/": true,
+    ".ruff_cache/": true
+  }
 }
