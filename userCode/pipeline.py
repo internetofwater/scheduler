@@ -85,7 +85,10 @@ def rclone_binary():
     # Check if rclone is already installed in ~/.local/bin
     rclone_path = os.path.join(local_bin, "rclone")
     if os.path.isfile(rclone_path):
-        print(f"Rclone is already installed at {rclone_path}.")
+        get_dagster_logger().info(f"Rclone is already installed at {rclone_path}")
+        return
+    elif os.path.isfile("/usr/bin/rclone"):
+        get_dagster_logger().info("Rclone is already installed at /usr/bin/rclone")
         return
 
     # Determine the platform
