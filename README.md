@@ -32,6 +32,8 @@ For testing:
 - run `pytest` from the root to execute tests
 - you can start the task `dagster dev` in the vscode debug panel to run the full geoconnex pipeline with vscode breakpoints enabled
 
+You can use the helper scripts in the [Makefile](./makefile) to run pytest with a set of useful options.
+
 ## Production
 
 - Run `python3 main.py prod` to run a production deployment. This will spin up everything and containerize dagster. You will need to specify your s3 container in the `.env` file.

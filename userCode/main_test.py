@@ -1,21 +1,19 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 from dagster import (
     DagsterInstance,
     load_assets_from_modules,
     materialize,
 )
 from userCode import pipeline
-from userCode.lib.classes import RcloneClient
 import userCode.main as main
 from userCode.main import definitions
 from userCode.pipeline import sources_partitions_def
 
 from dagster import AssetsDefinition, AssetSpec, SourceAsset
 
-from .helpers import SparqlClient
+from test.lib import SparqlClient, assert_rclone_is_installed_properly
 
 
 def assert_data_is_linked_in_graph():
@@ -44,12 +42,6 @@ def assert_data_is_linked_in_graph():
     assert (
         "https://geoconnex.us/cdss/gages/FLOCANCO" in resultDict["monitoringLocation"]
     )
-
-
-def assert_rclone_is_installed_properly():
-    location = RcloneClient.get_config_path()
-    assert location.parent.exists(), f"{location} does not exist"
-    assert os.system("rclone version") == 0
 
 
 def test_e2e():

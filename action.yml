@@ -57,14 +57,21 @@ runs:
         echo "Failed to connect to MinIO after 10 attempts."
         exit 1
 
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+
+    - name: Install the project
+      shell: bash
+      run: uv sync
+
     - name: Run tests that don't require secrets
       shell: bash
       run: |
         echo "Starting tests"
-        python -m venv .venv
-        source .venv/bin/activate
-        pip install -r requirements.txt
-        GLEANER_IMAGE="${{ inputs.gleaner_image }}" NABU_IMAGE="${{ inputs.nabu_image }}" pytest -x -vv --cov-branch --cov-report=xml --cov
+        GLEANER_IMAGE="${{ inputs.gleaner_image }}" NABU_IMAGE="${{ inputs.nabu_image }}" uv run pytest -n auto -x -vv --cov-branch --cov-report=xml --cov
         if [ ! -f coverage.xml ]; then
           echo "Coverage report not found!"
           exit 1
