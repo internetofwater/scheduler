@@ -1,5 +1,7 @@
 # Geoconnex Scheduler
 
+[![codecov](https://codecov.io/gh/internetofwater/scheduler/graph/badge.svg?token=Krxwoeq7kR)](https://codecov.io/gh/internetofwater/scheduler)
+
 The [Geoconnex](https://docs.geoconnex.us/) scheduler crawls Geoconnex partner data on a schedule and synchronizes with the Geoconnex graph database.
 
 - it crawls data with [Gleaner](https://github.com/internetofwater/gleaner/) and downloads it to an S3 bucket
