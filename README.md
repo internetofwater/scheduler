@@ -1,5 +1,7 @@
 # Geoconnex Scheduler
 
+[![codecov](https://codecov.io/gh/internetofwater/scheduler/graph/badge.svg?token=Krxwoeq7kR)](https://codecov.io/gh/internetofwater/scheduler)
+
 The [Geoconnex](https://docs.geoconnex.us/) scheduler crawls Geoconnex partner data on a schedule and synchronizes with the Geoconnex graph database.
 
 - it crawls data with [Gleaner](https://github.com/internetofwater/gleaner/) and downloads it to an S3 bucket
@@ -31,6 +33,8 @@ For testing:
 
 - run `pytest` from the root to execute tests
 - you can start the task `dagster dev` in the vscode debug panel to run the full geoconnex pipeline with vscode breakpoints enabled
+
+You can use the helper scripts in the [Makefile](./makefile) to run pytest with a set of useful options.
 
 ## Production
 

@@ -9,10 +9,6 @@ from dagster import (
     get_dagster_logger,
 )
 import docker
-import docker.errors
-import docker.models
-import docker.models.containers
-import docker.models.services
 from jinja2 import Environment, FileSystemLoader
 import jinja2
 from .dagster import (
