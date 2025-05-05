@@ -42,9 +42,9 @@ class LakeFSClient:
         stagingBranch = self.repository.branch(branch_to_stage_from)
 
         allobjs = stagingBranch.objects()
-        assert stagingBranch.object(
-            file_path
-        ).exists(), f"{file_path} does not exist but it should. Branch {branch_to_stage_from} instead contains {list(allobjs)}"
+        assert stagingBranch.object(file_path).exists(), (
+            f"{file_path} does not exist but it should. Branch {branch_to_stage_from} instead contains {list(allobjs)}"
+        )
 
         stagingBranch.object(file_path).delete()
 
