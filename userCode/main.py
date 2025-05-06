@@ -71,13 +71,13 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
         instance=context.instance,
     )
     if not result.success:
-        raise Exception(f"Failed to materialize gleaner_config!: {result}")
+        raise Exception(f"Failed to materialize environment assets!: {result}")
 
     partition_keys = context.instance.get_dynamic_partitions("sources_partitions_def")
     context.log.info(f"Found partition keys: {partition_keys}")
 
     if not partition_keys:
-        raise Exception("No partition keys found after materializing gleaner_config!")
+        raise Exception("No partition keys found after materializing environment!")
 
     for partition_key in partition_keys:
         context.log.info(f"Creating run for {partition_key}")

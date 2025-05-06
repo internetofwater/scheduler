@@ -1,14 +1,12 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-import asyncio
 import os
 import platform
 import shutil
 import subprocess
 from threading import Thread
 import zipfile
-from aiohttp import ClientSession
 from bs4 import BeautifulSoup, ResultSet
 from dagster import (
     AssetCheckResult,
@@ -20,8 +18,6 @@ from dagster import (
 )
 import docker
 import requests
-import yaml
-from userCode.lib.classes import S3
 from userCode.lib.containers import GleanerContainer, NabuContainer
 from userCode.lib.dagster import filter_partitions
 from userCode.lib.env import (
@@ -197,44 +193,6 @@ def gleaner_partitions(context: AssetExecutionContext):
     # Each source is a partition that can be crawled independently
     context.instance.add_dynamic_partitions(
         partitions_def_name="sources_partitions_def", partition_keys=list(names)
-    )
-
-
-@asset_check(asset=gleaner_partitions)
-def gleaner_links_are_valid():
-    """Check if all the links in the gleaner config are valid and validate all 'loc' tags in the XML at each UR"""
-    s3_client = S3()
-    config = s3_client.read("configs/gleanerconfig.yaml")
-    yaml_config = yaml.safe_load(config)
-
-    dead_links: list[dict[str, int]] = []
-
-    async def validate_url(url: str):
-        async with ClientSession() as session:
-            # only request the headers of each geoconnex sitemap
-            # no reason to download all the content
-            async with session.head(url) as response:
-                if response.status == 200:
-                    get_dagster_logger().debug(f"URL {url} exists.")
-                else:
-                    get_dagster_logger().debug(
-                        f"URL {url} returned status code {response.status}."
-                    )
-                    dead_links.append({url: response.status})
-
-    async def main(urls):
-        tasks = [validate_url(url) for url in urls]
-        results = await asyncio.gather(*tasks)
-        return results
-
-    urls = [source["url"] for source in yaml_config["sources"]]
-    asyncio.run(main(urls))
-
-    return AssetCheckResult(
-        passed=len(dead_links) == 0,
-        metadata={
-            "failed_urls": list(dead_links),
-        },
     )
 
 
