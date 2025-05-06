@@ -13,9 +13,9 @@ import requests
 from userCode.lib.classes import S3, RcloneClient
 from userCode.lib.dagster import all_dependencies_materialized
 from userCode.lib.env import (
-    GLEANER_GRAPH_URL,
-    GLEANERIO_DATAGRAPH_ENDPOINT,
+    DATAGRAPH_REPOSITORY,
     RUNNING_AS_TEST_OR_DEV,
+    TRIPLESTORE_URL,
     ZENODO_ACCESS_TOKEN,
     ZENODO_SANDBOX_ACCESS_TOKEN,
 )
@@ -54,11 +54,11 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
         return
 
     base_url = (
-        GLEANER_GRAPH_URL if not RUNNING_AS_TEST_OR_DEV() else "http://localhost:7200"
+        TRIPLESTORE_URL if not RUNNING_AS_TEST_OR_DEV() else "http://localhost:7200"
     )
 
     # Define the repository name and endpoint
-    endpoint = f"{base_url}/repositories/{GLEANERIO_DATAGRAPH_ENDPOINT}"
+    endpoint = f"{base_url}/repositories/{DATAGRAPH_REPOSITORY}"
 
     query = "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }"
 

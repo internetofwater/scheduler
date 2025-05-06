@@ -17,7 +17,7 @@ from dagster import (
 import dagster_slack
 
 from userCode.pipeline import (
-    gleaner_config,
+    gleaner_partitions,
     gleaner_links_are_valid,
     rclone_binary,
     docker_client_environment,
@@ -63,7 +63,7 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
 
     result = materialize(
         [
-            gleaner_config,
+            gleaner_partitions,
             gleaner_links_are_valid,
             rclone_binary,
             docker_client_environment,

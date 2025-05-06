@@ -14,16 +14,16 @@ from lakefs.client import Client
 from userCode.lib.lakefs import LakeFSClient
 
 from .env import (
-    GLEANER_MINIO_SECRET_KEY,
-    GLEANER_MINIO_ACCESS_KEY,
-    GLEANER_MINIO_BUCKET,
-    GLEANER_MINIO_ADDRESS,
-    GLEANER_MINIO_PORT,
-    GLEANER_MINIO_USE_SSL,
     LAKEFS_ACCESS_KEY_ID,
     LAKEFS_ENDPOINT_URL,
     LAKEFS_SECRET_ACCESS_KEY,
     RUNNING_AS_TEST_OR_DEV,
+    S3_ACCESS_KEY,
+    S3_ADDRESS,
+    S3_DEFAULT_BUCKET,
+    S3_PORT,
+    S3_SECRET_KEY,
+    S3_USE_SSL,
 )
 
 EIGHT_MB = 8 * 1024 * 1024
@@ -33,15 +33,15 @@ class S3:
     def __init__(self):
         # If we are in a test environment then we want to use localhost
         # since we are outside of the docker network.
-        if RUNNING_AS_TEST_OR_DEV() and "googleapis.com" not in GLEANER_MINIO_ADDRESS:
-            self.endpoint = f"localhost:{GLEANER_MINIO_PORT}"
+        if RUNNING_AS_TEST_OR_DEV() and "googleapis.com" not in S3_ADDRESS:
+            self.endpoint = f"localhost:{S3_PORT}"
         else:
-            self.endpoint = f"{GLEANER_MINIO_ADDRESS}:{GLEANER_MINIO_PORT}"
+            self.endpoint = f"{S3_ADDRESS}:{S3_PORT}"
         self.client = Minio(
             self.endpoint,
-            secure=GLEANER_MINIO_USE_SSL,
-            access_key=GLEANER_MINIO_ACCESS_KEY,
-            secret_key=GLEANER_MINIO_SECRET_KEY,
+            secure=S3_USE_SSL,
+            access_key=S3_ACCESS_KEY,
+            secret_key=S3_SECRET_KEY,
             http_client=PoolManager(
                 num_pools=40,
                 maxsize=40,
@@ -51,11 +51,11 @@ class S3:
             ),
         )
 
-        if not self.client.bucket_exists(GLEANER_MINIO_BUCKET):
-            self.client.make_bucket(GLEANER_MINIO_BUCKET)
+        if not self.client.bucket_exists(S3_DEFAULT_BUCKET):
+            self.client.make_bucket(S3_DEFAULT_BUCKET)
 
     def object_has_content(self, remote_path: str) -> bool:
-        obj = self.client.stat_object(GLEANER_MINIO_BUCKET, remote_path)
+        obj = self.client.stat_object(S3_DEFAULT_BUCKET, remote_path)
         return any(
             [
                 obj is not None and obj.size is not None and obj.size != 0,
@@ -71,7 +71,7 @@ class S3:
         length = f.write(data)
         f.seek(0)  # Reset the stream position to the beginning for reading
         self.client.put_object(
-            GLEANER_MINIO_BUCKET,
+            S3_DEFAULT_BUCKET,
             remote_path,
             f,
             length,
@@ -89,7 +89,7 @@ class S3:
     ):
         """Stream data into S3 without loading it all into memory"""
         self.client.put_object(
-            GLEANER_MINIO_BUCKET,
+            S3_DEFAULT_BUCKET,
             remote_path,
             stream,
             content_length,
@@ -105,11 +105,11 @@ class S3:
         """Read an object from S3 and return it as bytes"""
         logger = get_dagster_logger()
         logger.info(f"S3 endpoint that dagster will connect to: {self.endpoint}")
-        logger.info(f"S3 Address that gleaner will use: {GLEANER_MINIO_ADDRESS}")
-        logger.info(f"S3 BUCKET : {GLEANER_MINIO_BUCKET}")
+        logger.info(f"S3 Address that gleaner will use: {S3_ADDRESS}")
+        logger.info(f"S3 BUCKET : {S3_DEFAULT_BUCKET}")
         logger.debug(f"S3 object path : {remote_path}")
         response: BaseHTTPResponse = self.client.get_object(
-            GLEANER_MINIO_BUCKET, remote_path
+            S3_DEFAULT_BUCKET, remote_path
         )
         data = response.read()
         response.close()
@@ -119,7 +119,7 @@ class S3:
     def read_stream(self, remote_path: str, decode_content: bool = False):
         """Read an object from S3 as a stream"""
         response: BaseHTTPResponse = self.client.get_object(
-            GLEANER_MINIO_BUCKET, remote_path
+            S3_DEFAULT_BUCKET, remote_path
         )
         try:
             for chunk in response.stream(EIGHT_MB, decode_content=decode_content):
@@ -203,9 +203,9 @@ class RcloneClient:
         new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
 
         src = (
-            f"s3:{GLEANER_MINIO_BUCKET}/{path_to_file} "
+            f"s3:{S3_DEFAULT_BUCKET}/{path_to_file} "
             if RUNNING_AS_TEST_OR_DEV()
-            else f"gs:{GLEANER_MINIO_BUCKET}/{path_to_file}"
+            else f"gs:{S3_DEFAULT_BUCKET}/{path_to_file}"
         )
         dst = f"lakefs:geoconnex/{destination_branch}/{destination_filename} --s3-upload-concurrency 8"
         opts = (

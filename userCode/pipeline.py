@@ -7,7 +7,6 @@ import platform
 import shutil
 import subprocess
 from threading import Thread
-from urllib.parse import urlparse
 import zipfile
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup, ResultSet
@@ -26,17 +25,16 @@ from userCode.lib.classes import S3
 from userCode.lib.containers import GleanerContainer, NabuContainer
 from userCode.lib.dagster import filter_partitions
 from userCode.lib.env import (
-    GLEANER_HEADLESS_ENDPOINT,
+    DATAGRAPH_REPOSITORY,
     GLEANER_IMAGE,
-    GLEANERIO_DATAGRAPH_ENDPOINT,
-    GLEANERIO_PROVGRAPH_ENDPOINT,
+    GLEANER_SITEMAP_INDEX,
+    HEADLESS_ENDPOINT,
     NABU_IMAGE,
-    REMOTE_GLEANER_SITEMAP,
+    PROVGRAPH_REPOSITORY,
     RUNNING_AS_TEST_OR_DEV,
 )
 from userCode.lib.utils import (
     remove_non_alphanumeric,
-    template_gleaner_or_nabu,
     template_rclone,
 )
 from userCode.lib.dagster import sources_partitions_def
@@ -46,26 +44,6 @@ This file defines all of the core assets that make up the
 Geoconnex pipeline. It does not deal with external exports
 or dagster sensors that trigger it, just the core pipeline
 """
-
-
-@asset(backfill_policy=BackfillPolicy.single_run())
-def nabu_config():
-    """The nabuconfig.yaml used for nabu"""
-    get_dagster_logger().info("Creating nabu config")
-    input_file = os.path.join(
-        os.path.dirname(__file__), "templates", "nabuconfig.yaml.j2"
-    )
-    templated_data = template_gleaner_or_nabu(input_file)
-    conf = yaml.safe_load(templated_data)
-    encoded_as_bytes = yaml.safe_dump(conf).encode()
-    # put configs in s3 for introspection and persistence if we need to run gleaner locally
-    s3_client = S3()
-    s3_client.load(
-        encoded_as_bytes,
-        "configs/nabuconfig.yaml",
-    )
-    with open("/tmp/geoconnex/nabuconfig.yaml", "w") as f:
-        f.write(templated_data)
 
 
 def ensure_local_bin_in_path():
@@ -170,19 +148,21 @@ def rclone_config() -> str:
 
 
 @asset(backfill_policy=BackfillPolicy.single_run())
-def gleaner_config(context: AssetExecutionContext):
+def gleaner_partitions(context: AssetExecutionContext):
     """The gleanerconfig.yaml used for gleaner"""
     get_dagster_logger().info("Creating gleaner config")
-    input_file = os.path.join(
-        os.path.dirname(__file__), "templates", "gleanerconfig.yaml.j2"
-    )
 
-    # Fill in the config with the common minio configuration
-    templated_base: dict = yaml.safe_load(template_gleaner_or_nabu(input_file))
-
-    r = requests.get(REMOTE_GLEANER_SITEMAP)
+    r = requests.get(GLEANER_SITEMAP_INDEX)
     r.raise_for_status()
     xml = r.text
+
+    if not os.path.exists("/tmp/geoconnex"):
+        os.mkdir("/tmp/geoconnex")
+    # write the sitemap to disk as a cache, that
+    # way if the sitemap index is huge, we don't have to download it every time
+    with open("/tmp/geoconnex/sitemap.xml", "w") as f:
+        f.write(xml)
+
     sitemapTags: ResultSet = BeautifulSoup(xml, features="xml").find_all("sitemap")
     Lines: list[str] = [
         tag.text for tag in (sitemap.find_next("loc") for sitemap in sitemapTags) if tag
@@ -191,10 +171,10 @@ def gleaner_config(context: AssetExecutionContext):
     sources = []
     names: set[str] = set()
 
-    assert len(Lines) > 0, f"No sitemaps found in index {REMOTE_GLEANER_SITEMAP}"
+    assert len(Lines) > 0, f"No sitemaps found in index {GLEANER_SITEMAP_INDEX}"
 
     for line in Lines:
-        basename = REMOTE_GLEANER_SITEMAP.removesuffix(".xml")
+        basename = GLEANER_SITEMAP_INDEX.removesuffix(".xml")
         name = (
             line.removeprefix(basename)
             .removesuffix(".xml")
@@ -205,29 +185,13 @@ def gleaner_config(context: AssetExecutionContext):
         name = remove_non_alphanumeric(name)
         if name in names:
             get_dagster_logger().warning(
-                f"Found duplicate name '{name}' in line '{line}' in sitemap {REMOTE_GLEANER_SITEMAP}. Skipping adding it again"
+                f"Found duplicate name '{name}' in line '{line}' in sitemap {GLEANER_SITEMAP_INDEX}. Skipping adding it again"
             )
             continue
 
-        parsed_url = urlparse(REMOTE_GLEANER_SITEMAP)
-        protocol, hostname = parsed_url.scheme, parsed_url.netloc
-        data = {
-            "sourcetype": "sitemap",
-            "name": name,
-            "url": line.strip(),
-            # Headless should be false by default since most sites don't use it.
-            # If gleaner cannot extract JSON-LD it will fallback to headless mode
-            "headless": "false",
-            "pid": "https://gleaner.io/genid/geoconnex",
-            "propername": name,
-            "domain": f"{protocol}://{hostname}",
-            "active": "true",
-        }
         names.add(name)
-        sources.append(data)
 
     get_dagster_logger().info(f"Found {len(sources)} sources in the sitemap")
-
     filter_partitions(context.instance, "sources_partitions_def", names)
 
     # Each source is a partition that can be crawled independently
@@ -235,21 +199,8 @@ def gleaner_config(context: AssetExecutionContext):
         partitions_def_name="sources_partitions_def", partition_keys=list(names)
     )
 
-    templated_base["sources"] = sources
 
-    get_dagster_logger().info(
-        f"Generated the following gleaner config: {yaml.dump(templated_base)}"
-    )
-
-    # put configs in s3 for introspection and persistence if we need to run gleaner locally
-    encoded_as_bytes = yaml.dump(templated_base).encode()
-    s3_client = S3()
-    s3_client.load(encoded_as_bytes, "configs/gleanerconfig.yaml")
-    with open("/tmp/geoconnex/gleanerconfig.yaml", "w") as f:
-        f.write(yaml.dump(templated_base))
-
-
-@asset_check(asset=gleaner_config)
+@asset_check(asset=gleaner_partitions)
 def gleaner_links_are_valid():
     """Check if all the links in the gleaner config are valid and validate all 'loc' tags in the XML at each UR"""
     s3_client = S3()
@@ -309,9 +260,9 @@ def can_contact_headless():
     """Check that we can contact the headless server"""
     TWO_SECONDS = 2
 
-    url = GLEANER_HEADLESS_ENDPOINT
+    url = HEADLESS_ENDPOINT
     if RUNNING_AS_TEST_OR_DEV():
-        portNumber = GLEANER_HEADLESS_ENDPOINT.removeprefix("http://").split(":")[1]
+        portNumber = HEADLESS_ENDPOINT.removeprefix("http://").split(":")[1]
         url = f"http://localhost:{portNumber}"
         get_dagster_logger().warning(
             f"Skipping headless check in test mode. Check would have pinged {url}"
@@ -326,35 +277,25 @@ def can_contact_headless():
         metadata={
             "status_code": result.status_code,
             "text": result.text,
-            "endpoint": GLEANER_HEADLESS_ENDPOINT,
+            "endpoint": HEADLESS_ENDPOINT,
         },
     )
 
 
 @asset(
     partitions_def=sources_partitions_def,
-    deps=[docker_client_environment, gleaner_config, nabu_config],
+    deps=[docker_client_environment, gleaner_partitions],
 )
 def gleaner(context: AssetExecutionContext):
     """Get the jsonld for each site in the gleaner config"""
-    GleanerContainer(context.partition_key).run(
-        ["--cfg", "gleanerconfig.yaml", "--source", context.partition_key, "--rude"]
-    )
+    GleanerContainer(context.partition_key).run()
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
 def nabu_sync(context: AssetExecutionContext):
     """Synchronize the graph with s3 by adding/removing from the graph"""
     NabuContainer("sync", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "sync",
-            "--prefix",
-            "summoned/" + context.partition_key,
-            "--repository",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
+        f"sync --prefix summoned/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}"
     )
 
 
@@ -363,13 +304,7 @@ def nabu_prov_release(context: AssetExecutionContext):
     """Construct an nq file from all of the jsonld prov produced by gleaner.
     Used for tracing data lineage"""
     NabuContainer("prov-release", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "release",
-            "--prefix",
-            "prov/" + context.partition_key,
-        ]
+        f"release --prefix prov/{context.partition_key}"
     )
 
 
@@ -377,14 +312,7 @@ def nabu_prov_release(context: AssetExecutionContext):
 def nabu_prov_object(context: AssetExecutionContext):
     """Take the nq file from s3 and use the sparql API to upload it into the prov graph repository"""
     NabuContainer("prov-object", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "object",
-            f"graphs/latest/{context.partition_key}_prov.nq",
-            "--repository",
-            GLEANERIO_PROVGRAPH_ENDPOINT,
-        ]
+        f"object graphs/latest/{context.partition_key}_prov.nq --repository {PROVGRAPH_REPOSITORY}"
     )
 
 
@@ -393,15 +321,7 @@ def nabu_orgs_release(context: AssetExecutionContext):
     """Construct an nq file for the metadata of an organization. The metadata about their water data is not included in this step.
     This is just flat metadata"""
     NabuContainer("orgs-release", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "release",
-            "--prefix",
-            f"orgs/{context.partition_key}",
-            "--repository",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
+        f"release --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}"
     )
 
 
@@ -409,15 +329,7 @@ def nabu_orgs_release(context: AssetExecutionContext):
 def nabu_orgs_prefix(context: AssetExecutionContext):
     """Move the orgs nq file(s) into the graphdb"""
     NabuContainer("orgs", context.partition_key).run(
-        [
-            "--cfg",
-            "nabuconfig.yaml",
-            "prefix",
-            "--prefix",
-            f"orgs/{context.partition_key}",
-            "--repository",
-            GLEANERIO_DATAGRAPH_ENDPOINT,
-        ]
+        f"prefix --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}"
     )
 
 
