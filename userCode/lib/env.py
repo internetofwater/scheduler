@@ -71,6 +71,6 @@ ZENODO_SANDBOX_ACCESS_TOKEN = strict_env("ZENODO_SANDBOX_ACCESS_TOKEN")
 userCodeRoot = Path(__file__).parent.parent.parent.absolute()
 DAGSTER_YAML_CONFIG: str = os.path.join(userCodeRoot, "dagster.yaml")
 
-assert Path(
-    DAGSTER_YAML_CONFIG
-).exists(), f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
+assert Path(DAGSTER_YAML_CONFIG).exists(), (
+    f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
+)

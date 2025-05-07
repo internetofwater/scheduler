@@ -28,9 +28,9 @@ class GleanerContainer:
         self.source = source
 
     def run(self):
-        assert Path(
-            "/tmp/geoconnex/"
-        ).exists(), "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
+        assert Path("/tmp/geoconnex/").exists(), (
+            "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
+        )
 
         argsAsStr = (
             f"--sitemap-index sitemap.xml "
