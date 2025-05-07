@@ -6,7 +6,7 @@ deps:
 .PHONY: test
 test:
 	# Run pyright to validate types, then spin up pydist with xdist to run tests in parallel
-	uv run pyright && uv run pytest -n auto -x --maxfail=1 -vv --durations=5
+	uv run pyright && uv run pytest -n 20 -x --maxfail=1 -vv --durations=5
 
 .PHONY: cov
 cov:
@@ -22,3 +22,8 @@ clean:
 	rm -rf storage
 	rm -rf .logs_queue
 	rm -rf .venv/
+
+.PHONY: dev 
+dev:
+	python3 main.py dev --detach
+	python3 main.py dagster-dev

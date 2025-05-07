@@ -17,8 +17,7 @@ from dagster import (
 import dagster_slack
 
 from userCode.pipeline import (
-    gleaner_config,
-    gleaner_links_are_valid,
+    gleaner_partitions,
     rclone_binary,
     docker_client_environment,
 )
@@ -63,21 +62,20 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
 
     result = materialize(
         [
-            gleaner_config,
-            gleaner_links_are_valid,
+            gleaner_partitions,
             rclone_binary,
             docker_client_environment,
         ],
         instance=context.instance,
     )
     if not result.success:
-        raise Exception(f"Failed to materialize gleaner_config!: {result}")
+        raise Exception(f"Failed to materialize environment assets!: {result}")
 
     partition_keys = context.instance.get_dynamic_partitions("sources_partitions_def")
     context.log.info(f"Found partition keys: {partition_keys}")
 
     if not partition_keys:
-        raise Exception("No partition keys found after materializing gleaner_config!")
+        raise Exception("No partition keys found after materializing environment!")
 
     for partition_key in partition_keys:
         context.log.info(f"Creating run for {partition_key}")

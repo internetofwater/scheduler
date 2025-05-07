@@ -4,7 +4,7 @@
 from datetime import datetime
 import os
 import re
-from typing import Optional, Union
+from typing import Optional
 from dagster import (
     get_dagster_logger,
 )
@@ -17,11 +17,10 @@ from .dagster import (
 from .classes import S3
 from .types import cli_modes
 from .env import (
-    GLEANERIO_DATAGRAPH_ENDPOINT,
-    GLEANERIO_PROVGRAPH_ENDPOINT,
+    DATAGRAPH_REPOSITORY,
+    PROVGRAPH_REPOSITORY,
     RUNNING_AS_TEST_OR_DEV,
     strict_env,
-    strict_env_int,
 )
 from dagster_docker.utils import validate_docker_image
 
@@ -45,18 +44,18 @@ def create_max_length_container_name(source: str, action_name: str):
     return result
 
 
-def run_scheduler_docker_image(
+def run_docker_image(
     source: str,  # which organization we are crawling
     image_name: str,  # the name of the docker image to pull and validate
-    args: list[str],  # the list of arguments to pass to the gleaner/nabu command
+    args: str,  # the list of arguments to pass to the gleaner/nabu command
     action_name: cli_modes,  # the name of the action to run inside gleaner/nabu
     volumeMapping: Optional[list[str]] = None,
 ):
-    """Run a docker image inside the dagster docker runtime"""
+    """Run a docker using the same docker socket inside dagster"""
     container_name = create_max_length_container_name(source, action_name)
 
-    get_dagster_logger().info(f"Datagraph value: {GLEANERIO_DATAGRAPH_ENDPOINT}")
-    get_dagster_logger().info(f"Provgraph value: {GLEANERIO_PROVGRAPH_ENDPOINT}")
+    get_dagster_logger().info(f"Datagraph value: {DATAGRAPH_REPOSITORY}")
+    get_dagster_logger().info(f"Provgraph value: {PROVGRAPH_REPOSITORY}")
 
     validate_docker_image(image_name)
 
@@ -124,17 +123,15 @@ def template_rclone(input_template_file_path: str) -> str:
             "LAKEFS_ENDPOINT_URL",
             "LAKEFS_ACCESS_KEY_ID",
             "LAKEFS_SECRET_ACCESS_KEY",
-            "GLEANERIO_MINIO_ADDRESS",
-            "GLEANERIO_MINIO_PORT",
-            "GLEANERIO_MINIO_USE_SSL",
-            "GLEANERIO_MINIO_BUCKET",
-            "GLEANERIO_MINIO_REGION",
-            "MINIO_SECRET_KEY",
-            "MINIO_ACCESS_KEY",
+            "S3_ACCESS_KEY",
+            "S3_SECRET_KEY",
+            "S3_ADDRESS",
+            "S3_PORT",
+            "S3_REGION",
         ]
     }
     if RUNNING_AS_TEST_OR_DEV():
-        vars_in_rclone_config["GLEANERIO_MINIO_ADDRESS"] = "localhost"
+        vars_in_rclone_config["S3_ADDRESS"] = "localhost"
 
     env = Environment(
         loader=FileSystemLoader(os.path.dirname(input_template_file_path)),
@@ -144,36 +141,3 @@ def template_rclone(input_template_file_path: str) -> str:
 
     # Render the template with the context
     return template.render(**vars_in_rclone_config)
-
-
-def template_gleaner_or_nabu(input_template_file_path: str) -> str:
-    """Fill in a template with shared env vars and return the templated data"""
-    vars_in_both_nabu_and_gleaner_configs: dict[str, Union[str, int]] = {
-        var: strict_env(var)
-        for var in [
-            "GLEANERIO_MINIO_ADDRESS",
-            "MINIO_ACCESS_KEY",
-            "MINIO_SECRET_KEY",
-            "GLEANERIO_MINIO_BUCKET",
-            "GLEANERIO_MINIO_PORT",
-            "GLEANERIO_MINIO_USE_SSL",
-            "GLEANERIO_DATAGRAPH_ENDPOINT",
-            "GLEANERIO_GRAPH_URL",
-            "GLEANERIO_PROVGRAPH_ENDPOINT",
-            "GLEANERIO_MINIO_REGION",
-            "GLEANER_HEADLESS_ENDPOINT",
-        ]
-    }
-
-    # certain config values should be an integer
-    ints = strict_env_int("GLEANER_THREADS")
-    vars_in_both_nabu_and_gleaner_configs["GLEANER_THREADS"] = ints
-
-    env = Environment(
-        loader=FileSystemLoader(os.path.dirname(input_template_file_path)),
-        undefined=jinja2.StrictUndefined,
-    )
-    template = env.get_template(os.path.basename(input_template_file_path))
-
-    # Render the template with the context
-    return template.render(**vars_in_both_nabu_and_gleaner_configs)

@@ -69,7 +69,7 @@ def test_e2e():
     # These three assets are needed to generate the dynamic partition.
     all_graphs = materialize(
         assets=filtered_assets,
-        selection=["nabu_config", "gleaner_config", "docker_client_environment"],
+        selection=["gleaner_partitions", "docker_client_environment"],
         instance=instance,
     )
     assert all_graphs.success
@@ -166,7 +166,7 @@ def test_dynamic_partitions():
     # These three assets are needed to generate the dynamic partition.
     result = materialize(
         assets=filtered_assets,
-        selection=["gleaner_config"],
+        selection=["gleaner_partitions"],
         instance=instance,
     )
     assert result.success, "Expected gleaner config to materialize"

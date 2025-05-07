@@ -78,7 +78,7 @@ Since Dagster uses docs as code, the best way to get the most accurate documenta
 ### nabu_object
 
 - take the nq file from the s3 and use the sparql api to upload the nq object into the graph
-- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "object", f"/graphs/latest/{source}_release.nq", "--endpoint", GLEANERIO_DATAGRAPH_ENDPOINT]`
+- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "object", f"/graphs/latest/{source}_release.nq", "--endpoint", GLEANERIO_DATAGRAPH_REPOSITORY]`
 - Example: nabu --cfg <cfg> --endpoint iow_data object "/graphs/latest/refgages0_release.nq"
 
 ### nabu_prune
@@ -86,7 +86,7 @@ Since Dagster uses docs as code, the best way to get the most accurate documenta
 - Essentially a diff that upadtes the graph. Looks at the prefix directory path and reconciles the files that exist with what exists in the graph.
   - s3 is the source of truth
   - if the graph is missing data it should be added; if it has too much data it should be pruned
-- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "prune", "--prefix", "summoned/" + source, "--endpoint", GLEANERIO_DATAGRAPH_ENDPOINT]`
+- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "prune", "--prefix", "summoned/" + source, "--endpoint", GLEANERIO_DATAGRAPH_REPOSITORY]`
 - Example: `nabu --cfg <cfg> prune --prefix "summoned/refgages0 --endpoint iow`
 
 ### nabu_prov_release
@@ -98,19 +98,19 @@ Since Dagster uses docs as code, the best way to get the most accurate documenta
 ### nabu_prov_clear
 
 - Clears the prov graph before putting the new prov ontology data in
-- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "clear", "--endpoint", GLEANERIO_PROVGRAPH_ENDPOINT]`
+- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "clear", "--endpoint", GLEANERIO_PROVGRAPH_REPOSITORY]`
 
 ### nabu_prov_object
 
 - Take the nq file from s3 and use the sparql API to upload it into the prov graph repository
-- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "object", f"/graphs/latest/{source}_prov.nq", "--endpoint", GLEANERIO_PROVGRAPH_ENDPOINT]`
+- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "object", f"/graphs/latest/{source}_prov.nq", "--endpoint", GLEANERIO_PROVGRAPH_REPOSITORY]`
 
 ### nabu_orgs_release
 
 - Construct an nq file for the metadata of all the organizations
-- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "release", "--prefix", "orgs", "--endpoint", GLEANERIO_DATAGRAPH_ENDPOINT]`
+- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "release", "--prefix", "orgs", "--endpoint", GLEANERIO_DATAGRAPH_REPOSITORY]`
 
 ### nabu_orgs
 
 - Move the orgs nq file(s) into the graphdb
-- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "prefix", "--prefix", "orgs", "--endpoint", GLEANERIO_DATAGRAPH_ENDPOINT]`
+- `ARGS = ["--cfg", GLEANERIO_NABU_CONFIG_PATH, "prefix", "--prefix", "orgs", "--endpoint", GLEANERIO_DATAGRAPH_REPOSITORY]`
