@@ -71,8 +71,8 @@ class NabuContainer:
             f"--port {S3_PORT} "
             f"--s3-access-key {S3_ACCESS_KEY} "
             f"--s3-secret-key {S3_SECRET_KEY} "
-            f"--log-level {NABU_LOG_LEVEL}"
-            f"--endpoint {TRIPLESTORE_URL}"
+            f"--log-level {NABU_LOG_LEVEL} "
+            f"--endpoint {TRIPLESTORE_URL} "
         )
 
         argsAsStr = args + " " + configArgs
