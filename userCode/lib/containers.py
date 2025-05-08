@@ -17,6 +17,7 @@ from userCode.lib.env import (
     S3_DEFAULT_BUCKET,
     S3_PORT,
     S3_SECRET_KEY,
+    TRIPLESTORE_URL,
 )
 from userCode.lib.utils import run_docker_image
 
@@ -70,7 +71,8 @@ class NabuContainer:
             f"--port {S3_PORT} "
             f"--s3-access-key {S3_ACCESS_KEY} "
             f"--s3-secret-key {S3_SECRET_KEY} "
-            f"--log-level {NABU_LOG_LEVEL}"
+            f"--log-level {NABU_LOG_LEVEL} "
+            f"--endpoint {TRIPLESTORE_URL} "
         )
 
         argsAsStr = args + " " + configArgs
