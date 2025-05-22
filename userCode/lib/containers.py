@@ -17,6 +17,7 @@ from userCode.lib.env import (
     S3_DEFAULT_BUCKET,
     S3_PORT,
     S3_SECRET_KEY,
+    S3_USE_SSL,
     TRIPLESTORE_URL,
 )
 from userCode.lib.utils import run_docker_image
@@ -45,6 +46,9 @@ class GleanerContainer:
             f"--concurrent-sitemaps {GLEANER_CONCURRENT_SITEMAPS} "
             f"--sitemap-workers {GLEANER_SITEMAP_WORKERS}"
         )
+
+        if S3_USE_SSL:
+            argsAsStr += " --ssl"
 
         run_docker_image(
             self.source,
@@ -79,6 +83,9 @@ class NabuContainer:
 
         if NABU_PROFILING:
             argsAsStr += " --trace"
+
+        if S3_USE_SSL:
+            argsAsStr += " --ssl"
 
         run_docker_image(
             self.source,
