@@ -5,7 +5,7 @@ linux:
 	rm -rf rclone-*-linux-amd64*
 	
 macos:
-	curl -O https://downloads.rclone.org/rclone-current-osx-amd64.zip
-	unzip rclone-current-osx-amd64.zip
+	curl -O https://downloads.rclone.org/rclone-current-osx-arm64.zip
+	unzip rclone-current-osx-arm64.zip
 	mv rclone*/rclone ./rclone.macos
-	rm -rf rclone-*-osx-amd64*
+	rm -rf rclone-*-osx-arm64*
