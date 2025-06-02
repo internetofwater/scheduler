@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from userCode.lib.classes import RcloneClient
 from userCode.lib.utils import create_max_length_container_name
 
 
@@ -15,4 +16,4 @@ def test_create_max_length_container_name():
 
 
 def test_ensure_rclone_bin_installed():
-    assert os.system("rclone version") == 0
+    assert os.system(f"{RcloneClient.get_bin()} version") == 0
