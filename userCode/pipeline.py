@@ -5,7 +5,6 @@ import os
 import platform
 import shutil
 import subprocess
-from threading import Thread
 import zipfile
 from bs4 import BeautifulSoup, ResultSet
 from dagster import (
@@ -18,11 +17,10 @@ from dagster import (
 )
 import docker
 import requests
-from userCode.lib.containers import GleanerContainer, NabuContainer
+from userCode.lib.containers import SitemapHarvestContainer, SynchronizerContainer
 from userCode.lib.dagster import filter_partitions
 from userCode.lib.env import (
     DATAGRAPH_REPOSITORY,
-    GLEANER_IMAGE,
     GLEANER_SITEMAP_INDEX,
     HEADLESS_ENDPOINT,
     NABU_IMAGE,
@@ -202,15 +200,8 @@ def docker_client_environment():
     get_dagster_logger().info("Initializing docker client and pulling images: ")
     client = docker.DockerClient()
 
-    get_dagster_logger().info(f"Pulling {GLEANER_IMAGE} and {NABU_IMAGE}")
-
-    # Use threading since pull is not async and we want to do both at the same time
-    gleaner_thread = Thread(target=client.images.pull, args=(GLEANER_IMAGE,))
-    nabu_thread = Thread(target=client.images.pull, args=(NABU_IMAGE,))
-    gleaner_thread.start()
-    nabu_thread.start()
-    gleaner_thread.join()
-    nabu_thread.join()
+    get_dagster_logger().info(f"Pulling {NABU_IMAGE}")
+    client.images.pull(NABU_IMAGE)
 
 
 @asset_check(asset=docker_client_environment)
@@ -246,13 +237,13 @@ def can_contact_headless():
 )
 def gleaner(context: AssetExecutionContext):
     """Get the jsonld for each site in the gleaner config"""
-    GleanerContainer(context.partition_key).run()
+    SitemapHarvestContainer(context.partition_key).run()
 
 
 @asset(partitions_def=sources_partitions_def, deps=[gleaner])
 def nabu_sync(context: AssetExecutionContext):
     """Synchronize the graph with s3 by adding/removing from the graph"""
-    NabuContainer("sync", context.partition_key).run(
+    SynchronizerContainer("sync", context.partition_key).run(
         f"sync --prefix summoned/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}"
     )
 
@@ -261,7 +252,7 @@ def nabu_sync(context: AssetExecutionContext):
 def nabu_prov_release(context: AssetExecutionContext):
     """Construct an nq file from all of the jsonld prov produced by gleaner.
     Used for tracing data lineage"""
-    NabuContainer("prov-release", context.partition_key).run(
+    SynchronizerContainer("prov-release", context.partition_key).run(
         f"release --prefix prov/{context.partition_key}"
     )
 
@@ -269,7 +260,7 @@ def nabu_prov_release(context: AssetExecutionContext):
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_release])
 def nabu_prov_object(context: AssetExecutionContext):
     """Take the nq file from s3 and use the sparql API to upload it into the prov graph repository"""
-    NabuContainer("prov-object", context.partition_key).run(
+    SynchronizerContainer("prov-object", context.partition_key).run(
         f"object graphs/latest/{context.partition_key}_prov.nq --repository {PROVGRAPH_REPOSITORY}"
     )
 
@@ -278,7 +269,7 @@ def nabu_prov_object(context: AssetExecutionContext):
 def nabu_orgs_release(context: AssetExecutionContext):
     """Construct an nq file for the metadata of an organization. The metadata about their water data is not included in this step.
     This is just flat metadata"""
-    NabuContainer("orgs-release", context.partition_key).run(
+    SynchronizerContainer("orgs-release", context.partition_key).run(
         f"release --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}"
     )
 
@@ -286,7 +277,7 @@ def nabu_orgs_release(context: AssetExecutionContext):
 @asset(partitions_def=sources_partitions_def, deps=[nabu_orgs_release])
 def nabu_orgs_prefix(context: AssetExecutionContext):
     """Move the orgs nq file(s) into the graphdb"""
-    NabuContainer("orgs", context.partition_key).run(
+    SynchronizerContainer("orgs", context.partition_key).run(
         f"prefix --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}"
     )
 

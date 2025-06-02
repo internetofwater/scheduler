@@ -5,7 +5,6 @@ from pathlib import Path
 from userCode.lib.types import cli_modes
 from userCode.lib.env import (
     GLEANER_CONCURRENT_SITEMAPS,
-    GLEANER_IMAGE,
     GLEANER_LOG_LEVEL,
     GLEANER_SITEMAP_WORKERS,
     NABU_BATCH_SIZE,
@@ -23,8 +22,8 @@ from userCode.lib.env import (
 from userCode.lib.utils import run_docker_image
 
 
-class GleanerContainer:
-    """A container for running gleaner web crawl operations"""
+class SitemapHarvestContainer:
+    """A container for running web crawl operations"""
 
     def __init__(self, source: str) -> None:
         self.source = source
@@ -35,6 +34,7 @@ class GleanerContainer:
         )
 
         argsAsStr = (
+            f"harvest "
             f"--sitemap-index sitemap.xml "
             f"--source {self.source} "
             f"--address {S3_ADDRESS} "
@@ -52,14 +52,14 @@ class GleanerContainer:
 
         run_docker_image(
             self.source,
-            GLEANER_IMAGE,
+            NABU_IMAGE,
             argsAsStr,
             "gleaner",
             volumeMapping=["/tmp/geoconnex/sitemap.xml:/app/sitemap.xml"],
         )
 
 
-class NabuContainer:
+class SynchronizerContainer:
     """A container for running nabu graph sync operations"""
 
     def __init__(self, operation_name: cli_modes, partition: str):
