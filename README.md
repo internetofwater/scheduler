@@ -11,6 +11,9 @@ For more information about the Geoconnex project generally and how it aims to im
 
 ## Local / Development Quickstart
 
+> [!IMPORTANT]  
+> You must have [`uv`](https://docs.astral.sh/uv/) installed for package management
+
 Install dependencies and spin up necessary Docker services:
 
 ```sh
