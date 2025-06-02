@@ -17,7 +17,12 @@ from dagster import (
 )
 import docker
 import requests
-from userCode.lib.containers import SitemapHarvestContainer, SynchronizerContainer
+from userCode.lib.containers import (
+    SitemapHarvestConfig,
+    SitemapHarvestContainer,
+    SynchronizerConfig,
+    SynchronizerContainer,
+)
 from userCode.lib.dagster import filter_partitions
 from userCode.lib.env import (
     DATAGRAPH_REPOSITORY,
@@ -142,8 +147,8 @@ def rclone_config() -> str:
 
 
 @asset(backfill_policy=BackfillPolicy.single_run())
-def gleaner_partitions(context: AssetExecutionContext):
-    """The gleanerconfig.yaml used for gleaner"""
+def sitemap_partitions(context: AssetExecutionContext):
+    """Generate a dynamic partition for each sitemap in the sitemap index"""
     get_dagster_logger().info("Creating gleaner config")
 
     r = requests.get(GLEANER_SITEMAP_INDEX)
@@ -233,52 +238,59 @@ def can_contact_headless():
 
 @asset(
     partitions_def=sources_partitions_def,
-    deps=[docker_client_environment, gleaner_partitions],
+    deps=[docker_client_environment, sitemap_partitions],
 )
-def gleaner(context: AssetExecutionContext):
+def harvest_sitemap(
+    context: AssetExecutionContext,
+    config: SitemapHarvestConfig,
+):
     """Get the jsonld for each site in the gleaner config"""
-    SitemapHarvestContainer(context.partition_key).run()
+    SitemapHarvestContainer(context.partition_key).run(config)
 
 
-@asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_sync(context: AssetExecutionContext):
+@asset(partitions_def=sources_partitions_def, deps=[harvest_sitemap])
+def nabu_sync(context: AssetExecutionContext, config: SynchronizerConfig):
     """Synchronize the graph with s3 by adding/removing from the graph"""
     SynchronizerContainer("sync", context.partition_key).run(
-        f"sync --prefix summoned/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}"
+        f"sync --prefix summoned/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}",
+        config,
     )
 
 
-@asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_prov_release(context: AssetExecutionContext):
+@asset(partitions_def=sources_partitions_def, deps=[harvest_sitemap])
+def nabu_prov_release(context: AssetExecutionContext, config: SynchronizerConfig):
     """Construct an nq file from all of the jsonld prov produced by gleaner.
     Used for tracing data lineage"""
     SynchronizerContainer("prov-release", context.partition_key).run(
-        f"release --prefix prov/{context.partition_key}"
+        f"release --prefix prov/{context.partition_key}", config
     )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_prov_release])
-def nabu_prov_object(context: AssetExecutionContext):
+def nabu_prov_object(context: AssetExecutionContext, config: SynchronizerConfig):
     """Take the nq file from s3 and use the sparql API to upload it into the prov graph repository"""
     SynchronizerContainer("prov-object", context.partition_key).run(
-        f"object graphs/latest/{context.partition_key}_prov.nq --repository {PROVGRAPH_REPOSITORY}"
+        f"object graphs/latest/{context.partition_key}_prov.nq --repository {PROVGRAPH_REPOSITORY}",
+        config,
     )
 
 
-@asset(partitions_def=sources_partitions_def, deps=[gleaner])
-def nabu_orgs_release(context: AssetExecutionContext):
+@asset(partitions_def=sources_partitions_def, deps=[harvest_sitemap])
+def nabu_orgs_release(context: AssetExecutionContext, config: SynchronizerConfig):
     """Construct an nq file for the metadata of an organization. The metadata about their water data is not included in this step.
     This is just flat metadata"""
     SynchronizerContainer("orgs-release", context.partition_key).run(
-        f"release --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}"
+        f"release --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}",
+        config,
     )
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_orgs_release])
-def nabu_orgs_prefix(context: AssetExecutionContext):
+def nabu_orgs_prefix(context: AssetExecutionContext, config: SynchronizerConfig):
     """Move the orgs nq file(s) into the graphdb"""
     SynchronizerContainer("orgs", context.partition_key).run(
-        f"prefix --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}"
+        f"prefix --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}",
+        config,
     )
 
 

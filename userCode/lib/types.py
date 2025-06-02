@@ -6,7 +6,7 @@ from typing import Literal, TypeAlias, TypedDict
 
 cli_modes: TypeAlias = Literal[
     # All the options for either gleaner or nabu
-    "gleaner",
+    "sitemap_harvest",
     # All the cli modes that nabu can run
     "release",
     "object",
@@ -14,7 +14,6 @@ cli_modes: TypeAlias = Literal[
     "prov-release",
     "prov-clear",
     "prov-object",
-    "prov-drain",
     "orgs-release",
     "orgs",
 ]
