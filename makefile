@@ -27,3 +27,7 @@ clean:
 dev:
 	python3 main.py dev --detach
 	python3 main.py dagster-dev
+
+.PHONY: installRclone
+installRclone:
+	curl https://rclone.org/install.sh | bash

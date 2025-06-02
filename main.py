@@ -158,7 +158,7 @@ def main():
     )
 
     subparsers.add_parser(
-        "login", help="Log into the user code container (interactive shell)"
+        "login", help="Log into the prod user code container with an interactive shell"
     )
 
     args = parser.parse_args()

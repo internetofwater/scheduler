@@ -77,7 +77,7 @@ class SparqlClient:
         return mapping
 
 
-def assert_rclone_is_installed_properly():
+def assert_rclone_config_is_accessible():
     location = RcloneClient.get_config_path()
     assert location.parent.exists(), f"{location} does not exist"
     assert os.system("rclone version") == 0
