@@ -8,9 +8,6 @@ inputs:
   nabu_image:
     required: true
     description: "Docker image to use for Nabu"
-  gleaner_image:
-    required: true
-    description: "Docker image to use for Gleaner"
 
 runs:
   using: "composite"
@@ -71,7 +68,7 @@ runs:
       shell: bash
       run: |
         echo "Starting tests"
-        GLEANER_IMAGE="${{ inputs.gleaner_image }}" NABU_IMAGE="${{ inputs.nabu_image }}" uv run pytest -n auto -x -vv --cov-branch --cov-report=xml --cov
+        NABU_IMAGE="${{ inputs.nabu_image }}" uv run pytest -n auto -x -vv --cov-branch --cov-report=xml --cov
         if [ ! -f coverage.xml ]; then
           echo "Coverage report not found!"
           exit 1

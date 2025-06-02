@@ -23,7 +23,6 @@ jobs:
         uses: ./
         with:
           nabu_image: internetofwater/nabu:latest
-          gleaner_image: internetofwater/gleaner:latest
 
       - name: Download a single artifact
         uses: actions/download-artifact@v4
