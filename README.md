@@ -48,7 +48,7 @@ _All cloud deployment and infrastructure as code work is contained within the [h
 
 ## Testing
 
-- Spin up the [local dev environment](#local-quickstart)
+- Spin up the [local dev environment](#local--development-quickstart)
 - Run `make test` from the root to execute tests
 - If you use VSCode, run the task `dagster dev` in the debug panel to run the full pipeline with the ability to set breakpoints
 
