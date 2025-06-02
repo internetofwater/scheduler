@@ -9,7 +9,9 @@ from dagster import (
 from userCode import pipeline
 import userCode.main as main
 from userCode.main import definitions
-from userCode.pipeline import sources_partitions_def
+from userCode.pipeline import (
+    sources_partitions_def,
+)
 
 from dagster import AssetsDefinition, AssetSpec, SourceAsset
 
@@ -69,7 +71,7 @@ def test_e2e():
     # These three assets are needed to generate the dynamic partition.
     all_graphs = materialize(
         assets=filtered_assets,
-        selection=["gleaner_partitions", "docker_client_environment"],
+        selection=["sitemap_partitions", "docker_client_environment"],
         instance=instance,
     )
     assert all_graphs.success
@@ -166,7 +168,7 @@ def test_dynamic_partitions():
     # These three assets are needed to generate the dynamic partition.
     result = materialize(
         assets=filtered_assets,
-        selection=["gleaner_partitions"],
+        selection=["sitemap_partitions"],
         instance=instance,
     )
     assert result.success, "Expected gleaner config to materialize"
