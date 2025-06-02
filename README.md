@@ -2,10 +2,10 @@
 
 [![codecov](https://codecov.io/gh/internetofwater/scheduler/graph/badge.svg?token=Krxwoeq7kR)](https://codecov.io/gh/internetofwater/scheduler)
 
-The [Geoconnex](https://docs.geoconnex.us/) scheduler crawls water data metadata on a schedule and synchronizes with the graph database.
+The [Geoconnex](https://docs.geoconnex.us/) scheduler crawls water data metadata on a schedule and synchronizes with a graph database.
 
 - it crawls sitemaps with [`nabu harvest`](https://github.com/internetofwater/nabu/) and downloads it to an S3 bucket
-- it syncs data between the S3 bucket and the graphdb using [`nabu sync`](https://github.com/internetofwater/nabu/)
+- it syncs data between the S3 bucket and the graph database using [`nabu sync`](https://github.com/internetofwater/nabu/)
 
 For more information about the Geoconnex project generally and how it aims to improve water data infrastructure, see the [Geoconnex docs](https://docs.geoconnex.us/).
 
