@@ -9,7 +9,7 @@ Quads don't add anything strictly necessary for user facing sparql queries, howe
 
 ## Tracing how context is added:
 
-- `gleaner`
+- `harvest` (previously known as gleaner)
 
   - `summoned/` and `prov/` directories are populated
   - a unique id is associated with each jsonld document
