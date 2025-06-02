@@ -1,7 +1,15 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-from userCode.lib.classes import S3
+import os
+from userCode.lib.classes import S3, RcloneClient
+
+
+def test_get_rclone_bin():
+    binary = RcloneClient.get_bin()
+    assert binary
+    assert os.path.exists(binary)
+    assert os.system(f"{binary} --version") == 0
 
 
 def test_s3_load():

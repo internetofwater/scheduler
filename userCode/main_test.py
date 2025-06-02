@@ -15,7 +15,7 @@ from userCode.pipeline import (
 
 from dagster import AssetsDefinition, AssetSpec, SourceAsset
 
-from test.lib import SparqlClient, assert_rclone_is_installed_properly
+from test.lib import SparqlClient, assert_rclone_config_is_accessible
 
 
 def assert_data_is_linked_in_graph():
@@ -104,7 +104,7 @@ def test_e2e():
 
     assert_data_is_linked_in_graph()
     # Don't want to actually transfer the file but should check it is installed
-    assert_rclone_is_installed_properly()
+    assert_rclone_config_is_accessible()
 
     assert (
         definitions.get_job_def("export_nquads")
