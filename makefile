@@ -1,7 +1,7 @@
 .PHONY: deps
 deps:
 	# Using uv, install all Python dependencies needed for local development and spin up necessary docker services
-	uv sync --all-groups --locked && python3 main.py dev --detach
+	uv sync --all-groups --locked
 
 .PHONY: test
 test:
@@ -24,10 +24,10 @@ clean:
 	rm -rf .venv/
 
 .PHONY: dev 
-dev:
+dev: deps
 	python3 main.py dev --detach
 	python3 main.py dagster-dev
 
-.PHONY: installRclone
-installRclone:
-	curl https://rclone.org/install.sh | bash
+.PHONY: prod 
+prod:
+	python3 main.py prod

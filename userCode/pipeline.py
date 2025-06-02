@@ -164,7 +164,7 @@ def nabu_sync(context: AssetExecutionContext, config: SynchronizerConfig):
 
 @asset(partitions_def=sources_partitions_def, deps=[harvest_sitemap])
 def nabu_prov_release(context: AssetExecutionContext, config: SynchronizerConfig):
-    """Construct an nq file from all of the jsonld prov produced by gleaner.
+    """Construct an nq file from all of the jsonld prov produced by harvesting the sitemap.
     Used for tracing data lineage"""
     SynchronizerContainer("prov-release", context.partition_key).run(
         f"release --prefix prov/{context.partition_key}", config
