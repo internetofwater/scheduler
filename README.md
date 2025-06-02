@@ -2,45 +2,53 @@
 
 [![codecov](https://codecov.io/gh/internetofwater/scheduler/graph/badge.svg?token=Krxwoeq7kR)](https://codecov.io/gh/internetofwater/scheduler)
 
-The [Geoconnex](https://docs.geoconnex.us/) scheduler crawls Geoconnex partner data on a schedule and synchronizes with the Geoconnex graph database.
+The [Geoconnex](https://docs.geoconnex.us/) scheduler crawls water data metadata on a schedule and synchronizes with the graph database.
 
-- it crawls data with [Gleaner](https://github.com/internetofwater/gleaner/) and downloads it to an S3 bucket
-- it syncs data between the S3 bucket and the graphdb using [Nabu](https://github.com/internetofwater/nabu/)
+- it crawls sitemaps with [`nabu harvest`](https://github.com/internetofwater/nabu/) and downloads it to an S3 bucket
+- it syncs data between the S3 bucket and the graphdb using [`nabu sync`](https://github.com/internetofwater/nabu/)
 
 For more information about the Geoconnex project generally and how it aims to improve water data infrastructure, see the [Geoconnex docs](https://docs.geoconnex.us/).
 
-## How to use
+## Local / Development Quickstart
 
-Configuration for this repository is contained in `.env`. When you run `main.py` for the first time, it will prompt you to create a new `.env` file by copying `.env.example`
+Install dependencies and spin up necessary Docker services:
 
-In both `dev` and `prod` modes you can append either `--build` or `--detach` to pass those args to the underlying compose project.
+```sh
+make deps && python3 main.py dev --detach && python3 main.py dagster-dev
+```
 
-## Development
+Then go to [localhost:3000](http://localhost:3000)
 
-We use `uv` for dependency management. You need to be in an environment that matches the [pinned python version](./.python-version)
+_(You can also just run `make dev` for brevity)_
 
-- Once you are in that environment run `uv sync` to install dependencies
+## Dockerized / Production Quickstart
 
-You need to run 2 commands from the root of the repo to get a dev environment
+Spin up everything and containerize dagster. _(You will need to specify your db/s3 endpont and any other remote services in the `.env` file)_
 
-- `python3 main.py dev` spins up test infrastructure
-  - this will spin up a test minio container for testing in addition to the standard services like graphdb, headless chrome etc
-- run `python3 main.py dagster-dev` from the root of the repo to spin up dagster
-  - this allows us to get hot reloading and use local debugging
-  - view the UI at `localhost:3000`
+```sh
+python3 main.py prod
+```
 
-For testing:
+You can specify extra flags to build the containers or use a local db/s3 container _(make sure to set the `DAGSTER_POSTGRES_HOST` env var to `dagster_postgres`)_
 
-- run `pytest` from the root to execute tests
-- you can start the task `dagster dev` in the vscode debug panel to run the full geoconnex pipeline with vscode breakpoints enabled
+```sh
+python3 main.py prod --local-services --build --detach
+```
 
-You can use the helper scripts in the [Makefile](./makefile) to run pytest with a set of useful options.
+_All cloud deployment and infrastructure as code work is contained within the [harvest.geoconnex.us](https://github.com/internetofwater/harvest.geoconnex.us) repo_
 
-## Production
+## Configuration
 
-- Run `python3 main.py prod` to run a production deployment. This will spin up everything and containerize dagster. You will need to specify your s3 container in the `.env` file.
-- All deployment and infrastructure as code work is contained within the [harvest.geoconnex.us](https://github.com/internetofwater/harvest.geoconnex.us) repo
+- All env vars must be defined in `.env` at the root of the repo
+  - When you run `main.py` for the first time, it will prompt you to create a new `.env` file by copying the [`.env.example`](./.env.example)
+- In both `dev` and `prod` modes you can append either `--build` or `--detach` to pass those args to the underlying compose project.
+
+## Testing
+
+- Spin up the [local dev environment](#local-quickstart)
+- Run `make test` from the root to execute tests
+- If you use VSCode, run the task `dagster dev` in the debug panel to run the full pipeline with the ability to set breakpoints
 
 ## Licensing
 
-This repository is a heavily modified version of https://github.com/gleanerio/scheduler and is licensed under Apache 2.0
+This repository is a heavily modified version of [gleanerio/scheduler](https://github.com/gleanerio/scheduler) and is licensed under Apache 2.0
