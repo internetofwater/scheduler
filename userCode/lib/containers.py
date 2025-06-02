@@ -6,6 +6,7 @@ from pathlib import Path
 from userCode.lib.types import cli_modes
 from userCode.lib.env import (
     GLEANER_CONCURRENT_SITEMAPS,
+    GLEANER_LOG_LEVEL,
     GLEANER_SITEMAP_WORKERS,
     NABU_BATCH_SIZE,
     NABU_IMAGE,
@@ -35,7 +36,7 @@ class SitemapHarvestConfig(Config):
     s3_access_key: str = S3_ACCESS_KEY
     s3_secret_key: str = S3_SECRET_KEY
     bucket: str = S3_DEFAULT_BUCKET
-    log_level: str = NABU_LOG_LEVEL
+    log_level: str = GLEANER_LOG_LEVEL
     concurrent_sitemaps: int = GLEANER_CONCURRENT_SITEMAPS
     sitemap_workers: int = GLEANER_SITEMAP_WORKERS
     validate_shacl: bool = False
