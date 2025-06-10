@@ -1,34 +1,32 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+import dagster_slack
 from dagster import (
     AssetSelection,
-    RunRequest,
     DefaultScheduleStatus,
     DefaultSensorStatus,
     Definitions,
+    RunRequest,
     ScheduleEvaluationContext,
     define_asset_job,
     load_asset_checks_from_modules,
     load_assets_from_modules,
-    schedule,
     materialize,
+    schedule,
 )
-import dagster_slack
 
 from userCode.pipeline import (
-    sitemap_partitions,
     docker_client_environment,
+    sitemap_partitions,
 )
 
-
+from . import exports, pipeline
 from .lib.dagster import slack_error_fn
 from .lib.env import (
     RUNNING_AS_TEST_OR_DEV,
     strict_env,
 )
-from . import exports
-from . import pipeline
 
 """
 This file defines all of the core dagster functionality

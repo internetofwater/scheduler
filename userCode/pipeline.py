@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
+import requests
 from bs4 import BeautifulSoup, ResultSet
 from dagster import (
     AssetCheckResult,
@@ -11,15 +13,15 @@ from dagster import (
     asset_check,
     get_dagster_logger,
 )
+
 import docker
-import requests
 from userCode.lib.containers import (
     SitemapHarvestConfig,
     SitemapHarvestContainer,
     SynchronizerConfig,
     SynchronizerContainer,
 )
-from userCode.lib.dagster import filter_partitions
+from userCode.lib.dagster import filter_partitions, sources_partitions_def
 from userCode.lib.env import (
     DATAGRAPH_REPOSITORY,
     GLEANER_SITEMAP_INDEX,
@@ -32,7 +34,6 @@ from userCode.lib.utils import (
     remove_non_alphanumeric,
     template_rclone,
 )
-from userCode.lib.dagster import sources_partitions_def
 
 """
 This file defines all of the core assets that make up the

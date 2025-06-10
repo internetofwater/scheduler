@@ -3,7 +3,6 @@
 
 from typing import Literal, TypeAlias, TypedDict
 
-
 cli_modes: TypeAlias = Literal[
     # All the options for either gleaner or nabu
     "sitemap_harvest",

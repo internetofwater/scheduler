@@ -1,28 +1,30 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime
 import os
 import re
-from typing import Optional
+from datetime import datetime
+
+import jinja2
 from dagster import (
     get_dagster_logger,
 )
-import docker
+from dagster_docker.utils import validate_docker_image
 from jinja2 import Environment, FileSystemLoader
-import jinja2
+
+import docker
+
+from .classes import S3
 from .dagster import (
     dagster_log_with_parsed_level,
 )
-from .classes import S3
-from .types import cli_modes
 from .env import (
     DATAGRAPH_REPOSITORY,
     PROVGRAPH_REPOSITORY,
     RUNNING_AS_TEST_OR_DEV,
     strict_env,
 )
-from dagster_docker.utils import validate_docker_image
+from .types import cli_modes
 
 
 def remove_non_alphanumeric(string: str):
@@ -49,7 +51,7 @@ def run_docker_image(
     image_name: str,  # the name of the docker image to pull and validate
     args: str,  # the list of arguments to pass to the gleaner/nabu command
     action_name: cli_modes,  # the name of the action to run inside gleaner/nabu
-    volumeMapping: Optional[list[str]] = None,
+    volumeMapping: list[str] | None = None,
 ):
     """Run a docker using the same docker socket inside dagster"""
     container_name = create_max_length_container_name(source, action_name)

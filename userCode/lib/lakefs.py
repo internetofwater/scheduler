@@ -1,7 +1,7 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Optional
+
 import lakefs
 from lakefs import Client
 
@@ -70,7 +70,7 @@ class LakeFSClient:
 
         return newBranch
 
-    def get_branch(self, branch_name: str) -> Optional[lakefs.Branch]:
+    def get_branch(self, branch_name: str) -> lakefs.Branch | None:
         """Get a reference to a branch on the lakefs cluster"""
 
         branches = list(self.repository.branches())
