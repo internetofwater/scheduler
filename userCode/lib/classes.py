@@ -154,8 +154,7 @@ class RcloneClient:
         result = subprocess.run(
             [cls.get_bin(), "config", "file"],
             text=True,  # Ensure output is returned as a string
-            capture_output=True,  # Capture standard output
-            # Capture standard error
+            capture_output=True,  # Capture stdout and stderr output
             check=True,
         )
         if result.returncode == 0:
