@@ -3,6 +3,7 @@
 
 import os
 
+import docker
 import requests
 from bs4 import BeautifulSoup, ResultSet
 from dagster import (
@@ -14,7 +15,6 @@ from dagster import (
     get_dagster_logger,
 )
 
-import docker
 from userCode.lib.containers import (
     SitemapHarvestConfig,
     SitemapHarvestContainer,
