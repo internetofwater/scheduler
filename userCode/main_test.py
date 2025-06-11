@@ -15,6 +15,7 @@ from userCode import pipeline
 import userCode.main as main
 from userCode.main import definitions
 from userCode.pipeline import (
+    EXIT_3_IS_FATAL,
     sources_partitions_def,
 )
 
@@ -85,7 +86,9 @@ def test_e2e():
     harvest_job = definitions.get_job_def("harvest_source")
 
     assert harvest_job.execute_in_process(
-        instance=instance, partition_key="ref_mainstems_mainstems__0"
+        instance=instance,
+        tags={EXIT_3_IS_FATAL: str(True)},
+        partition_key="ref_mainstems_mainstems__0",
     ).success, "Job execution failed for partition 'mainstems__0'"
 
     objects_query = """
