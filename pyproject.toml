@@ -76,3 +76,8 @@ force-sort-within-sections = true
 # Order imports by type, which is determined by case, in addition to alphabetically.
 # By putting this to false we can force the order to be alphabetical.
 order-by-type = false
+# in some environments isort doesn't detect
+# the docker package as a third party import
+# seems like this is since the package uses dynamic
+# import functionality; we put this here for the sake of consistency
+known-third-party = ["docker"]
