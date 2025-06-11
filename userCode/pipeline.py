@@ -12,9 +12,9 @@ from dagster import (
     asset_check,
     get_dagster_logger,
 )
+import docker
 import requests
 
-import docker
 from userCode.lib.containers import (
     SitemapHarvestConfig,
     SitemapHarvestContainer,

@@ -9,10 +9,9 @@ from dagster import (
     get_dagster_logger,
 )
 from dagster_docker.utils import validate_docker_image
+import docker
 import jinja2
 from jinja2 import Environment, FileSystemLoader
-
-import docker
 
 from .classes import S3
 from .dagster import (
