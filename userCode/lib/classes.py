@@ -7,13 +7,14 @@ from pathlib import Path
 import subprocess
 import sys
 from typing import Any
+
 from dagster import get_dagster_logger
+from lakefs.client import Client
 from minio import Minio
 from urllib3 import BaseHTTPResponse, PoolManager, Retry
-from lakefs.client import Client
 
-from userCode.lib.lakefs import LakeFSClient
 from userCode.lib.env import repositoryRoot
+from userCode.lib.lakefs import LakeFSClient
 
 from .env import (
     LAKEFS_ACCESS_KEY_ID,
@@ -87,7 +88,7 @@ class S3:
         remote_path: str,
         content_length: int,
         content_type: str,
-        headers={},
+        headers: dict,
     ):
         """Stream data into S3 without loading it all into memory"""
         self.client.put_object(
@@ -124,8 +125,7 @@ class S3:
             S3_DEFAULT_BUCKET, remote_path
         )
         try:
-            for chunk in response.stream(EIGHT_MB, decode_content=decode_content):
-                yield chunk
+            yield from response.stream(EIGHT_MB, decode_content=decode_content)
         finally:
             response.close()
             response.release_conn()
@@ -154,8 +154,7 @@ class RcloneClient:
         result = subprocess.run(
             [cls.get_bin(), "config", "file"],
             text=True,  # Ensure output is returned as a string
-            stdout=subprocess.PIPE,  # Capture standard output
-            stderr=subprocess.PIPE,  # Capture standard error
+            capture_output=True,  # Capture stdout and stderr output
             check=True,
         )
         if result.returncode == 0:

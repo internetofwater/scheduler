@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
 from userCode.lib.env import RUNNING_AS_TEST_OR_DEV, repositoryRoot
 
 

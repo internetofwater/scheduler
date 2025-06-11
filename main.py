@@ -1,12 +1,11 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+import argparse
 import os
 import shutil
 import subprocess
 import sys
-import argparse
-
 
 """
 This file is the CLI for managing Docker Compose-based infrastructure.

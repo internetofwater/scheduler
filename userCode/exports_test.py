@@ -1,22 +1,22 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+from dagster import materialize_to_memory
+import lakefs
 import pytest
 import requests
 
 from userCode.exports import nquads_to_zenodo
-from userCode.lib.classes import S3
-from userCode.lib.env import ZENODO_ACCESS_TOKEN, ZENODO_SANDBOX_ACCESS_TOKEN
-
-from dagster import materialize_to_memory
-import lakefs
 from userCode.lib.classes import (
     RcloneClient,
+    S3,
 )
 from userCode.lib.env import (
     LAKEFS_ACCESS_KEY_ID,
     LAKEFS_ENDPOINT_URL,
     LAKEFS_SECRET_ACCESS_KEY,
+    ZENODO_ACCESS_TOKEN,
+    ZENODO_SANDBOX_ACCESS_TOKEN,
 )
 from userCode.lib.lakefs import LakeFSClient
 from userCode.pipeline import rclone_config

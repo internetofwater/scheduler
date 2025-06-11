@@ -3,7 +3,8 @@
 
 from pathlib import Path
 
-from userCode.lib.types import cli_modes
+from dagster import Config
+
 from userCode.lib.env import (
     GLEANER_CONCURRENT_SITEMAPS,
     GLEANER_LOG_LEVEL,
@@ -20,8 +21,8 @@ from userCode.lib.env import (
     S3_USE_SSL,
     TRIPLESTORE_URL,
 )
+from userCode.lib.types import cli_modes
 from userCode.lib.utils import run_docker_image
-from dagster import Config
 
 
 class SitemapHarvestConfig(Config):
