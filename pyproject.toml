@@ -69,7 +69,7 @@ ignore = [
  ]
 
 [tool.ruff.lint.isort]
-#Sort imports taking into account case sensitivity.
+# Sort imports taking into account case sensitivity.
 case-sensitive = true
 # Don't sort straight-style imports (like import sys) before from-style imports (like from itertools import groupby). Instead, sort the imports by module, independent of import style.
 force-sort-within-sections = true
