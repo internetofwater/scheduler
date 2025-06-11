@@ -1,17 +1,17 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 from datetime import datetime
+import os
 
-import requests
 from dagster import (
     AssetExecutionContext,
     asset,
     get_dagster_logger,
 )
+import requests
 
-from userCode.lib.classes import S3, RcloneClient
+from userCode.lib.classes import RcloneClient, S3
 from userCode.lib.dagster import all_dependencies_materialized
 from userCode.lib.env import (
     DATAGRAPH_REPOSITORY,

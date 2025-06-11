@@ -3,9 +3,9 @@
 
 import io
 import os
+from pathlib import Path
 import subprocess
 import sys
-from pathlib import Path
 from typing import Any
 
 from dagster import get_dagster_logger

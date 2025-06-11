@@ -1,15 +1,15 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+from dagster import materialize_to_memory
 import lakefs
 import pytest
 import requests
-from dagster import materialize_to_memory
 
 from userCode.exports import nquads_to_zenodo
 from userCode.lib.classes import (
-    S3,
     RcloneClient,
+    S3,
 )
 from userCode.lib.env import (
     LAKEFS_ACCESS_KEY_ID,

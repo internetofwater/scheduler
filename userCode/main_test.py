@@ -2,17 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from dagster import (
-    AssetsDefinition,
     AssetSpec,
+    AssetsDefinition,
     DagsterInstance,
     SourceAsset,
     load_assets_from_modules,
     materialize,
 )
 
-import userCode.main as main
 from test.lib import SparqlClient, assert_rclone_config_is_accessible
 from userCode import pipeline
+import userCode.main as main
 from userCode.main import definitions
 from userCode.pipeline import (
     sources_partitions_def,

@@ -1,17 +1,18 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+from datetime import datetime
 import os
 import re
-from datetime import datetime
 
-import docker
-import jinja2
 from dagster import (
     get_dagster_logger,
 )
 from dagster_docker.utils import validate_docker_image
+import jinja2
 from jinja2 import Environment, FileSystemLoader
+
+import docker
 
 from .classes import S3
 from .dagster import (

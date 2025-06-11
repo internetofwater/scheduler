@@ -3,8 +3,6 @@
 
 import os
 
-import docker
-import requests
 from bs4 import BeautifulSoup, ResultSet
 from dagster import (
     AssetCheckResult,
@@ -14,7 +12,9 @@ from dagster import (
     asset_check,
     get_dagster_logger,
 )
+import requests
 
+import docker
 from userCode.lib.containers import (
     SitemapHarvestConfig,
     SitemapHarvestContainer,

@@ -67,3 +67,12 @@ ignore = [
  "E501", # line too long 
  "W291"  # trailing whitespace
  ]
+
+[tool.ruff.lint.isort]
+#Sort imports taking into account case sensitivity.
+case-sensitive = true
+# Don't sort straight-style imports (like import sys) before from-style imports (like from itertools import groupby). Instead, sort the imports by module, independent of import style.
+force-sort-within-sections = true
+# Order imports by type, which is determined by case, in addition to alphabetically.
+# By putting this to false we can force the order to be alphabetical.
+order-by-type = false

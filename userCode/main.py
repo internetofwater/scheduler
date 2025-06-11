@@ -1,7 +1,6 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-import dagster_slack
 from dagster import (
     AssetSelection,
     DefaultScheduleStatus,
@@ -15,6 +14,7 @@ from dagster import (
     materialize,
     schedule,
 )
+import dagster_slack
 
 from userCode.pipeline import (
     docker_client_environment,
