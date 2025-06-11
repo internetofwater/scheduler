@@ -50,6 +50,7 @@ def run_docker_image(
     image_name: str,  # the name of the docker image to pull and validate
     args: str,  # the list of arguments to pass to the gleaner/nabu command
     action_name: cli_modes,  # the name of the action to run inside gleaner/nabu
+    exit_3_is_fatal: bool = False,
     volumeMapping: list[str] | None = None,
 ):
     """Run a docker using the same docker socket inside dagster"""
@@ -110,10 +111,15 @@ def run_docker_image(
 
     get_dagster_logger().info("Sent container Logs to s3")
 
-    if exit_status != 0:
-        raise Exception(
-            f"{container_name} failed with non-zero exit code '{exit_status}'. See logs in S3"
-        )
+    match exit_status:
+        case 0:
+            pass
+        case 3 if not exit_3_is_fatal:
+            get_dagster_logger().warning("Harvest failed with non fatal error")
+        case _:
+            raise Exception(
+                f"{container_name} failed with non-zero exit code '{exit_status}'. See logs in S3"
+            )
 
 
 def template_rclone(input_template_file_path: str) -> str:

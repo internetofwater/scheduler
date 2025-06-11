@@ -43,6 +43,9 @@ class SitemapHarvestConfig(Config):
     validate_shacl: bool = False
     useSSL: bool = S3_USE_SSL
 
+    # whether or not to raise an exception upon encountering a 3 exit code
+    exit_3_is_fatal: bool = False
+
 
 class SitemapHarvestContainer:
     """A container for running web crawl operations"""
@@ -80,6 +83,7 @@ class SitemapHarvestContainer:
             NABU_IMAGE,
             argsAsStr,
             "sitemap_harvest",
+            exit_3_is_fatal=config.exit_3_is_fatal,
             volumeMapping=["/tmp/geoconnex/sitemap.xml:/app/sitemap.xml"],
         )
 
