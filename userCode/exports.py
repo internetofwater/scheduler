@@ -3,14 +3,15 @@
 
 from datetime import datetime
 import os
-from typing import Optional
+
 from dagster import (
     AssetExecutionContext,
     asset,
     get_dagster_logger,
 )
 import requests
-from userCode.lib.classes import S3, RcloneClient
+
+from userCode.lib.classes import RcloneClient, S3
 from userCode.lib.dagster import all_dependencies_materialized
 from userCode.lib.env import (
     DATAGRAPH_REPOSITORY,
@@ -48,7 +49,7 @@ def skip_export(context: AssetExecutionContext) -> bool:
     deps=[finished_individual_crawl],
     group_name="exports",
 )
-def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
+def export_graph_as_nquads(context: AssetExecutionContext) -> str | None:
     """Export the graphdb to nquads"""
     if skip_export(context):
         return
@@ -62,7 +63,7 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
 
     query = "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }"
 
-    headers = {
+    headers: dict[str, str] = {
         "Content-Type": "application/sparql-query",
         "Accept": "application/n-quads",
     }
@@ -82,7 +83,11 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
 
         s3_client = S3()
         s3_client.load_stream(
-            r.raw, filename, -1, content_type="application/n-quads", headers=r.headers
+            r.raw,
+            filename,
+            -1,
+            content_type="application/n-quads",
+            headers=dict(r.headers),
         )
         assert s3_client.object_has_content(filename)
 
@@ -95,7 +100,7 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> Optional[str]:
 def nquads_to_renci(
     context: AssetExecutionContext,
     rclone_config: str,
-    export_graph_as_nquads: Optional[str],  # contains the path to the nquads
+    export_graph_as_nquads: str | None,  # contains the path to the nquads
 ):
     """Upload the nquads to the renci bucket in lakefs"""
     if skip_export(context) or not export_graph_as_nquads:
@@ -116,7 +121,7 @@ def nquads_to_renci(
 @asset(group_name="exports")
 def nquads_to_zenodo(
     context: AssetExecutionContext,
-    export_graph_as_nquads: Optional[str],
+    export_graph_as_nquads: str | None,
 ):
     """Upload nquads to Zenodo as a new deposit"""
     # check if we are running in test mode and thus want to upload to the sandbox

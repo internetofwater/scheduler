@@ -2,20 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from dagster import (
+    AssetSpec,
+    AssetsDefinition,
     DagsterInstance,
+    SourceAsset,
     load_assets_from_modules,
     materialize,
 )
+
+from test.lib import SparqlClient, assert_rclone_config_is_accessible
 from userCode import pipeline
 import userCode.main as main
 from userCode.main import definitions
 from userCode.pipeline import (
     sources_partitions_def,
 )
-
-from dagster import AssetsDefinition, AssetSpec, SourceAsset
-
-from test.lib import SparqlClient, assert_rclone_config_is_accessible
 
 
 def assert_data_is_linked_in_graph():
@@ -66,7 +67,7 @@ def test_e2e():
     filtered_assets = [
         asset
         for asset in assets
-        if isinstance(asset, (AssetsDefinition, AssetSpec, SourceAsset))
+        if isinstance(asset, AssetsDefinition | AssetSpec | SourceAsset)
     ]
     # These three assets are needed to generate the dynamic partition.
     all_graphs = materialize(
@@ -163,7 +164,7 @@ def test_dynamic_partitions():
     filtered_assets = [
         asset
         for asset in assets
-        if isinstance(asset, (AssetsDefinition, AssetSpec, SourceAsset))
+        if isinstance(asset, AssetsDefinition | AssetSpec | SourceAsset)
     ]
     # These three assets are needed to generate the dynamic partition.
     result = materialize(
