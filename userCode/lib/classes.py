@@ -10,6 +10,7 @@ from typing import Any
 
 from dagster import get_dagster_logger
 from lakefs.client import Client
+import minio
 from minio import Minio
 from urllib3 import BaseHTTPResponse, PoolManager, Retry
 
@@ -55,7 +56,18 @@ class S3:
         )
 
         if not self.client.bucket_exists(S3_DEFAULT_BUCKET):
-            self.client.make_bucket(S3_DEFAULT_BUCKET)
+            try:
+                self.client.make_bucket(S3_DEFAULT_BUCKET)
+            except minio.error.S3Error as e:
+                # there is race condition if two clients try to create the same bucket at the same time
+                # if that is the case one will throw an error even though that is fine; as long as the bucket
+                # is there that is all that matters
+                if e.code == "BucketAlreadyOwnedByYou":
+                    get_dagster_logger().warning(
+                        f"S3 client requested to create '{S3_DEFAULT_BUCKET}' but it already exists; skipping creation"
+                    )
+                else:
+                    raise
 
     def object_has_content(self, remote_path: str) -> bool:
         obj = self.client.stat_object(S3_DEFAULT_BUCKET, remote_path)
