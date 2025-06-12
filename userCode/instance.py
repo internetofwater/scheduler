@@ -15,6 +15,8 @@ helpers and are not needed in the main pipeline
 class DeleteRunConfig(Config):
     # default to a month but this can be changed in the UI
     days: int = 30
+    # maximum amount of records to fetch at a time
+    max_records: int = 100_000
 
 
 @asset()
@@ -35,7 +37,7 @@ def cleanup_old_run_records(context: AssetExecutionContext, config: DeleteRunCon
 
     old_run_records = instance.get_run_records(
         filters=RunsFilter(created_before=week_ago),
-        limit=1000000,  # limit how many are fetched at a time, perform this operation in batches
+        limit=config.max_records,  # limit how many are fetched at a time, perform this operation in batches
         ascending=True,  # start from the oldest
     )
 
