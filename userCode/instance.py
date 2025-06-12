@@ -35,7 +35,7 @@ def cleanup_old_run_records(context: AssetExecutionContext, config: DeleteRunCon
 
     old_run_records = instance.get_run_records(
         filters=RunsFilter(created_before=week_ago),
-        limit=1000,  # limit how many are fetched at a time, perform this operation in batches
+        limit=1000000,  # limit how many are fetched at a time, perform this operation in batches
         ascending=True,  # start from the oldest
     )
 
