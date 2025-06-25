@@ -16,6 +16,7 @@ from dagster import (
 )
 import dagster_slack
 
+from userCode import instance
 from userCode.pipeline import (
     docker_client_environment,
     sitemap_partitions,
@@ -86,9 +87,9 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
 
 # expose all the code needed for our dagster repo
 definitions = Definitions(
-    assets=load_assets_from_modules([pipeline, exports]),
+    assets=load_assets_from_modules([pipeline, exports, instance]),
     schedules=[crawl_entire_graph_schedule],
-    asset_checks=load_asset_checks_from_modules([pipeline, exports]),
+    asset_checks=load_asset_checks_from_modules([pipeline, exports, instance]),
     jobs=[harvest_job, export_job],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(
