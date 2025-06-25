@@ -207,7 +207,7 @@ def nabu_orgs_release(context: AssetExecutionContext, config: SynchronizerConfig
 def nabu_orgs_prefix(context: AssetExecutionContext, config: SynchronizerConfig):
     """Move the orgs nq file(s) into the graphdb"""
     SynchronizerContainer("orgs", context.partition_key).run(
-        f"prefix --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}",
+        f"upload --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}",
         config,
     )
 
