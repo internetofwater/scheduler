@@ -11,33 +11,15 @@ inputs:
 runs:
   using: "composite"
   steps:
-    # Checkout Scheduler repo if this is NOT the scheduler repo (e.g., called from nabu)
-    - name: Checkout Scheduler Repo from main (external caller)
-      if: ${{ github.repository != 'internetofwater/scheduler' }}
-      uses: actions/checkout@v4
-      with:
-        repository: internetofwater/scheduler
-        ref: main
-        path: scheduler
-
-    # Checkout current branch/ref if this IS the scheduler repo (e.g., PR in scheduler)
-    - name: Checkout Scheduler Repo with PR ref (internal caller)
-      if: ${{ github.repository == 'internetofwater/scheduler' }}
-      uses: actions/checkout@v4
-      with:
-        path: scheduler
-
-    # Normalize path to the scheduler repo
-    - name: Move to repo root
+    - name: Conditionally Checkout Scheduler Repo
       shell: bash
       run: |
-        if [ -d scheduler ]; then
-          echo "Running from external repo, moving into scheduler/"
-          cd scheduler
-          # Export new working directory to all subsequent steps
-          echo "GITHUB_WORKSPACE=$(pwd)" >> $GITHUB_ENV
+        if [ "$GITHUB_REPOSITORY" != "internetofwater/scheduler" ]; then
+          echo "Checking out scheduler repo into root..."
+          rm -rf ./* .??* || true
+          git clone --depth=1 --branch main https://github.com/internetofwater/scheduler.git .
         else
-          echo "Already in repo root"
+          echo "Already in internetofwater/scheduler — skipping checkout"
         fi
 
     - name: Set up Docker
