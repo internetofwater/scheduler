@@ -76,7 +76,7 @@ def test_e2e():
         selection=["sitemap_partitions", "docker_client_environment"],
         instance=instance,
     )
-    assert not all_graphs.success
+    assert all_graphs.success
 
     all_partitions = sources_partitions_def.get_partition_keys(
         dynamic_partitions_store=instance
