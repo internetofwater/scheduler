@@ -8,14 +8,11 @@ inputs:
   nabu_image:
     required: true
     description: "Docker image to use for Nabu"
-
 runs:
   using: "composite"
   steps:
-    - name: Checkout Code
+    - name: Checkout Scheduler Code
       uses: actions/checkout@v4
-      with:
-        repository: "internetofwater/scheduler"
 
     - name: Set up Docker
       uses: docker/setup-buildx-action@v2
