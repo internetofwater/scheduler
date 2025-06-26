@@ -27,6 +27,19 @@ runs:
       with:
         path: scheduler
 
+    # Normalize path to the scheduler repo
+    - name: Move to repo root
+      shell: bash
+      run: |
+        if [ -d scheduler ]; then
+          echo "Running from external repo, moving into scheduler/"
+          cd scheduler
+          # Export new working directory to all subsequent steps
+          echo "GITHUB_WORKSPACE=$(pwd)" >> $GITHUB_ENV
+        else
+          echo "Already in repo root"
+        fi
+
     - name: Set up Docker
       uses: docker/setup-buildx-action@v2
 
