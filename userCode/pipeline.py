@@ -204,17 +204,17 @@ def nabu_orgs_release(context: AssetExecutionContext, config: SynchronizerConfig
 
 
 @asset(partitions_def=sources_partitions_def, deps=[nabu_orgs_release])
-def nabu_orgs_prefix(context: AssetExecutionContext, config: SynchronizerConfig):
+def nabu_orgs_upload(context: AssetExecutionContext, config: SynchronizerConfig):
     """Move the orgs nq file(s) into the graphdb"""
     SynchronizerContainer("orgs", context.partition_key).run(
-        f"prefix --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}",
+        f"upload --prefix orgs/{context.partition_key} --repository {DATAGRAPH_REPOSITORY}",
         config,
     )
 
 
 @asset(
     partitions_def=sources_partitions_def,
-    deps=[nabu_orgs_prefix, nabu_sync],
+    deps=[nabu_orgs_upload, nabu_sync],
 )
 def finished_individual_crawl(context: AssetExecutionContext):
     """Dummy asset signifying the geoconnex crawl is completed once the orgs and prov nq files are in the graphdb and the graph is synced with the s3 bucket"""

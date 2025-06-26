@@ -8,14 +8,29 @@ inputs:
   nabu_image:
     required: true
     description: "Docker image to use for Nabu"
-
 runs:
   using: "composite"
   steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-      with:
-        repository: "internetofwater/scheduler"
+    # We have to conditionally checkout the repo since there are multiple different scenarios
+    #
+    # - scheduler runs this on main
+    # - scheduler runs this on a PR
+    # - nabu runs this
+    #
+    # If we don't conditionally check out the repo we could check it out twice
+    # when testing scheduler in a PR. And if that is the case we should use the parent's
+    # checkout and branch, not main.
+    # This cannot be accomplished easily with the `actions/checkout` action
+    - name: Conditionally Checkout Scheduler Repo
+      shell: bash
+      run: |
+        if [ "$GITHUB_REPOSITORY" != "internetofwater/scheduler" ]; then
+          echo "Checking out scheduler repo into root..."
+          rm -rf ./* .??* || true
+          git clone --depth=1 --branch main https://github.com/internetofwater/scheduler.git .
+        else
+          echo "Already in internetofwater/scheduler — skipping checkout"
+        fi
 
     - name: Set up Docker
       uses: docker/setup-buildx-action@v2
