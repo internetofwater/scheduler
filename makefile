@@ -63,4 +63,4 @@ init-env:
 	@test -f .env || cp .env.example .env
 
 # All targets are cli commands 
-.PHONY: deps test cov clean dev prod cloudProd down pull init-env
+.PHONY: deps test cov clean up dev prod cloudProd down pull init-env
