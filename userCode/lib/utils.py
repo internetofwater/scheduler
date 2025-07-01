@@ -8,7 +8,6 @@ import re
 from dagster import (
     get_dagster_logger,
 )
-from dagster_docker.utils import validate_docker_image
 import docker
 import jinja2
 from jinja2 import Environment, FileSystemLoader
@@ -58,9 +57,6 @@ def run_docker_image(
 
     get_dagster_logger().info(f"Datagraph value: {DATAGRAPH_REPOSITORY}")
     get_dagster_logger().info(f"Provgraph value: {PROVGRAPH_REPOSITORY}")
-
-    validate_docker_image(image_name)
-
     client = docker.DockerClient()
 
     if volumeMapping:

@@ -12,21 +12,26 @@ dependencies = [
     "beautifulsoup4>=4.12.3",
     "dagster-webserver>=1.9.10",
     "dagster>=1.9.10",
-    "dagster-docker>=0.25.10",
     "dagster-postgres>=0.25.10",
     "dagster-slack>=0.25.10",
     "jinja2>=3.1.5",
     "lakefs>=0.8.0",
     "lxml>=5.3.0",
     "minio>=7.2.15",
-    "pytest>=8.3.4",
     "pyyaml>=6.0.2",
     "requests>=2.32.3",
+    "docker>=7.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest-xdist>=3.6.1",
+    "pyright>=1.1.398",
     "pytest-dotenv>=0.5.2",
     "pytest-cov>=6.0.0",
-    "pyright>=1.1.398",
-    "pytest-xdist>=3.6.1",
+    "pytest>=8.3.4",
 ]
+
 
 [tool.dagster]
 module_name = "userCode.main"
@@ -81,3 +86,4 @@ order-by-type = false
 # seems like this is since the package uses dynamic
 # import functionality; we put this here for the sake of consistency
 known-third-party = ["docker"]
+
