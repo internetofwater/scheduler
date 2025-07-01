@@ -38,7 +38,7 @@ runs:
     - name: Start project in dev
       shell: bash
       run: |
-        python3 main.py dev --detach --build
+        make dev
 
     - name: Debug Docker Containers
       shell: bash

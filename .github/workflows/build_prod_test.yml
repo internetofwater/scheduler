@@ -24,7 +24,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Launch Docker Compose
-        run: python3 main.py prod --detach
+        run: make prod
 
       - name: Debug Docker Containers
         shell: bash

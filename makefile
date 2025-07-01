@@ -1,21 +1,26 @@
-.PHONY: deps
-deps:
-	# Using uv, install all Python dependencies needed for local development and spin up necessary docker services
+# All services, including user code, dagster infra, and storage
+ALL_SERVICES = docker compose --profile localInfra --profile production -f Docker/Docker-compose.yaml
+# All services except storage like S3 and Postgres; those are specified in .env  and point to
+# remote services on a cloud provider 
+PRODUCTION_USING_CLOUD_INFRA = docker compose --profile production -f Docker/Docker-compose.yaml
+# Storage needed for local development; userCode runs local, not in Docker
+DEV_SERVICES = docker compose --profile localInfra -f Docker/Docker-compose.yaml
+
+# Using uv, install all Python dependencies needed for local development and spin up necessary docker services
+deps: init-env
 	uv sync --all-groups --locked
 
-.PHONY: test
-test:
-	# Run pyright to validate types, then spin up pydist with xdist to run tests in parallel
+# Run pyright to validate types, then use pytest with xdist to run tests in parallel
+test: deps init-env
 	uv run pyright && uv run pytest -n 20 -x --maxfail=1 -vv --durations=5
 
-.PHONY: cov
-cov:
+# Run pytest with codecoverage
+cov: deps init-env
 	# Run pytest with coverage and output the results to stdout
 	uv run pytest -n 20 -x --maxfail=1 -vv --durations=5 --cov
 
-.PHONY: clean
+# Remove artfiacts from local dagster runs, tests, or python installs
 clean:
-	# Remove artfiacts from local dagster runs, tests, or python installs
 	rm -f .coverage
 	rm -f coverage.xml
 	rm -rf htmlcov
@@ -23,11 +28,39 @@ clean:
 	rm -rf .logs_queue
 	rm -rf .venv/
 
-.PHONY: dev 
-dev: deps
-	python3 main.py dev --detach
-	python3 main.py dagster-dev
+# Spin up just the services needed for local development
+up: init-env
+	$(DEV_SERVICES) up -d $(ARGS)
 
-.PHONY: prod 
-prod:
-	python3 main.py prod
+# Run dagster in dev mode using your local Python code
+dev: deps up init-env
+	dagster dev
+
+# Run dagster with all Python code in the user code directory as a Docker image
+prod: init-env
+	$(ALL_SERVICES) up -d $(ARGS)
+
+# Build all docker images services for production
+prodBuild: init-env
+	$(ALL_SERVICES) build
+
+# Run dagster with dockerized Python code but don't run any storage locally
+cloudProd: init-env
+	$(PRODUCTION_USING_CLOUD_INFRA) up -d $(ARGS)
+
+# Stop all docker services
+down: 
+	$(ALL_SERVICES) down
+
+# Pull all docker images
+pull:
+	$(ALL_SERVICES) pull
+	docker pull internetofwater/nabu:latest
+	docker pull internetofwater/gleaner:latest
+
+# Copy .env.example to .env only if .env does not exist
+init-env:
+	@test -f .env || cp .env.example .env
+
+# All targets are cli commands 
+.PHONY: deps test cov clean dev prod cloudProd down pull init-env
