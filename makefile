@@ -34,7 +34,7 @@ up: init-env
 
 # Run dagster in dev mode using your local Python code
 dev: deps up init-env
-	uv run dagster dev
+	DAGSTER_POSTGRES_HOST=0.0.0.0 uv run dagster dev
 
 # Run dagster with all Python code in the user code directory as a Docker image
 prod: init-env
