@@ -11,12 +11,12 @@ from dagster import (
 )
 
 from test.lib import SparqlClient, assert_rclone_config_is_accessible
-from userCode import defs
 from userCode.assetGroups import harvest_pipeline
 from userCode.assetGroups.harvest_pipeline import (
     EXIT_3_IS_FATAL,
     sources_partitions_def,
 )
+import userCode.defs as defs
 
 
 def assert_data_is_linked_in_graph():
