@@ -16,15 +16,19 @@ from dagster import (
 )
 import dagster_slack
 
-from userCode import instance
-from userCode.pipeline import (
+from userCode import (
+    config_pipeline,
+    export_pipeline,
+    harvest_pipeline,
+    instance,
+    sync_pipeline,
+)
+from userCode.harvest_pipeline import (
     docker_client_environment,
     sitemap_partitions,
 )
-
-from . import exports, pipeline
-from .lib.dagster import slack_error_fn
-from .lib.env import (
+from userCode.lib.dagster import slack_error_fn
+from userCode.lib.env import (
     RUNNING_AS_TEST_OR_DEV,
     strict_env,
 )
@@ -35,23 +39,32 @@ for starting, monitoring, or initializing the
 pipeline for Geoconnex. 
 """
 
+setup_config_job = define_asset_job(
+    "setup_config",
+    description="setup the config for the pipeline",
+    selection=AssetSelection.groups(config_pipeline.CONFIG_GROUP),
+)
 
-harvest_job = define_asset_job(
-    "harvest_source",
-    description="harvest a source for the geoconnex graphdb",
-    selection=AssetSelection.all() - AssetSelection.groups("exports"),
+harvest_and_sync_job = define_asset_job(
+    "harvest_and_sync",
+    description="harvest a source and sync against the live geoconnex graphdb",
+    selection=AssetSelection.groups(
+        config_pipeline.CONFIG_GROUP,
+        harvest_pipeline.HARVEST_GROUP,
+        sync_pipeline.SYNC_GROUP,
+    ),
 )
 
 export_job = define_asset_job(
     "export_nquads",
     description="export the graphdb as nquads to all partner endpoints",
-    selection=AssetSelection.groups("exports"),
+    selection=AssetSelection.groups(export_pipeline.EXPORT_GROUP),
 )
 
 
 @schedule(
     cron_schedule="@weekly",
-    job=harvest_job,
+    job=harvest_and_sync_job,
     default_status=DefaultScheduleStatus.STOPPED
     if RUNNING_AS_TEST_OR_DEV()
     else DefaultScheduleStatus.RUNNING,
@@ -87,10 +100,14 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
 
 # expose all the code needed for our dagster repo
 definitions = Definitions(
-    assets=load_assets_from_modules([pipeline, exports, instance]),
+    assets=load_assets_from_modules(
+        [instance, harvest_pipeline, export_pipeline, sync_pipeline, config_pipeline]
+    ),
     schedules=[crawl_entire_graph_schedule],
-    asset_checks=load_asset_checks_from_modules([pipeline, exports, instance]),
-    jobs=[harvest_job, export_job],
+    asset_checks=load_asset_checks_from_modules(
+        [instance, harvest_pipeline, export_pipeline, sync_pipeline, config_pipeline]
+    ),
+    jobs=[harvest_and_sync_job, export_job, setup_config_job],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(
             channel="#cgs-iow-bots",

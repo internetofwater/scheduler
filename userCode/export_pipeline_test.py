@@ -6,7 +6,8 @@ import lakefs
 import pytest
 import requests
 
-from userCode.exports import nquads_to_zenodo
+from userCode.config_pipeline import rclone_config
+from userCode.export_pipeline import nquads_to_zenodo
 from userCode.lib.classes import (
     RcloneClient,
     S3,
@@ -19,7 +20,6 @@ from userCode.lib.env import (
     ZENODO_SANDBOX_ACCESS_TOKEN,
 )
 from userCode.lib.lakefs import LakeFSClient
-from userCode.pipeline import rclone_config
 
 
 @pytest.mark.skipif(

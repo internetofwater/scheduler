@@ -21,13 +21,15 @@ from userCode.lib.env import (
     ZENODO_SANDBOX_ACCESS_TOKEN,
 )
 from userCode.lib.lakefs import LakeFSClient
-from userCode.pipeline import finished_individual_crawl
+from userCode.sync_pipeline import finished_individual_crawl
 
 """
 This file defines all geoconenx exports that move data
 outside of the triplestore. 
 
 """
+
+EXPORT_GROUP = "exports"
 
 
 def skip_export(context: AssetExecutionContext) -> bool:
@@ -47,7 +49,7 @@ def skip_export(context: AssetExecutionContext) -> bool:
 
 @asset(
     deps=[finished_individual_crawl],
-    group_name="exports",
+    group_name=EXPORT_GROUP,
 )
 def export_graph_as_nquads(context: AssetExecutionContext) -> str | None:
     """Export the graphdb to nquads"""
@@ -95,7 +97,7 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> str | None:
 
 
 @asset(
-    group_name="exports",
+    group_name=EXPORT_GROUP,
 )
 def nquads_to_renci(
     context: AssetExecutionContext,
@@ -118,7 +120,7 @@ def nquads_to_renci(
     lakefs_client.merge_branch_into_main(branch="develop")
 
 
-@asset(group_name="exports")
+@asset(group_name=EXPORT_GROUP)
 def nquads_to_zenodo(
     context: AssetExecutionContext,
     export_graph_as_nquads: str | None,

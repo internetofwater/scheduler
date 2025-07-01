@@ -216,7 +216,7 @@ class RcloneClient:
         Copy a file from minio to lakefs
 
         path_to_file must be a path relative to the bucket name within minio
-        i.e. copy(test_dir/test_file.json) will copy from `gleanerbucket/test_dir/test_file.json`
+        i.e. copy(test_dir/test_file.json) will copy from `iow/test_dir/test_file.json`
 
         destination_branch is the name of the lakefs branch to copy the file to
         """
