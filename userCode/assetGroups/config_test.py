@@ -7,7 +7,7 @@ import pytest
 import requests
 
 from userCode.assetGroups.config import rclone_config
-from userCode.assetGroups.export import nquads_to_zenodo
+from userCode.assetGroups.export import stream_nquads_to_zenodo
 from userCode.lib.classes import (
     RcloneClient,
     S3,
@@ -40,7 +40,7 @@ def test_export_zenodo_in_sandbox_environment():
     """Make sure our logic for uploading to zenodo works by uploading a file to s3 and then streaming it to the zenodo sandbox env"""
     objNameInS3 = "fileIdentifier"
     S3().load(b"test", objNameInS3)
-    nquads_to_zenodo(
+    stream_nquads_to_zenodo(
         None,
         export_graph_as_nquads=objNameInS3,
     )

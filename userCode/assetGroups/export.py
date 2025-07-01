@@ -51,7 +51,7 @@ def skip_export(context: AssetExecutionContext) -> bool:
     deps=[finished_individual_crawl],
     group_name=EXPORT_GROUP,
 )
-def export_graph_as_nquads(context: AssetExecutionContext) -> str | None:
+def export_graphdb_as_nquads(context: AssetExecutionContext) -> str | None:
     """Export the graphdb to nquads"""
     if skip_export(context):
         return
@@ -99,13 +99,13 @@ def export_graph_as_nquads(context: AssetExecutionContext) -> str | None:
 @asset(
     group_name=EXPORT_GROUP,
 )
-def nquads_to_renci(
+def stream_nquad_file_to_renci(
     context: AssetExecutionContext,
     rclone_config: str,
-    export_graph_as_nquads: str | None,  # contains the path to the nquads
+    export_graphdb_as_nquads: str | None,
 ):
     """Upload the nquads to the renci bucket in lakefs"""
-    if skip_export(context) or not export_graph_as_nquads:
+    if skip_export(context) or not export_graphdb_as_nquads:
         return
 
     rclone_client = RcloneClient(rclone_config)
@@ -114,14 +114,41 @@ def nquads_to_renci(
     rclone_client.copy_to_lakefs(
         destination_branch="develop",
         destination_filename="geoconnex-graph.nq.gz",
-        path_to_file=export_graph_as_nquads,
+        path_to_file=export_graphdb_as_nquads,
+        lakefs_client=lakefs_client,
+    )
+    lakefs_client.merge_branch_into_main(branch="develop")
+
+
+@asset(
+    group_name=EXPORT_GROUP,
+)
+def stream_all_release_graphs_to_renci(
+    context: AssetExecutionContext,
+    rclone_config: str,
+    export_graphdb_as_nquads: str | None,
+):
+    """
+    Stream all release graphs to RENCI
+    """
+    if skip_export(context) or not export_graphdb_as_nquads:
+        return
+
+    lakefs_client = LakeFSClient("geoconnex")
+
+    RELEASE_GRAPH_LOCATION_IN_S3 = "graphs/latest/"
+
+    RcloneClient(rclone_config).copy_to_lakefs(
+        destination_branch="develop",
+        destination_filename="geoconnex-graph.nq.gz",
+        path_to_file=RELEASE_GRAPH_LOCATION_IN_S3,
         lakefs_client=lakefs_client,
     )
     lakefs_client.merge_branch_into_main(branch="develop")
 
 
 @asset(group_name=EXPORT_GROUP)
-def nquads_to_zenodo(
+def stream_nquads_to_zenodo(
     context: AssetExecutionContext,
     export_graph_as_nquads: str | None,
 ):
