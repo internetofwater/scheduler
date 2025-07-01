@@ -42,7 +42,7 @@ def test_export_zenodo_in_sandbox_environment():
     S3().load(b"test", objNameInS3)
     stream_nquads_to_zenodo(
         None,
-        export_graph_as_nquads=objNameInS3,
+        export_graphdb_as_nquads=objNameInS3,
     )
 
 

@@ -150,7 +150,7 @@ def stream_all_release_graphs_to_renci(
 @asset(group_name=EXPORT_GROUP)
 def stream_nquads_to_zenodo(
     context: AssetExecutionContext,
-    export_graph_as_nquads: str | None,
+    export_graphdb_as_nquads: str | None,
 ):
     """Upload nquads to Zenodo as a new deposit"""
     # check if we are running in test mode and thus want to upload to the sandbox
@@ -162,7 +162,7 @@ def stream_nquads_to_zenodo(
         skip_export(context)
         # if we are running against a test sandbox, allow the user to upload
         and not SANDBOX_MODE
-    ) or (not export_graph_as_nquads):
+    ) or (not export_graphdb_as_nquads):
         return
 
     ZENODO_API_URL = (
@@ -194,7 +194,7 @@ def stream_nquads_to_zenodo(
 
     # Read file stream from S3
     # we are not decoding the content to upsert it as gzip to zenodo
-    stream = S3().read_stream(export_graph_as_nquads, decode_content=False)
+    stream = S3().read_stream(export_graphdb_as_nquads, decode_content=False)
 
     # Use the deposit ID to upload the file
     response = requests.put(
