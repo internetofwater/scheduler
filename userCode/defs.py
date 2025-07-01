@@ -118,7 +118,7 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
 
 
 # expose all the code needed for our dagster repo
-definitions = Definitions(
+defs = Definitions(
     assets=load_assets_from_modules(
         [
             instance,

@@ -16,8 +16,7 @@ from userCode.assetGroups.harvest_pipeline import (
     EXIT_3_IS_FATAL,
     sources_partitions_def,
 )
-import userCode.main as main
-from userCode.main import definitions
+import userCode.defs as defs
 
 
 def assert_data_is_linked_in_graph():
@@ -83,7 +82,7 @@ def test_e2e():
     )
     assert len(all_partitions) > 0, "Partitions were not generated"
 
-    harvest_and_sync_job = definitions.get_job_def("harvest_and_sync")
+    harvest_and_sync_job = defs.defs.get_job_def("harvest_and_sync")
 
     assert harvest_and_sync_job.execute_in_process(
         instance=instance,
@@ -111,7 +110,7 @@ def test_e2e():
     assert_rclone_config_is_accessible()
 
     assert (
-        definitions.get_job_def("export_nquads")
+        defs.defs.get_job_def("export_nquads")
         .execute_in_process(instance=instance)
         .success
     )
@@ -161,7 +160,7 @@ def test_dynamic_partitions():
         == mocked_partition_keys
     )
 
-    assets = load_assets_from_modules([main])
+    assets = load_assets_from_modules([defs])
     # It is possible to load certain asset types that cannot be passed into
     # Materialize so we filter them to avoid a pyright type error
     filtered_assets = [
