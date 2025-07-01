@@ -14,6 +14,10 @@ deps: init-env
 test: deps init-env
 	uv run pyright && uv run pytest -n 20 -x --maxfail=1 -vv --durations=5
 
+# Run static code checks
+check: deps init-env
+	uv run pyright && uv run ruff check && dg check defs && dg check yaml
+
 # Run pytest with codecoverage
 cov: deps init-env
 	# Run pytest with coverage and output the results to stdout
@@ -34,7 +38,7 @@ up: init-env
 
 # Run dagster in dev mode using your local Python code
 dev: deps up init-env
-	DAGSTER_POSTGRES_HOST=0.0.0.0 uv run dagster dev
+	DAGSTER_POSTGRES_HOST=0.0.0.0 uv run dg dev
 
 # Run dagster with all Python code in the user code directory as a Docker image
 prod: init-env
