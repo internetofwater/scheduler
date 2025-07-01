@@ -70,6 +70,7 @@ class S3:
                     raise
 
     def object_has_content(self, remote_path: str) -> bool:
+        """Check if an object has data in it"""
         obj = self.client.stat_object(S3_DEFAULT_BUCKET, remote_path)
         return any(
             [

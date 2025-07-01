@@ -4,6 +4,7 @@
 import os
 
 from userCode.lib.classes import RcloneClient, S3
+from userCode.lib.env import S3_DEFAULT_BUCKET
 
 
 def test_get_rclone_bin():
@@ -17,9 +18,11 @@ def test_s3_load():
     S3().load(b"test", "key1")
     assert b"test" == S3().read("key1")
     assert S3().object_has_content("key1")
+    S3().client.remove_object(S3_DEFAULT_BUCKET, "key1")
 
     S3().load(b"", "key2")
     assert not S3().object_has_content("key2")
+    S3().client.remove_object(S3_DEFAULT_BUCKET, "key2")
 
 
 def test_s3_read_stream():
@@ -33,3 +36,4 @@ def test_s3_read_stream():
     for chunk in stream:
         data += chunk
     assert data == longData
+    S3().client.remove_object(S3_DEFAULT_BUCKET, "streamKey")

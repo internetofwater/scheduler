@@ -11,6 +11,7 @@ from dagster import (
 )
 import requests
 
+from userCode.assetGroups.sync import finished_individual_crawl
 from userCode.lib.classes import RcloneClient, S3
 from userCode.lib.dagster import all_dependencies_materialized
 from userCode.lib.env import (
@@ -21,7 +22,6 @@ from userCode.lib.env import (
     ZENODO_SANDBOX_ACCESS_TOKEN,
 )
 from userCode.lib.lakefs import LakeFSClient
-from userCode.sync_pipeline import finished_individual_crawl
 
 """
 This file defines all geoconenx exports that move data

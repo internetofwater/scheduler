@@ -6,8 +6,8 @@ import lakefs
 import pytest
 import requests
 
-from userCode.config_pipeline import rclone_config
-from userCode.export_pipeline import nquads_to_zenodo
+from userCode.assetGroups.config import rclone_config
+from userCode.assetGroups.export import nquads_to_zenodo
 from userCode.lib.classes import (
     RcloneClient,
     S3,

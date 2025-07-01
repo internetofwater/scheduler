@@ -38,7 +38,9 @@ CONFIG_GROUP = "config"
 def rclone_config() -> str:
     """Create the rclone config by templating the rclone.conf.j2 template"""
     get_dagster_logger().info("Creating rclone config")
-    input_file = os.path.join(os.path.dirname(__file__), "templates", "rclone.conf.j2")
+    input_file = os.path.join(
+        os.path.dirname(__file__), "..", "templates", "rclone.conf.j2"
+    )
     templated_conf: str = template_rclone(input_file)
     get_dagster_logger().info(templated_conf)
     return templated_conf

@@ -11,8 +11,8 @@ from dagster import (
 )
 
 from test.lib import SparqlClient, assert_rclone_config_is_accessible
-from userCode import harvest_pipeline
-from userCode.harvest_pipeline import (
+from userCode.assetGroups import harvest_pipeline
+from userCode.assetGroups.harvest_pipeline import (
     EXIT_3_IS_FATAL,
     sources_partitions_def,
 )

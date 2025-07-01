@@ -59,15 +59,6 @@ def run_docker_image(
     get_dagster_logger().info(f"Provgraph value: {PROVGRAPH_REPOSITORY}")
     client = docker.DockerClient()
 
-    if volumeMapping:
-        for volume in volumeMapping:
-            src = volume.split(":")[0]
-            assert os.path.exists(src), f"volume {src} does not exist"
-            if src.endswith("/"):
-                assert os.path.isdir(src), f"volume {src} is not a directory"
-            else:
-                assert os.path.isfile(src), f"volume {src} is not a file"
-
     container = client.containers.run(
         image_name,
         name=container_name,

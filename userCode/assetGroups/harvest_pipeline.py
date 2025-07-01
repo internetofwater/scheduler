@@ -7,7 +7,7 @@ from dagster import (
     asset,
 )
 
-from userCode.config_pipeline import docker_client_environment, sitemap_partitions
+from userCode.assetGroups.config import docker_client_environment, sitemap_partitions
 from userCode.lib.containers import (
     SitemapHarvestConfig,
     SitemapHarvestContainer,
