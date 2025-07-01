@@ -11,7 +11,7 @@ def test_test_env_is_detected():
 
 
 def test_user_code_root():
-    path = os.path.join(repositoryRoot, "main.py")
+    path = os.path.join(repositoryRoot, "README.md")
     assert os.path.isfile(path)
 
     path = os.path.join(repositoryRoot, "NON_EXISTENT_FILE.py")

@@ -17,25 +17,23 @@ For more information about the Geoconnex project generally and how it aims to im
 Install dependencies and spin up necessary Docker services:
 
 ```sh
-make deps && python3 main.py dev --detach && python3 main.py dagster-dev
+make deps && make dev
 ```
 
 Then go to [localhost:3000](http://localhost:3000)
 
-_(You can also just run `make dev` for brevity)_
-
 ## Dockerized / Production Quickstart
 
-Spin up everything and containerize dagster. _(You will need to specify your db/s3 endpont and any other remote services in the `.env` file)_
+- Spin up all services as containers including user code and local db/s3 containers _(make sure to set the `DAGSTER_POSTGRES_HOST` env var to `dagster_postgres`)_
 
 ```sh
-python3 main.py prod
+make prod
 ```
 
-You can specify extra flags to build the containers or use a local db/s3 container _(make sure to set the `DAGSTER_POSTGRES_HOST` env var to `dagster_postgres`)_
+Spin up user code and essential services but not storage _(You will need to specify your db/s3 endpoints and any other remote services in the `.env` file)_
 
 ```sh
-python3 main.py prod --local-services --build --detach
+make cloudProd
 ```
 
 _All cloud deployment and infrastructure as code work is contained within the [harvest.geoconnex.us](https://github.com/internetofwater/harvest.geoconnex.us) repo_
@@ -43,8 +41,7 @@ _All cloud deployment and infrastructure as code work is contained within the [h
 ## Configuration
 
 - All env vars must be defined in `.env` at the root of the repo
-  - When you run `main.py` for the first time, it will prompt you to create a new `.env` file by copying the [`.env.example`](./.env.example)
-- In both `dev` and `prod` modes you can append either `--build` or `--detach` to pass those args to the underlying compose project.
+- The `.env.example` file will be copied to `.env` if it does not exist
 
 ## Testing
 
