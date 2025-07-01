@@ -44,7 +44,7 @@ runs:
     - name: Start project in dev
       shell: bash
       run: |
-        make dev
+        make up
 
     - name: Debug Docker Containers
       shell: bash
