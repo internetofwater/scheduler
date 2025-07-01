@@ -16,15 +16,23 @@ from dagster import (
 )
 import dagster_slack
 
-from userCode import instance
-from userCode.pipeline import (
+from userCode import (
+    instance,
+)
+from userCode.assetGroups import (
+    config,
+    export,
+    harvest_pipeline,
+    index_generator,
+    release_graph_generator,
+    sync,
+)
+from userCode.assetGroups.harvest_pipeline import (
     docker_client_environment,
     sitemap_partitions,
 )
-
-from . import exports, pipeline
-from .lib.dagster import slack_error_fn
-from .lib.env import (
+from userCode.lib.dagster import slack_error_fn
+from userCode.lib.env import (
     RUNNING_AS_TEST_OR_DEV,
     strict_env,
 )
@@ -35,23 +43,47 @@ for starting, monitoring, or initializing the
 pipeline for Geoconnex. 
 """
 
+setup_config_job = define_asset_job(
+    "setup_config",
+    description="setup the config for the pipeline",
+    selection=AssetSelection.groups(config.CONFIG_GROUP),
+)
 
-harvest_job = define_asset_job(
-    "harvest_source",
-    description="harvest a source for the geoconnex graphdb",
-    selection=AssetSelection.all() - AssetSelection.groups("exports"),
+harvest_and_sync_job = define_asset_job(
+    "harvest_and_sync",
+    description="harvest a source and sync against the live geoconnex graphdb",
+    selection=AssetSelection.groups(
+        config.CONFIG_GROUP,
+        harvest_pipeline.HARVEST_GROUP,
+        sync.SYNC_GROUP,
+    ),
 )
 
 export_job = define_asset_job(
     "export_nquads",
     description="export the graphdb as nquads to all partner endpoints",
-    selection=AssetSelection.groups("exports"),
+    selection=AssetSelection.groups(export.EXPORT_GROUP),
+)
+
+generate_release_graph_job = define_asset_job(
+    "harvest_and_release_as_nq",
+    description="harvest a source and generate a release graph nq file in s3",
+    selection=AssetSelection.groups(
+        harvest_pipeline.HARVEST_GROUP,
+        release_graph_generator.RELEASE_GRAPH_GENERATOR_GROUP,
+    ),
+)
+
+index_generator_job = define_asset_job(
+    "index_generator",
+    description="generate an index for qlever",
+    selection=AssetSelection.groups(index_generator.INDEX_GEN_GROUP),
 )
 
 
 @schedule(
     cron_schedule="@weekly",
-    job=harvest_job,
+    job=harvest_and_sync_job,
     default_status=DefaultScheduleStatus.STOPPED
     if RUNNING_AS_TEST_OR_DEV()
     else DefaultScheduleStatus.RUNNING,
@@ -87,10 +119,36 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
 
 # expose all the code needed for our dagster repo
 definitions = Definitions(
-    assets=load_assets_from_modules([pipeline, exports, instance]),
+    assets=load_assets_from_modules(
+        [
+            instance,
+            harvest_pipeline,
+            export,
+            sync,
+            config,
+            release_graph_generator,
+            index_generator,
+        ]
+    ),
     schedules=[crawl_entire_graph_schedule],
-    asset_checks=load_asset_checks_from_modules([pipeline, exports, instance]),
-    jobs=[harvest_job, export_job],
+    asset_checks=load_asset_checks_from_modules(
+        [
+            instance,
+            harvest_pipeline,
+            export,
+            sync,
+            config,
+            release_graph_generator,
+            index_generator,
+        ]
+    ),
+    jobs=[
+        harvest_and_sync_job,
+        export_job,
+        setup_config_job,
+        generate_release_graph_job,
+        index_generator_job,
+    ],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(
             channel="#cgs-iow-bots",

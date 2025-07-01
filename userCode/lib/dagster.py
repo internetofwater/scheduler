@@ -44,18 +44,16 @@ def dagster_log_with_parsed_level(structural_log_message: str) -> None:
         return
     msg = json_log["msg"]
     match level:
-        case "info":
-            get_dagster_logger().info(msg)
         case "warning" | "warn":
             get_dagster_logger().warning(msg)
-        case "error":
+        case "error" | "fatal":
             get_dagster_logger().error(msg)
         case "debug":
             get_dagster_logger().debug(msg)
         case "trace":
             # dagster does not have a trace level
             get_dagster_logger().debug(msg)
-        case _:
+        case "info" | _:
             get_dagster_logger().info(msg)
 
     return

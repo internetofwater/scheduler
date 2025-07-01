@@ -23,6 +23,7 @@ rclone-current*.zip
 rclone.zip
 
 outputfile.nq
+index.nq
 
 .coverage
 coverage.xml

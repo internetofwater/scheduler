@@ -11,13 +11,13 @@ from dagster import (
 )
 
 from test.lib import SparqlClient, assert_rclone_config_is_accessible
-from userCode import pipeline
-import userCode.main as main
-from userCode.main import definitions
-from userCode.pipeline import (
+from userCode.assetGroups import harvest_pipeline
+from userCode.assetGroups.harvest_pipeline import (
     EXIT_3_IS_FATAL,
     sources_partitions_def,
 )
+import userCode.main as main
+from userCode.main import definitions
 
 
 def assert_data_is_linked_in_graph():
@@ -62,7 +62,7 @@ def test_e2e():
     )
 
     instance = DagsterInstance.ephemeral()
-    assets = load_assets_from_modules([pipeline])
+    assets = load_assets_from_modules([harvest_pipeline])
     # It is possible to load certain asset types that cannot be passed into
     # Materialize so we filter them to avoid a pyright type error
     filtered_assets = [
@@ -83,9 +83,9 @@ def test_e2e():
     )
     assert len(all_partitions) > 0, "Partitions were not generated"
 
-    harvest_job = definitions.get_job_def("harvest_source")
+    harvest_and_sync_job = definitions.get_job_def("harvest_and_sync")
 
-    assert harvest_job.execute_in_process(
+    assert harvest_and_sync_job.execute_in_process(
         instance=instance,
         tags={EXIT_3_IS_FATAL: str(True)},
         partition_key="ref_mainstems_mainstems__0",
@@ -102,7 +102,7 @@ def test_e2e():
         "The Florida River Mainstem was not found in the graph"
     )
 
-    assert harvest_job.execute_in_process(
+    assert harvest_and_sync_job.execute_in_process(
         instance=instance, partition_key="cdss_co_gages__0"
     ).success, "Job execution failed for partition 'cdss_co_gages__0'"
 

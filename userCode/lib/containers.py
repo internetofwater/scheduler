@@ -109,9 +109,15 @@ class SynchronizerConfig(Config):
 class SynchronizerContainer:
     """A container for running nabu graph sync operations"""
 
-    def __init__(self, operation_name: cli_modes, partition: str):
+    def __init__(
+        self,
+        operation_name: cli_modes,
+        partition: str,
+        volume_mapping: list[str] | None = None,
+    ):
         self.source = partition
         self.operation: cli_modes = operation_name
+        self.volume_mapping = volume_mapping
 
     def run(self, args: str, config: SynchronizerConfig):
         # args that should be applied to all nabu commands
@@ -139,4 +145,5 @@ class SynchronizerContainer:
             NABU_IMAGE,
             argsAsStr,
             self.operation,
+            volumeMapping=self.volume_mapping,
         )

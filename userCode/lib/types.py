@@ -15,6 +15,7 @@ cli_modes: TypeAlias = Literal[
     "prov-object",
     "orgs-release",
     "orgs",
+    "concat",
 ]
 
 

@@ -19,7 +19,10 @@ class DeleteRunConfig(Config):
     max_records: int = 100_000
 
 
-@asset()
+CLEANUP_GROUP = "cleanup"
+
+
+@asset(group_name=CLEANUP_GROUP)
 def cleanup_old_run_records(context: AssetExecutionContext, config: DeleteRunConfig):
     """
     Delete old runs and their associated events from storage. Useful for
