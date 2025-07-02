@@ -1,0 +1,38 @@
+[data]
+NAME         = geoconnex
+GET_DATA_CMD =
+DESCRIPTION  = the full geoconnex graph
+FORMAT = nq
+
+# The format for INPUT_FILES should be such that `ls ${INPUT_FILES}` lists all
+# input files. CAT_INPUT_FILES should write a concatenation of all input files
+# to stdout. For example, if your input files are gzipped, you can write `zcat
+# ${INPUT_FILES}`. Regarding SETTINGS_JSON, look at the other Qleverfiles for
+# examples. Several batches of size `num-triples-per-batch` are kept in RAM at 
+# the same time; increasing this, increases the memory usage but speeds up the
+# loading process.
+[index]
+INPUT_FILES     = ../../../index.nq
+CAT_INPUT_FILES = cat ${INPUT_FILES}
+SETTINGS_JSON   = { "num-triples-per-batch": 10000 }
+
+# The server listens on PORT. If you want to send privileged commands to the
+# server, you need to specify an ACCESS_TOKEN, which you then have to set via a
+# URL parameter `access_token`. It should not be easily guessable, unless you
+# don't mind others to get privileged access to your server.
+[server]
+PORT         = 8888
+ACCESS_TOKEN = ChangeMe
+
+[runtime]
+SYSTEM = docker
+IMAGE  = docker.io/adfreiburg/qlever:latest
+
+# UI_PORT specifies the port of the QLever UI web app, when you run `qlever ui`.
+# The UI_CONFIG must be one of the slugs from http://qlever.cs.uni-freiburg.de
+# (see the dropdown menu on the top right, the slug is the last part of the URL).
+# It determines the example queries and which SPARQL queries are launched to
+# obtain suggestions as you type a query.
+[ui]
+UI_PORT   = 8176
+UI_CONFIG = default

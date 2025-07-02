@@ -32,3 +32,12 @@ htmlcov/
 node_modules/
 
 .tmp_dagster_home*/
+
+# qlever indices
+*index-log.txt
+geoconnex.index*
+geoconnex.internal*
+geoconnex.vocabulary*
+geoconnex.meta-data.json
+geoconnex.settings.json
+*.meta

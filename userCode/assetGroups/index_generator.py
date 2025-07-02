@@ -50,3 +50,12 @@ def concatenated_release_nq_for_all_sources(config: SynchronizerConfig):
         f"concat --prefix graphs/latest {indexnqPathInContainer}",
         config,
     )
+
+
+@asset(
+    deps=[concatenated_release_nq_for_all_sources],
+    # this is put in a separate group since it is potentially expensive
+    # and thus we don't want to run it automatically
+    group_name=INDEX_GEN_GROUP,
+)
+def qlever_index(): ...
