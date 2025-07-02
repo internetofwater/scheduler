@@ -12,14 +12,10 @@ FORMAT = nq
 # the same time; increasing this, increases the memory usage but speeds up the
 # loading process.
 [index]
-INPUT_FILES     = ../../../index.nq
+INPUT_FILES     = geoconnex_graph.nq
 CAT_INPUT_FILES = cat ${INPUT_FILES}
-SETTINGS_JSON   = { "num-triples-per-batch": 10000 }
+SETTINGS_JSON   = { "num-triples-per-batch": 100000 }
 
-# The server listens on PORT. If you want to send privileged commands to the
-# server, you need to specify an ACCESS_TOKEN, which you then have to set via a
-# URL parameter `access_token`. It should not be easily guessable, unless you
-# don't mind others to get privileged access to your server.
 [server]
 PORT         = 8888
 ACCESS_TOKEN = ChangeMe
@@ -28,11 +24,6 @@ ACCESS_TOKEN = ChangeMe
 SYSTEM = docker
 IMAGE  = docker.io/adfreiburg/qlever:latest
 
-# UI_PORT specifies the port of the QLever UI web app, when you run `qlever ui`.
-# The UI_CONFIG must be one of the slugs from http://qlever.cs.uni-freiburg.de
-# (see the dropdown menu on the top right, the slug is the last part of the URL).
-# It determines the example queries and which SPARQL queries are launched to
-# obtain suggestions as you type a query.
 [ui]
 UI_PORT   = 8176
 UI_CONFIG = default

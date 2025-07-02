@@ -24,6 +24,7 @@ rclone.zip
 
 outputfile.nq
 index.nq
+geoconnex_graph.nq
 
 .coverage
 coverage.xml
@@ -41,3 +42,6 @@ geoconnex.vocabulary*
 geoconnex.meta-data.json
 geoconnex.settings.json
 *.meta
+geoconnex*log.txt
+geoconnex.ui*
+Qleverfile-ui.yml
