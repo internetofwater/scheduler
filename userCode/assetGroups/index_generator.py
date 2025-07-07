@@ -33,32 +33,29 @@ INDEX_GEN_GROUP = "index"
     # and thus we don't want to run it automatically
     group_name=INDEX_GEN_GROUP,
 )
-def concatenated_release_nq_for_all_sources(config: SynchronizerConfig):
-    """Concatenate all release graphs on disk and form one large nq file"""
+def pull_release_nq_for_all_sources(config: SynchronizerConfig):
+    """pull all release graphs on disk and put them in one folder"""
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    fullGraphNq = os.path.join(current_dir, "qlever", "geoconnex_graph.nq")
+    fullGraphFolder = os.path.join(current_dir, "qlever", "geoconnex_graph/")
 
-    # Ensure it's a file, not a directory
-    assert not os.path.isdir(fullGraphNq), (
-        "You must use a file for geoconnex_graph.nq, not a directory"
+    if not os.path.exists(fullGraphFolder):
+        os.mkdir(fullGraphFolder)
+
+    assert os.path.isdir(fullGraphFolder), (
+        "You must use a directory for geoconnex_graph not a file"
     )
-    if not os.path.exists(fullGraphNq):
-        # if the file doesn't exist then create it
-        # so docker can use it for the volume mount
-        with open(fullGraphNq, "w"):
-            pass
 
-    fullGraphNqInContainer = "/app/geoconnex_graph.nq"
+    fullGraphNqInContainer = "/app/geoconnex_graph/"
     SynchronizerContainer(
-        "concat", "all", volume_mapping=[f"{fullGraphNq}:{fullGraphNqInContainer}"]
+        "concat", "all", volume_mapping=[f"{fullGraphFolder}:{fullGraphNqInContainer}"]
     ).run(
-        f"concat --prefix graphs/latest {fullGraphNqInContainer}",
+        f"pull --prefix graphs/latest {fullGraphNqInContainer}",
         config,
     )
 
 
 @asset(
-    deps=[concatenated_release_nq_for_all_sources],
+    deps=[pull_release_nq_for_all_sources],
     # this is put in a separate group since it is potentially expensive
     # and thus we don't want to run it automatically
     group_name=INDEX_GEN_GROUP,
@@ -123,7 +120,12 @@ def oci_artifact():
     registry = "localhost:5000" if RUNNING_AS_TEST_OR_DEV() else "ghcr.io"
 
     # push the index to the remote
-    command = f"oras push {registry}/internetofwater/geoconnex-qlever-index:{tags} index:application/vnd.iow.qlever.index+tar+gzip --username internetofwater --password-stdin"
+    filesToUpload = ""
+    for file in os.listdir("geoconnex_graph"):
+        if file.endswith(".nq"):
+            filesToUpload += f" geoconnex_graph/{file}:application/n-quads"
+
+    command = f"oras push {registry}/internetofwater/geoconnex-graph:{tags} {filesToUpload} --username internetofwater --password-stdin"
     get_dagster_logger().info(f"Running '{command}'")
 
     result = subprocess.run(

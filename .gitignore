@@ -45,3 +45,5 @@ geoconnex.settings.json
 geoconnex*log.txt
 geoconnex.ui*
 Qleverfile-ui.yml
+geoconnex_graph/
+test.sh

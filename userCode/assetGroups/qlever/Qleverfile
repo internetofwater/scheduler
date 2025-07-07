@@ -12,8 +12,9 @@ FORMAT = nq
 # the same time; increasing this, increases the memory usage but speeds up the
 # loading process.
 [index]
-INPUT_FILES     = geoconnex_graph.nq
-CAT_INPUT_FILES = cat ${INPUT_FILES}
+# you can mimic being in a different directory by just using cat with relative path
+INPUT_FILES     = geoconnex_graph/*.nq
+CAT_INPUT_FILES = cat geoconnex_graph/*.nq
 SETTINGS_JSON   = { "num-triples-per-batch": 100000 }
 
 [server]

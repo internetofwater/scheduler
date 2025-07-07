@@ -1,28 +1,24 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+FROM ghcr.io/oras-project/oras:v1.2.2 AS oras
+
+WORKDIR /workspace
+
+RUN mkdir -p /workspace/oras_cache
+
+# mount the oras cache into the container to use this from host 
+ENV ORAS_CACHE=/workspace/oras_cache
+
+RUN mkdir -p /workspace/graphs
+
+RUN oras pull ghcr.io/internetofwater/geoconnex-graph:latest
+
 FROM adfreiburg/qlever:commit-55c05d4
 
-# Switch to root to install python
-USER root
+COPY --from=oras /workspace/geoconnex_graph geoconnex_graph
 
-# Install Python
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Optional: switch back to the original user (often 'qlever')
-USER qlever
-
-# Copy your files
-COPY index /home/qlever/index
-COPY Qleverfile /home/qlever/Qleverfile
-
-# Install qlever Python package
-RUN pip3 install qlever --no-cache-dir --break-system-packages
-
-# Set working directory to 'index'
-WORKDIR /home/qlever/index
+RUN echo '{ "num-triples-per-batch": 100000 }' > geoconnex.settings.json
+RUN cat geoconnex_graph/*.nq | IndexBuilderMain -i geoconnex -s geoconnex.settings.json -F nq -f -
 
 ENTRYPOINT ["bash", "-c", "ServerMain -i geoconnex -j 8 -p 8888 -m 5G -c 2G -e 1G -k 200 -s 30s"]
