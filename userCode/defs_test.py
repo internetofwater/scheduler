@@ -11,8 +11,8 @@ from dagster import (
 )
 
 from test.lib import SparqlClient, assert_rclone_config_is_accessible
-from userCode.assetGroups import harvest_pipeline
-from userCode.assetGroups.harvest_pipeline import (
+from userCode.assetGroups import config, harvest
+from userCode.assetGroups.harvest import (
     EXIT_3_IS_FATAL,
     sources_partitions_def,
 )
@@ -61,7 +61,7 @@ def test_e2e():
     )
 
     instance = DagsterInstance.ephemeral()
-    assets = load_assets_from_modules([harvest_pipeline])
+    assets = load_assets_from_modules([harvest, config])
     # It is possible to load certain asset types that cannot be passed into
     # Materialize so we filter them to avoid a pyright type error
     filtered_assets = [
@@ -72,7 +72,7 @@ def test_e2e():
     # These three assets are needed to generate the dynamic partition.
     all_graphs = materialize(
         assets=filtered_assets,
-        selection=["sitemap_partitions", "docker_client_environment"],
+        selection=["sitemap_partitions", "docker_client_environment", "rclone_config"],
         instance=instance,
     )
     assert all_graphs.success

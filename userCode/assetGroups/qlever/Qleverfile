@@ -22,7 +22,7 @@ ACCESS_TOKEN = ChangeMe
 
 [runtime]
 SYSTEM = docker
-IMAGE  = docker.io/adfreiburg/qlever:latest
+IMAGE  = docker.io/adfreiburg/qlever:commit-55c05d4
 
 [ui]
 UI_PORT   = 8176
