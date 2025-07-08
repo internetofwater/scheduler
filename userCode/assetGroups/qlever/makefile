@@ -4,13 +4,18 @@
 index:
 	qlever index --overwrite-existing && mkdir -p index && mv geoconnex.* index/
 
-start:
+startLocal:
 	cd index && qlever start --image docker.io/adfreiburg/qlever:commit-55c05d4 --name geoconnex --description graph --port 8888
 
-stop:
+stopLocal:
 	qlever stop
 
-restart: stop start
+restartLocal: stop start
 	echo "Restarting"
 
-.PHONY: index start stop restart
+
+startDocker:
+	docker compose up -d && qlever ui --host-name localhost
+
+stopDocker:
+	docker compose down && qlever ui --stop
