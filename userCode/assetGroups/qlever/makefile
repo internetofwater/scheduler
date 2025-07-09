@@ -13,6 +13,9 @@ stopLocal:
 restartLocal: stop start
 	echo "Restarting"
 
+buildDocker:
+	@test -n "$S3_ACCESS_KEY" && test -n "$S3_SECRET_KEY" || echo "S3_ACCESS_KEY and S3_SECRET_KEY must be set"
+	docker build --secret id=S3_ACCESS_KEY,env=S3_ACCESS_KEY --secret id=S3_SECRET_KEY,env=S3_SECRET_KEY .
 
 startDocker:
 	docker compose up -d && qlever ui --host-name localhost
