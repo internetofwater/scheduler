@@ -22,12 +22,12 @@ from userCode import (
 from userCode.assetGroups import (
     config,
     export,
-    harvest_pipeline,
+    harvest,
     index_generator,
     release_graph_generator,
     sync,
 )
-from userCode.assetGroups.harvest_pipeline import (
+from userCode.assetGroups.harvest import (
     docker_client_environment,
     sitemap_partitions,
 )
@@ -53,8 +53,7 @@ harvest_and_sync_job = define_asset_job(
     "harvest_and_sync",
     description="harvest a source and sync against the live geoconnex graphdb",
     selection=AssetSelection.groups(
-        config.CONFIG_GROUP,
-        harvest_pipeline.HARVEST_GROUP,
+        harvest.HARVEST_GROUP,
         sync.SYNC_GROUP,
     ),
 )
@@ -69,7 +68,7 @@ generate_release_graph_job = define_asset_job(
     "harvest_and_release_as_nq",
     description="harvest a source and generate a release graph nq file in s3",
     selection=AssetSelection.groups(
-        harvest_pipeline.HARVEST_GROUP,
+        harvest.HARVEST_GROUP,
         release_graph_generator.RELEASE_GRAPH_GENERATOR_GROUP,
     ),
 )
@@ -122,7 +121,7 @@ defs = Definitions(
     assets=load_assets_from_modules(
         [
             instance,
-            harvest_pipeline,
+            harvest,
             export,
             sync,
             config,
@@ -134,7 +133,7 @@ defs = Definitions(
     asset_checks=load_asset_checks_from_modules(
         [
             instance,
-            harvest_pipeline,
+            harvest,
             export,
             sync,
             config,

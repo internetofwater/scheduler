@@ -19,6 +19,7 @@ dependencies = [
     "minio>=7.2.15",
     "requests>=2.32.3",
     "docker>=7.1.0",
+    "qlever>=0.5.23",
 ]
 
 [dependency-groups]

@@ -7,7 +7,7 @@ from dagster import (
     asset,
 )
 
-from userCode.assetGroups.harvest_pipeline import harvest_sitemap
+from userCode.assetGroups.harvest import harvest_sitemap
 from userCode.lib.containers import (
     SynchronizerConfig,
     SynchronizerContainer,
