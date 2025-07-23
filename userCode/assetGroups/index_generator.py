@@ -3,6 +3,7 @@
 
 from datetime import datetime
 import os
+from pathlib import Path
 import subprocess
 
 from dagster import (
@@ -49,7 +50,7 @@ def pull_release_nq_for_all_sources(config: SynchronizerConfig):
     SynchronizerContainer(
         "concat", "all", volume_mapping=[f"{fullGraphFolder}:{fullGraphNqInContainer}"]
     ).run(
-        f"pull --prefix graphs/latest {fullGraphNqInContainer}",
+        f"pull --prefix graphs/latest/ {fullGraphNqInContainer}",
         config,
     )
 
@@ -62,8 +63,8 @@ def pull_release_nq_for_all_sources(config: SynchronizerConfig):
 )
 def qlever_index():
     logger = get_dagster_logger()
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    qlever_dir = os.path.join(current_dir, "qlever")
+    current_dir = Path(__file__).parent
+    qlever_dir = current_dir / "qlever"
     qlever_cmd = [
         "qlever",
         "index",

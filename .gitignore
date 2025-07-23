@@ -46,3 +46,4 @@ geoconnex*log.txt
 geoconnex.ui*
 geoconnex_graph/
 test.sh
+*.bin
