@@ -10,20 +10,17 @@ Quads don't add anything strictly necessary for user facing sparql queries, howe
 ## Tracing how context is added:
 
 - `harvest` (previously known as gleaner)
-
   - `summoned/` and `prov/` directories are populated
   - a unique id is associated with each jsonld document
     ![alt text](./images/bucket-context.png)
   - nothing is added in the graphdb at this point
 
 - `nabu_release`/`nabu_object`/`nabu_prune`
-
   - adds the data to the graph and the associated context term in the graph matches back to the (what appears to be a hash) of the run
 
   ![alt text](./images/quads.png)
 
 - `nabu_prov_release`/`nabu_prov_clear`/`nabu_prov_object`
-
   - very similar to above, but just for the prov graph
 
 - `nabu_orgs_release`/`nabu_orgs`
