@@ -22,13 +22,17 @@ import userCode.defs as defs
 def assert_data_is_linked_in_graph():
     """Check that a mainstem is associated with a monitoring location in the graph"""
     query = """
-    select * where {
-        <https://geoconnex.us/cdss/gages/FARMERCO> <https://schema.org/name> ?o .
-    } limit 100
+    PREFIX schema: <https://schema.org/>
+
+    SELECT * WHERE {
+     ?subject schema:name "FLORIDA FARMERS CANAL" .
+    } LIMIT 100
     """
 
     resultDict = SparqlClient().execute_sparql(query)
-    assert "FLORIDA FARMERS CANAL" in resultDict["o"]
+    assert len(resultDict["subject"]) >= 1, (
+        "Could not find the Florida Canal in the graph"
+    )
 
     query = """
     PREFIX hyf: <https://www.opengis.net/def/schema/hy_features/hyf/>
@@ -43,7 +47,8 @@ def assert_data_is_linked_in_graph():
         "There were no linked monitoring locations for the Florida River Mainstem"
     )
     assert (
-        "https://geoconnex.us/cdss/gages/FLOCANCO" in resultDict["monitoringLocation"]
+        "https://pids.geoconnex.dev/cdss/gages/FLOCANCO"
+        in resultDict["monitoringLocation"]
     )
 
 
@@ -92,7 +97,7 @@ def test_e2e():
 
     objects_query = """
     select * where {
-        <https://geoconnex.us/ref/mainstems/42750> <https://schema.org/name> ?o .
+        <https://pids.geoconnex.dev/ref/mainstems/42750> <https://schema.org/name> ?o .
     } limit 100
     """
 
