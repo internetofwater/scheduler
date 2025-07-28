@@ -69,7 +69,8 @@ class SitemapHarvestContainer:
             f"--bucket {config.bucket} "
             f"--log-level {config.log_level} "
             f"--concurrent-sitemaps {config.concurrent_sitemaps} "
-            f"--sitemap-workers {config.sitemap_workers}"
+            f"--sitemap-workers {config.sitemap_workers} "
+            f"--log-as-json "
         )
 
         if config.useSSL:
@@ -130,6 +131,7 @@ class SynchronizerContainer:
             f"--s3-secret-key {config.s3_secret_key} "
             f"--log-level {config.log_level} "
             f"--endpoint {config.endpoint} "
+            f"--log-as-json "
         )
 
         argsAsStr = args + " " + configArgs

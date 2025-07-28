@@ -64,6 +64,7 @@ LAKEFS_ACCESS_KEY_ID = strict_env("LAKEFS_ACCESS_KEY_ID")
 LAKEFS_SECRET_ACCESS_KEY = strict_env("LAKEFS_SECRET_ACCESS_KEY")
 ZENODO_ACCESS_TOKEN = strict_env("ZENODO_ACCESS_TOKEN")
 ZENODO_SANDBOX_ACCESS_TOKEN = strict_env("ZENODO_SANDBOX_ACCESS_TOKEN")
+GHCR_TOKEN = strict_env("GHCR_TOKEN")
 
 ### Dagster Options
 repositoryRoot = Path(__file__).parent.parent.parent.absolute()

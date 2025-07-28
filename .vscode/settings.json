@@ -19,5 +19,8 @@
     "**/*.egg-info/": true,
     ".venv/": true,
     ".ruff_cache/": true
+  },
+  "files.associations": {
+    "Qleverfile": "toml"
   }
 }

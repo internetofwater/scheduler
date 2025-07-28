@@ -6,7 +6,7 @@ from dagster import (
     asset,
 )
 
-from userCode.assetGroups.harvest_pipeline import harvest_sitemap
+from userCode.assetGroups.harvest import harvest_sitemap
 from userCode.lib.containers import (
     SynchronizerConfig,
     SynchronizerContainer,
@@ -30,7 +30,7 @@ def release_graphs_for_all_summoned_jsonld(
 ):
     """Construct an nq file from all the jsonld for a single sitemap"""
     SynchronizerContainer("prov-release", context.partition_key).run(
-        f"release --prefix summoned/{context.partition_key}", config
+        f"release --compress --prefix summoned/{context.partition_key}", config
     )
 
 
@@ -44,6 +44,6 @@ def release_graphs_for_org_metadata(
 ):
     """Construct an nq file for the metadata of an organization."""
     SynchronizerContainer("orgs-release", context.partition_key).run(
-        f"release --prefix orgs/{context.partition_key}",
+        f"release --compress --prefix orgs/{context.partition_key}",
         config,
     )

@@ -1,0 +1,36 @@
+[data]
+NAME         = geoconnex
+GET_DATA_CMD =
+DESCRIPTION  = the full geoconnex graph
+FORMAT = nq
+# need to set this to the IP address of the host
+# otherwise qlever will try to use the address
+# in the host within the docker network 
+HOST_NAME = 127.0.0.1
+
+# The format for INPUT_FILES should be such that `ls ${INPUT_FILES}` lists all
+# input files. CAT_INPUT_FILES should write a concatenation of all input files
+# to stdout. For example, if your input files are gzipped, you can write `zcat
+# ${INPUT_FILES}`. Regarding SETTINGS_JSON, look at the other Qleverfiles for
+# examples. Several batches of size `num-triples-per-batch` are kept in RAM at 
+# the same time; increasing this, increases the memory usage but speeds up the
+# loading process.
+[index]
+# you can mimic being in a different directory by just using cat with relative path
+INPUT_FILES     = geoconnex_graph/*.nq.gz
+CAT_INPUT_FILES = find . -name 'geoconnex_graph/*.gz' -print0 | xargs -0 gunzip -c
+SETTINGS_JSON   = { "num-triples-per-batch": 100000 }
+
+[server]
+# this port should match the port that is exposed from the dockerfile
+PORT         = 8888
+ACCESS_TOKEN = ChangeMe
+
+[runtime]
+SYSTEM = docker
+# pin to a specific image
+IMAGE  = docker.io/adfreiburg/qlever:commit-55c05d4
+
+[ui]
+UI_PORT   = 8176
+UI_CONFIG = default

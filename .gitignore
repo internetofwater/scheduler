@@ -24,6 +24,7 @@ rclone.zip
 
 outputfile.nq
 index.nq
+geoconnex_graph.nq
 
 .coverage
 coverage.xml
@@ -32,3 +33,17 @@ htmlcov/
 node_modules/
 
 .tmp_dagster_home*/
+
+# qlever indices
+*index-log.txt
+geoconnex.index*
+geoconnex.internal*
+geoconnex.vocabulary*
+geoconnex.meta-data.json
+geoconnex.settings.json
+*.meta
+geoconnex*log.txt
+geoconnex.ui*
+geoconnex_graph/
+test.sh
+*.bin
