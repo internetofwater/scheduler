@@ -78,6 +78,20 @@ runs:
         echo "Failed to connect to MinIO after 10 attempts."
         exit 1
 
+    - name: Wait for GraphDB Repository Health
+      shell: bash
+      run: |
+        for i in {1..10}; do
+          if curl --max-time 10 -fs http://localhost:7200/repositories/iow/health; then
+            echo "GraphDB repository 'iow' is healthy!"
+            exit 0
+          fi
+          echo "Waiting for GraphDB 'iow' repo to be ready... Attempt $i"
+          sleep 3
+        done
+        echo "GraphDB 'iow' repository is not healthy after 10 attempts."
+        exit 1
+
     - name: Run tests that don't require secrets
       shell: bash
       run: |
