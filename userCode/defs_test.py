@@ -11,7 +11,6 @@ from dagster import (
 )
 
 from test.lib import SparqlClient, assert_rclone_config_is_accessible
-from userCode.assetGroups import config, harvest
 from userCode.assetGroups.harvest import (
     EXIT_3_IS_FATAL,
     sources_partitions_def,
@@ -66,34 +65,27 @@ def test_e2e():
     )
 
     instance = DagsterInstance.ephemeral()
-    assets = load_assets_from_modules([harvest, config])
-    # It is possible to load certain asset types that cannot be passed into
-    # Materialize so we filter them to avoid a pyright type error
-    filtered_assets = [
-        asset
-        for asset in assets
-        if isinstance(asset, AssetsDefinition | AssetSpec | SourceAsset)
-    ]
-    # These three assets are needed to generate the dynamic partition.
-    all_graphs = materialize(
-        assets=filtered_assets,
-        selection=["sitemap_partitions", "docker_client_environment", "rclone_config"],
-        instance=instance,
+
+    assert (
+        defs.defs.get_job_def("setup_config")
+        .execute_in_process(instance=instance)
+        .success
     )
-    assert all_graphs.success
 
     all_partitions = sources_partitions_def.get_partition_keys(
         dynamic_partitions_store=instance
     )
     assert len(all_partitions) > 0, "Partitions were not generated"
 
-    harvest_and_sync_job = defs.defs.get_job_def("harvest_and_sync")
-
-    assert harvest_and_sync_job.execute_in_process(
-        instance=instance,
-        tags={EXIT_3_IS_FATAL: str(True)},
-        partition_key="ref_mainstems_mainstems__0",
-    ).success, "Job execution failed for partition 'mainstems__0'"
+    assert (
+        defs.defs.get_job_def("harvest_and_sync")
+        .execute_in_process(
+            instance=instance,
+            tags={EXIT_3_IS_FATAL: str(True)},
+            partition_key="ref_mainstems_mainstems__0",
+        )
+        .success
+    ), "Job execution failed for partition 'mainstems__0'"
 
     objects_query = """
     select * where {
@@ -106,9 +98,11 @@ def test_e2e():
         "The Florida River Mainstem was not found in the graph"
     )
 
-    assert harvest_and_sync_job.execute_in_process(
-        instance=instance, partition_key="cdss_co_gages__0"
-    ).success, "Job execution failed for partition 'cdss_co_gages__0'"
+    assert (
+        defs.defs.get_job_def("harvest_and_sync")
+        .execute_in_process(instance=instance, partition_key="cdss_co_gages__0")
+        .success
+    ), "Job execution failed for partition 'cdss_co_gages__0'"
 
     assert_data_is_linked_in_graph()
     # Don't want to actually transfer the file but should check it is installed
