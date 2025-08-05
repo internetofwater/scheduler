@@ -36,7 +36,7 @@ repos:
       - id: prettier
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.12.2
+    rev: v0.12.7
     hooks:
       # Run the linter.
       - id: ruff
@@ -44,13 +44,13 @@ repos:
       - id: ruff-format
   - repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
-    rev: 0.7.19
+    rev: 0.8.4
     hooks:
       # Update the uv lockfile
       - id: uv-lock
       - id: uv-export
   - repo: https://github.com/google/addlicense
-    rev: "55a521bf81c24480094950caa3566548fa63875e"
+    rev: "v1.2.0-rc0"
     hooks:
       - id: addlicense
         args:
