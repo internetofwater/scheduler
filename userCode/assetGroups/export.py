@@ -117,7 +117,6 @@ def stream_nquad_file_to_renci(
         path_to_file=export_graphdb_as_nquads,
         lakefs_client=lakefs_client,
     )
-    lakefs_client.merge_branch_into_main(branch="develop")
 
 
 @asset(
@@ -144,7 +143,17 @@ def stream_all_release_graphs_to_renci(
         path_to_file=RELEASE_GRAPH_LOCATION_IN_S3,
         lakefs_client=lakefs_client,
     )
-    lakefs_client.merge_branch_into_main(branch="develop")
+
+
+@asset(group_name=EXPORT_GROUP)
+def merge_lakefs_branch_into_main():
+    """
+    Manually merge the develop branch into the main branch
+    the renci lakefs. This is done as a separate step to avoid
+    auto merging unfinished or incorrect assets until they have been
+    checked
+    """
+    LakeFSClient("geoconnex").merge_branch_into_main(branch="develop")
 
 
 @asset(group_name=EXPORT_GROUP)

@@ -61,7 +61,9 @@ harvest_and_sync_job = define_asset_job(
 export_job = define_asset_job(
     "export_nquads",
     description="export the graphdb as nquads to all partner endpoints",
-    selection=AssetSelection.groups(export.EXPORT_GROUP),
+    selection=AssetSelection.groups(export.EXPORT_GROUP)
+    # don't automatically run the merge into the main branch of lakefs
+    - AssetSelection.assets(export.merge_lakefs_branch_into_main),
 )
 
 generate_release_graph_job = define_asset_job(
