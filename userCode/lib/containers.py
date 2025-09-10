@@ -8,7 +8,9 @@ from dagster import Config
 from userCode.lib.env import (
     GLEANER_CONCURRENT_SITEMAPS,
     GLEANER_LOG_LEVEL,
+    GLEANER_SHACL_VALIDATOR_GRPC_ENDPOINT,
     GLEANER_SITEMAP_WORKERS,
+    GLEANER_USE_SHACL,
     NABU_BATCH_SIZE,
     NABU_IMAGE,
     NABU_LOG_LEVEL,
@@ -40,9 +42,9 @@ class SitemapHarvestConfig(Config):
     log_level: str = GLEANER_LOG_LEVEL
     concurrent_sitemaps: int = GLEANER_CONCURRENT_SITEMAPS
     sitemap_workers: int = GLEANER_SITEMAP_WORKERS
-    validate_shacl: bool = False
+    shacl_validation_grpc_endpoint: str = GLEANER_SHACL_VALIDATOR_GRPC_ENDPOINT
+    useShacl: bool = GLEANER_USE_SHACL
     useSSL: bool = S3_USE_SSL
-
     # whether or not to raise an exception upon encountering a 3 exit code
     exit_3_is_fatal: bool = False
 
@@ -76,8 +78,10 @@ class SitemapHarvestContainer:
         if config.useSSL:
             argsAsStr += " --ssl "
 
-        if config.validate_shacl:
-            argsAsStr += " --validate-shacl "
+        if config.useShacl:
+            argsAsStr += (
+                " --shacl-grpc-endpoint " + config.shacl_validation_grpc_endpoint
+            )
 
         run_docker_image(
             self.source,
