@@ -4,7 +4,7 @@
 name: geoconnex_scheduler
 
 services:
-  shacl_validator:
+  scheduler_shacl_validator:
     container_name: scheduler_shacl_validator
     image: internetofwater/shacl_validator_grpc_py:latest
     ports:
