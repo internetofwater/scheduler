@@ -45,6 +45,8 @@ class SitemapHarvestConfig(Config):
     shacl_validation_grpc_endpoint: str = GLEANER_SHACL_VALIDATOR_GRPC_ENDPOINT
     useShacl: bool = GLEANER_USE_SHACL
     useSSL: bool = S3_USE_SSL
+    # make a shacl validation error fail the pipeline
+    exit_on_shacl_failure: bool = False
     # whether or not to raise an exception upon encountering a 3 exit code
     exit_3_is_fatal: bool = False
 
@@ -82,6 +84,9 @@ class SitemapHarvestContainer:
             argsAsStr += (
                 " --shacl-grpc-endpoint " + config.shacl_validation_grpc_endpoint
             )
+
+        if config.exit_on_shacl_failure:
+            argsAsStr += " --exit-on-shacl-failure "
 
         run_docker_image(
             self.source,
