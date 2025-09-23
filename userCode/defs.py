@@ -85,9 +85,7 @@ index_generator_job = define_asset_job(
 @schedule(
     cron_schedule="@weekly",
     job=harvest_and_sync_job,
-    default_status=DefaultScheduleStatus.STOPPED
-    if RUNNING_AS_TEST_OR_DEV()
-    else DefaultScheduleStatus.RUNNING,
+    default_status=DefaultScheduleStatus.STOPPED,
 )
 def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
     context.log.info("Schedule triggered.")
