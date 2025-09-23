@@ -6,7 +6,7 @@ scheduler:
   class: DagsterDaemonScheduler
 
 run_queue:
-  max_concurrent_runs: 8
+  max_concurrent_runs: 4
 
 run_monitoring:
   enabled: true
