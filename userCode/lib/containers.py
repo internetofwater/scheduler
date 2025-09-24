@@ -18,6 +18,7 @@ from userCode.lib.env import (
     S3_ACCESS_KEY,
     S3_ADDRESS,
     S3_DEFAULT_BUCKET,
+    S3_METADATA_BUCKET,
     S3_PORT,
     S3_SECRET_KEY,
     S3_USE_SSL,
@@ -39,6 +40,7 @@ class SitemapHarvestConfig(Config):
     s3_access_key: str = S3_ACCESS_KEY
     s3_secret_key: str = S3_SECRET_KEY
     bucket: str = S3_DEFAULT_BUCKET
+    metadata_bucket: str = S3_METADATA_BUCKET
     log_level: str = GLEANER_LOG_LEVEL
     concurrent_sitemaps: int = GLEANER_CONCURRENT_SITEMAPS
     sitemap_workers: int = GLEANER_SITEMAP_WORKERS
@@ -71,6 +73,7 @@ class SitemapHarvestContainer:
             f"--s3-access-key {config.s3_access_key} "
             f"--s3-secret-key {config.s3_secret_key} "
             f"--bucket {config.bucket} "
+            f"--metadata-bucket {config.metadata_bucket} "
             f"--log-level {config.log_level} "
             f"--concurrent-sitemaps {config.concurrent_sitemaps} "
             f"--sitemap-workers {config.sitemap_workers} "
