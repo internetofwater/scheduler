@@ -7,7 +7,10 @@ from dagster import (
     asset,
 )
 
-from userCode.assetGroups.config import docker_client_environment, sitemap_partitions
+from userCode.assetGroups.config import (
+    docker_client_environment,
+    sitemap_partitions,
+)
 from userCode.lib.containers import (
     SitemapHarvestConfig,
     SitemapHarvestContainer,
@@ -40,7 +43,7 @@ def harvest_sitemap(
     if context.has_tag(EXIT_3_IS_FATAL):
         # we have to dump and reassign since pydantic classes are frozen
         old_config = config.model_dump()
-        old_config[EXIT_3_IS_FATAL] = True
+        old_config[EXIT_3_IS_FATAL] = context.get_tag(EXIT_3_IS_FATAL) is True
         strictConfig = SitemapHarvestConfig(**old_config)
         SitemapHarvestContainer(context.partition_key).run(strictConfig)
     else:
