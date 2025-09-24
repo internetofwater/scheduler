@@ -26,4 +26,6 @@ jobs:
         run: uv sync --all-extras --dev --all-packages --all-groups
 
       - name: Run type checks / formatter / dg checks
+        env:
+          DAGSTER_POSTGRES_HOST: "localhost"
         run: make check
