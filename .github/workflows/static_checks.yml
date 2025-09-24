@@ -25,7 +25,11 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev --all-packages --all-groups
 
-      - name: Run type checks / formatter / dg checks
-        env:
-          DAGSTER_POSTGRES_HOST: "localhost"
-        run: make check
+      - name: Run type checks
+        run: uv run pyright
+
+      - name: Run formatter
+        run: uv run ruff check
+
+      - name: Run dagster checks that don't require the docker environment to be setup
+        run: uv run dg check yaml
