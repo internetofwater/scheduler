@@ -8,7 +8,7 @@ on:
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
-  pyright:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,5 +25,5 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev --all-packages --all-groups
 
-      - name: Run type checks
+      - name: Run type checks / formatter / dg checks
         run: make check
