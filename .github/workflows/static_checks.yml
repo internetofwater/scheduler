@@ -1,14 +1,14 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: MIT
 
-name: Pyright Type Checks
+name: Static Checks (Pyright, Ruff, dg check)
 
 on:
   push:
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
-  pyright:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,3 +27,9 @@ jobs:
 
       - name: Run type checks
         run: uv run pyright
+
+      - name: Run formatter
+        run: uv run ruff check
+
+      - name: Run dagster checks that don't require the docker environment to be setup
+        run: uv run dg check yaml
