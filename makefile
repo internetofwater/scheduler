@@ -16,7 +16,7 @@ test: deps init-env
 
 # Run static code checks
 check: deps init-env
-	uv run pyright && uv run ruff check && dg check defs && dg check yaml
+	uv run pyright && uv run ruff check && uv run dg check defs && uv run dg check yaml
 
 # Run pytest with codecoverage
 cov: deps init-env

@@ -1,7 +1,7 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: MIT
 
-name: Pyright Type Checks
+name: Static Checks (Pyright, Ruff, dg check)
 
 on:
   push:
@@ -26,4 +26,4 @@ jobs:
         run: uv sync --all-extras --dev --all-packages --all-groups
 
       - name: Run type checks
-        run: uv run pyright
+        run: make check
