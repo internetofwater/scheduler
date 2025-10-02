@@ -5,11 +5,9 @@ import os
 
 from bs4 import BeautifulSoup, ResultSet
 from dagster import (
-    AssetCheckResult,
     AssetExecutionContext,
     BackfillPolicy,
     asset,
-    asset_check,
     get_dagster_logger,
 )
 import docker
@@ -18,9 +16,7 @@ import requests
 from userCode.lib.dagster import filter_partitions
 from userCode.lib.env import (
     GLEANER_SITEMAP_INDEX,
-    HEADLESS_ENDPOINT,
     NABU_IMAGE,
-    RUNNING_AS_TEST_OR_DEV,
 )
 from userCode.lib.utils import (
     template_rclone,
@@ -105,30 +101,3 @@ def docker_client_environment():
 
     get_dagster_logger().info(f"Pulling {NABU_IMAGE}")
     client.images.pull(NABU_IMAGE)
-
-
-@asset_check(asset=docker_client_environment)
-def can_contact_headless():
-    """Check that we can contact the headless server"""
-    TWO_SECONDS = 2
-
-    url = HEADLESS_ENDPOINT
-    if RUNNING_AS_TEST_OR_DEV():
-        portNumber = HEADLESS_ENDPOINT.removeprefix("http://").split(":")[1]
-        url = f"http://localhost:{portNumber}"
-        get_dagster_logger().warning(
-            f"Skipping headless check in test mode. Check would have pinged {url}"
-        )
-        # Dagster does not support skipping asset checks so must return a valid result
-        return AssetCheckResult(passed=True)
-
-    # the Host header needs to be set for Chromium due to an upstream security requirement
-    result = requests.get(url, headers={"Host": "localhost"}, timeout=TWO_SECONDS)
-    return AssetCheckResult(
-        passed=result.status_code == 200,
-        metadata={
-            "status_code": result.status_code,
-            "text": result.text,
-            "endpoint": HEADLESS_ENDPOINT,
-        },
-    )
