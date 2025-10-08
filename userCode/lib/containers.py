@@ -51,6 +51,8 @@ class SitemapHarvestConfig(Config):
     exit_on_shacl_failure: bool = False
     # whether or not to raise an exception upon encountering a 3 exit code
     exit_3_is_fatal: bool = False
+    # Remove any jsonld that we didn't find during the crawl
+    cleanup_outdated_jsonld: bool = True
 
 
 class SitemapHarvestContainer:
@@ -90,6 +92,9 @@ class SitemapHarvestContainer:
 
         if config.exit_on_shacl_failure:
             argsAsStr += " --exit-on-shacl-failure "
+
+        if config.cleanup_outdated_jsonld:
+            argsAsStr += " --cleanup-outdated-jsonld "
 
         run_docker_image(
             self.source,
