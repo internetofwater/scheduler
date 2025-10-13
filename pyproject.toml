@@ -42,9 +42,10 @@ root_module = "userCode"
 code_location_target_module = "userCode.defs"
 
 [tool.pytest.ini_options]
-# we want to be able to override existing env values so .env is the source of truth. Otherwise 
-# old env values from a previous run will be set and not overridden
-env_override_existing_values = 1
+# we want to be able to override values in the .env file
+# in order to test with custom environment variables
+# without changing the base config
+env_override_existing_values = 0
 env_files = [
     ".env"
 ]
