@@ -29,7 +29,7 @@ def release_graphs_for_all_summoned_jsonld(
     context: AssetExecutionContext, config: SynchronizerConfig
 ):
     """Construct an nq file from all the jsonld for a single sitemap"""
-    SynchronizerContainer("prov-release", context.partition_key).run(
+    SynchronizerContainer("release", context.partition_key).run(
         f"release --compress --prefix summoned/{context.partition_key}", config
     )
 
