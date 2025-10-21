@@ -1,7 +1,6 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime
 import os
 import re
 
@@ -12,7 +11,6 @@ import docker
 import jinja2
 from jinja2 import Environment, FileSystemLoader
 
-from .classes import S3
 from .dagster import (
     dagster_log_with_parsed_level,
 )
@@ -76,27 +74,16 @@ def run_docker_image(
         f"Spinning up {container_name=} with {image_name=}, and {args=}"
     )
 
-    logBuffer = ""
-
     try:
         for line in container.logs(stdout=True, stderr=True, stream=True, follow=True):
             decoded = line.decode("utf-8")
             dagster_log_with_parsed_level(decoded)
-            logBuffer += decoded
 
         exit_status: int = container.wait()["StatusCode"]
         get_dagster_logger().info(f"Container Wait Exit status:  {exit_status}")
     finally:
         container.stop()
         container.remove()
-
-    s3_client = S3()
-    s3_client.load(
-        data=str(logBuffer).encode(),
-        remote_path=f"scheduler/logs/{container_name}_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.log",
-    )
-
-    get_dagster_logger().info("Sent container Logs to s3")
 
     match exit_status:
         case 0:
