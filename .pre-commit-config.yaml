@@ -4,6 +4,8 @@
 minimum_pre_commit_version: "2.9.0"
 ci:
   autoupdate_schedule: monthly
+  # skip so we don't need to install terraform in CI
+  skip: [terraform_fmt, terraform_validate]
 repos:
   - repo: meta
     hooks:
@@ -55,3 +57,12 @@ repos:
       - id: addlicense
         args:
           ["-s=only", -l, "Apache-2.0", -c, "Lincoln Institute of Land Policy"]
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.103.0
+    hooks:
+      - id: terraform_fmt
+        name: terraform_fmt
+        exclude: (^|/)empty\.tfvars$
+      - id: terraform_validate
+        name: terraform_validate
+        exclude: (^|/)empty\.tfvars$
