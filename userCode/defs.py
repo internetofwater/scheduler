@@ -50,14 +50,14 @@ setup_config_job = define_asset_job(
 )
 
 # This job is deprecated; we no longer sync against the live graphdb
-# harvest_and_sync_job = define_asset_job(
-#     "harvest_and_sync",
-#     description="harvest a source and sync against the live geoconnex graphdb",
-#     selection=AssetSelection.groups(
-#         harvest.HARVEST_GROUP,
-#         sync.SYNC_GROUP,
-#     ),
-# )
+harvest_and_sync_job = define_asset_job(
+    "harvest_and_sync",
+    description="DEPRECATED: harvest a source and sync against the live geoconnex graphdb. This job is deprecated now that we harvest and release nquads that are more portable",
+    selection=AssetSelection.groups(
+        harvest.HARVEST_GROUP,
+        sync.SYNC_GROUP,
+    ),
+)
 
 export_job = define_asset_job(
     "export_nquads",
@@ -143,7 +143,7 @@ defs = Definitions(
         ]
     ),
     jobs=[
-        # harvest_and_sync_job,
+        harvest_and_sync_job,
         export_job,
         setup_config_job,
         generate_release_graph_job,
