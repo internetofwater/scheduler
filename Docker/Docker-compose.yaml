@@ -12,6 +12,9 @@ services:
       - "50051:50051"
     networks:
       - dagster_network
+    profiles:
+      - localInfra
+      - production
 
   # MinIO service for storage
   minio:
