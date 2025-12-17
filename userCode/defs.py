@@ -49,9 +49,10 @@ setup_config_job = define_asset_job(
     selection=AssetSelection.groups(config.CONFIG_GROUP),
 )
 
+# This job is deprecated; we no longer sync against the live graphdb
 harvest_and_sync_job = define_asset_job(
     "harvest_and_sync",
-    description="harvest a source and sync against the live geoconnex graphdb",
+    description="DEPRECATED: harvest a source and sync against the live geoconnex graphdb. This job is deprecated now that we harvest and release nquads that are more portable",
     selection=AssetSelection.groups(
         harvest.HARVEST_GROUP,
         sync.SYNC_GROUP,
@@ -83,8 +84,8 @@ index_generator_job = define_asset_job(
 
 
 @schedule(
-    cron_schedule="@weekly",
-    job=harvest_and_sync_job,
+    cron_schedule="@monthly",
+    job=generate_release_graph_job,
     default_status=DefaultScheduleStatus.STOPPED,
 )
 def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
