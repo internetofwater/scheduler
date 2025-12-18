@@ -58,7 +58,7 @@ def assert_data_is_linked_in_graph():
 
 
 def test_e2e_sync():
-    """Run the e2e test by syncing against a mock graphdb graph"""
+    """Run the e2e test by syncing against a local graphdb graph"""
     SparqlClient("iow").clear_graph()
     SparqlClient("iowprov").clear_graph()
     # insert a dummy graph before running that should be dropped after syncing ref_mainstems_mainstems__0
