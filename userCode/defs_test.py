@@ -170,6 +170,7 @@ def test_e2e_harvest_and_release_nquads():
 
     assert len(all_partitions) > 0, "Partitions were not generated"
     test_flatgeobuf = Path(__file__).parent / "testdata" / "colorado_subset.fgb"
+    # we set this at the start of the test so that the job knows which mainstem file to use and we don't need to query the entire remote dataset
     os.environ["FLATGEOBUF_MAINSTEM_FILE"] = str(test_flatgeobuf.absolute())
 
     assert (
@@ -191,7 +192,8 @@ def test_e2e_harvest_and_release_nquads():
     text = data.decode("utf-8")
 
     assert (
-        "<https://www.opengis.net/def/schema/hy_features/hyf/linearElement>" in text
+        "<https://www.opengis.net/def/schema/hy_features/hyf/linearElement> <https://reference.geoconnex.us/collections/mainstems/items/36825>"
+        in text
     ), (
         "Mainstem info should have been inserted into the nquads during converstion. The mainstem should be associated with https://features.geoconnex.dev/collections/dams/items/1076356"
     )
