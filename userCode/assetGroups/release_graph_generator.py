@@ -1,6 +1,8 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+
 from dagster import (
     AssetExecutionContext,
     asset,
@@ -29,9 +31,19 @@ def release_graphs_for_all_summoned_jsonld(
     context: AssetExecutionContext, config: SynchronizerConfig
 ):
     """Construct an nq file from all the jsonld for a single sitemap"""
-    SynchronizerContainer("release", context.partition_key).run(
-        f"release --compress --prefix summoned/{context.partition_key}", config
+    flatgeobuf_mainstem_file: str = os.getenv("FLATGEOBUF_MAINSTEM_FILE", "")
+
+    volume_mapping: list | None = (
+        [f"{flatgeobuf_mainstem_file}:/app/flatgeobuf_mainstem_file.fgb"]
+        if flatgeobuf_mainstem_file
+        else None
     )
+
+    SynchronizerContainer(
+        "release",
+        context.partition_key,
+        volume_mapping=volume_mapping,
+    ).run(f"release --compress --prefix summoned/{context.partition_key}", config)
 
 
 @asset(

@@ -67,7 +67,7 @@ export_job = define_asset_job(
     - AssetSelection.assets(export.merge_lakefs_branch_into_main),
 )
 
-generate_release_graph_job = define_asset_job(
+harvest_and_generate_release_graph_job = define_asset_job(
     "harvest_and_release_as_nq",
     description="harvest a source and generate a release graph nq file in s3",
     selection=AssetSelection.groups(
@@ -85,7 +85,7 @@ index_generator_job = define_asset_job(
 
 @schedule(
     cron_schedule="@monthly",
-    job=generate_release_graph_job,
+    job=harvest_and_generate_release_graph_job,
     default_status=DefaultScheduleStatus.STOPPED,
 )
 def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
@@ -146,7 +146,7 @@ defs = Definitions(
         harvest_and_sync_job,
         export_job,
         setup_config_job,
-        generate_release_graph_job,
+        harvest_and_generate_release_graph_job,
         index_generator_job,
     ],
     sensors=[

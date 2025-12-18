@@ -143,6 +143,20 @@ class S3:
             response.close()
             response.release_conn()
 
+    def remove_prefix(self, remote_path: str):
+        """Recursively remove a prefix from S3"""
+        if remote_path == "" or remote_path == "/":
+            raise ValueError(
+                "You should remove the bucket itself instead of recursively deleting all objects"
+            )
+
+        objects = self.client.list_objects(
+            S3_DEFAULT_BUCKET, prefix=remote_path, recursive=True
+        )
+        for obj in objects:
+            assert obj.object_name, "object_name should not be empty"
+            self.client.remove_object(S3_DEFAULT_BUCKET, obj.object_name)
+
 
 class RcloneClient:
     """Helper class to transfer files from minio to lakefs using rclone"""

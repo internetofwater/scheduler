@@ -1,6 +1,7 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 from pathlib import Path
 
 from dagster import Config
@@ -158,6 +159,14 @@ class SynchronizerContainer:
 
         if config.profiling:
             argsAsStr += " --trace"
+
+        flatgeobuf_mainstem_file: str = os.getenv("FLATGEOBUF_MAINSTEM_FILE", "")
+        # only add mainstem info to release nquads; other operations on provenance data
+        # or orgs has no geospatial data and thus checking for mainstem would be pointless
+        if self.operation == "release" and flatgeobuf_mainstem_file:
+            # we can hard code the path since it is mounted with a volume
+            # and thus will always be the same
+            argsAsStr += " --mainstem-metadata /app/flatgeobuf_mainstem_file.fgb "
 
         run_docker_image(
             self.source,

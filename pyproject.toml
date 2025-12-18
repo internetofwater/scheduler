@@ -31,6 +31,8 @@ dev = [
     "pytest>=8.3.4",
     "dagster-dg-cli>=1.11.0",
     "ruff>=0.13.1",
+    "geopandas>=1.1.1",
+    "fiona>=1.10.1",
 ]
 
 
