@@ -50,7 +50,7 @@ def mainstem_catchment_metadata():
         "reference_catchments_and_flowlines.fgb"
     )
     output_path = "reference_catchments_and_flowlines.fgb"
-    chunk_size = 1024 * 1024  # 1 MB
+    ONE_MB = 1024 * 1024
     output_path = Path(output_path)
 
     if output_path.exists():
@@ -62,11 +62,7 @@ def mainstem_catchment_metadata():
     FIFTEEN_MINUTES = 60 * 15
     get_dagster_logger(f"Downloading {url} to {output_path.absolute()} ...")
 
-    logger = get_dagster_logger()
-
-    logger.info(f"Downloading {url} to {output_path.absolute()} ...")
-
-    LOG_EVERY_BYTES = 250 * 1024 * 1024  # 500 MB
+    LOG_EVERY_BYTES = 250 * ONE_MB
     bytes_downloaded = 0
     next_log_threshold = LOG_EVERY_BYTES
 
@@ -74,7 +70,7 @@ def mainstem_catchment_metadata():
         response.raise_for_status()
 
         with output_path.open("wb") as f:
-            for chunk in response.iter_content(chunk_size=chunk_size):
+            for chunk in response.iter_content(chunk_size=ONE_MB):
                 if not chunk:  # filter out keep-alive chunks
                     continue
 
@@ -82,7 +78,7 @@ def mainstem_catchment_metadata():
                 bytes_downloaded += len(chunk)
 
                 if bytes_downloaded >= next_log_threshold:
-                    logger.info(
+                    get_dagster_logger().info(
                         f"Downloaded {bytes_downloaded / (1024**3):.2f} GB so far..."
                     )
                     next_log_threshold += LOG_EVERY_BYTES
