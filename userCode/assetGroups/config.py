@@ -35,7 +35,8 @@ CONFIG_GROUP = "config"
 def mainstem_catchment_metadata():
     """
     Download the geoconnex mainstem catchment fgb metadata file locally
-    using streaming to avoid loading the full file into memory.
+    using streaming. This file can be used for adding mainstems to the
+    harvested nquads later in the pipeline
     """
     if os.environ.get("GITHUB_ACTIONS") or os.environ.get("PYTEST_CURRENT_TEST"):
         get_dagster_logger().info(
