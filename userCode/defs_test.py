@@ -1,6 +1,10 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+import gzip
+import os
+from pathlib import Path
+
 from dagster import (
     AssetSpec,
     AssetsDefinition,
@@ -16,6 +20,8 @@ from userCode.assetGroups.harvest import (
     sources_partitions_def,
 )
 import userCode.defs as defs
+from userCode.lib.classes import S3
+from userCode.lib.env import S3_DEFAULT_BUCKET
 
 
 def assert_data_is_linked_in_graph():
@@ -51,8 +57,8 @@ def assert_data_is_linked_in_graph():
     )
 
 
-def test_e2e():
-    """Run the e2e test on the entire geoconnex graph"""
+def test_e2e_sync():
+    """Run the e2e test by syncing against a local graphdb graph"""
     SparqlClient("iow").clear_graph()
     SparqlClient("iowprov").clear_graph()
     # insert a dummy graph before running that should be dropped after syncing ref_mainstems_mainstems__0
@@ -142,6 +148,54 @@ def test_e2e():
         """)
     assert len(mainstem_prov_graphs["g"]) > 0, (
         "prov graphs were not generated for the mainstem run"
+    )
+
+
+def test_e2e_harvest_and_release_nquads():
+    """Run the e2e test for harvesting and releasing the nquads with mainstem info"""
+    # clear any previous graphs to ensure a clean slate
+    S3().remove_prefix("graphs/latest")
+
+    instance = DagsterInstance.ephemeral()
+
+    assert (
+        defs.defs.get_job_def("setup_config")
+        .execute_in_process(instance=instance)
+        .success
+    )
+
+    all_partitions = sources_partitions_def.get_partition_keys(
+        dynamic_partitions_store=instance
+    )
+
+    assert len(all_partitions) > 0, "Partitions were not generated"
+    test_flatgeobuf = Path(__file__).parent / "testdata" / "colorado_subset.fgb"
+    # we set this at the start of the test so that the job knows which mainstem file to use and we don't need to query the entire remote dataset
+    os.environ["FLATGEOBUF_MAINSTEM_FILE"] = str(test_flatgeobuf.absolute())
+
+    assert (
+        defs.defs.get_job_def("harvest_and_release_as_nq")
+        .execute_in_process(
+            instance=instance,
+            tags={EXIT_3_IS_FATAL: str(True)},
+            partition_key="ref_dams_dams__0",
+        )
+        .success
+    ), "Job execution failed for partition 'ref_dams_dams__0'"
+
+    obj = S3().client.get_object(
+        S3_DEFAULT_BUCKET, "graphs/latest/ref_dams_dams__0_release.nq.gz"
+    )
+    with gzip.GzipFile(fileobj=obj) as gz:
+        data = gz.read()
+
+    text = data.decode("utf-8")
+
+    assert (
+        "<https://www.opengis.net/def/schema/hy_features/hyf/linearElement> <https://reference.geoconnex.us/collections/mainstems/items/36825>"
+        in text
+    ), (
+        "Mainstem info should have been inserted into the nquads during converstion. The mainstem should be associated with https://features.geoconnex.dev/collections/dams/items/1076356"
     )
 
 
