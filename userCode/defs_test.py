@@ -4,6 +4,7 @@
 import gzip
 import os
 from pathlib import Path
+import shutil
 
 from dagster import (
     AssetSpec,
@@ -18,6 +19,10 @@ from test.lib import SparqlClient, assert_rclone_config_is_accessible
 from userCode.assetGroups.harvest import (
     EXIT_3_IS_FATAL,
     sources_partitions_def,
+)
+from userCode.assetGroups.index_generator import (
+    PULLED_NQ_DESTINATION,
+    pull_release_nq_for_all_sources,
 )
 import userCode.defs as defs
 from userCode.lib.classes import S3
@@ -197,10 +202,28 @@ def test_e2e_harvest_and_release_nquads():
     ), (
         "Mainstem info should have been inserted into the nquads during converstion. The mainstem should be associated with https://features.geoconnex.dev/collections/dams/items/1076356"
     )
+    if PULLED_NQ_DESTINATION.exists():
+        shutil.rmtree(PULLED_NQ_DESTINATION)
+    pull_release_nq_for_all_sources()
+    assert PULLED_NQ_DESTINATION.exists(), "Pulled nq folder does not exist"
+
+    pulled_file = PULLED_NQ_DESTINATION.joinpath("ref_dams_dams__0_release.nq.gz")
+    last_modified = pulled_file.stat().st_mtime
+    pulled_file_bytesum = PULLED_NQ_DESTINATION.joinpath(
+        "ref_dams_dams__0_release.nq.gz.bytesum"
+    )
+    assert pulled_file.exists()
+    assert pulled_file_bytesum.exists()
+
+    pull_release_nq_for_all_sources()
+
+    assert last_modified == pulled_file.stat().st_mtime, (
+        "Since the bytesum is the same there should be no new pull and no new data transferred to disk"
+    )
 
 
 def test_dynamic_partitions():
-    """Make sure that a new materialization of the gleaner config will create new partitions"""
+    """Make sure that a new materialization of the nabu config will create new partitions"""
     instance = DagsterInstance.ephemeral()
     mocked_partition_keys = ["test_partition1", "test_partition2", "test_partition3"]
     instance.add_dynamic_partitions(

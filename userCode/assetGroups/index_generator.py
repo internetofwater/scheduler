@@ -27,6 +27,8 @@ qlever
 
 INDEX_GEN_GROUP = "index"
 
+PULLED_NQ_DESTINATION = Path(__file__).parent / "qlever" / "geoconnex_graph/"
+
 
 @asset(
     deps=[release_graphs_for_all_summoned_jsonld],
@@ -36,19 +38,18 @@ INDEX_GEN_GROUP = "index"
 )
 def pull_release_nq_for_all_sources(config: SynchronizerConfig):
     """pull all release graphs on disk and put them in one folder"""
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    fullGraphFolder = os.path.join(current_dir, "qlever", "geoconnex_graph/")
+    if not os.path.exists(PULLED_NQ_DESTINATION):
+        os.mkdir(PULLED_NQ_DESTINATION)
 
-    if not os.path.exists(fullGraphFolder):
-        os.mkdir(fullGraphFolder)
-
-    assert os.path.isdir(fullGraphFolder), (
+    assert os.path.isdir(PULLED_NQ_DESTINATION), (
         "You must use a directory for geoconnex_graph not a file"
     )
 
     fullGraphNqInContainer = "/app/geoconnex_graph/"
     SynchronizerContainer(
-        "concat", "all", volume_mapping=[f"{fullGraphFolder}:{fullGraphNqInContainer}"]
+        "pull",
+        "all",
+        volume_mapping=[f"{PULLED_NQ_DESTINATION}:{fullGraphNqInContainer}"],
     ).run(
         f"pull --prefix graphs/latest/ {fullGraphNqInContainer}",
         config,
