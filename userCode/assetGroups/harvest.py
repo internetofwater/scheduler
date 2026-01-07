@@ -31,6 +31,7 @@ EXIT_3_IS_FATAL = "exit_3_is_fatal"
     partitions_def=sources_partitions_def,
     deps=[docker_client_environment, sitemap_partitions],
     group_name=HARVEST_GROUP,
+    pool="harvest_pool",
 )
 def harvest_sitemap(
     context: AssetExecutionContext,

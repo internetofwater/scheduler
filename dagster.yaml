@@ -5,14 +5,15 @@ scheduler:
   module: dagster.core.scheduler
   class: DagsterDaemonScheduler
 
-run_queue:
-  # In order to set and forget the crawler
-  # we limit this to 1 since some sitemaps at
-  # external organizations will give undefined errors
-  # when you crawl them with too many workers.
-  # In the future this can be bumped back up
-  # once this is added: https://github.com/internetofwater/scheduler/issues/184
-  max_concurrent_runs: 1
+concurrency:
+  runs:
+    max_concurrent_runs: 6
+  pools:
+    # dagster has no way to declaratively set the limit for a specific
+    # pool; but since we have only one pool, we can set it here as the default
+    # see https://github.com/dagster-io/dagster/issues/19793
+    # this is done to address https://github.com/internetofwater/scheduler/issues/184
+    default_limit: 1
 
 run_monitoring:
   enabled: true
