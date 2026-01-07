@@ -9,10 +9,10 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "beautifulsoup4>=4.12.3",
-    "dagster-webserver>=1.9.10",
-    "dagster>=1.9.10",
-    "dagster-postgres>=0.25.10",
-    "dagster-slack>=0.25.10",
+    "dagster-webserver>=1.12.8",
+    "dagster>=1.12.8",
+    "dagster-postgres>=0.28.8",
+    "dagster-slack>=0.28.8",
     "jinja2>=3.1.5",
     "lakefs>=0.8.0",
     "lxml>=5.3.0",
