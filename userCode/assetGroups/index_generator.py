@@ -38,9 +38,9 @@ PULLED_NQ_DESTINATION = Path(__file__).parent / "qlever" / "geoconnex_graph/"
 )
 def pull_release_nq_for_all_sources(config: SynchronizerConfig):
     """pull all release graphs on disk and put them in one folder"""
-    PULLED_NQ_DESTINATION.mkdir(exists_ok=True)
+    PULLED_NQ_DESTINATION.mkdir(exist_ok=True)
 
-    assert PULLED_NQ_DESTINATION.isdir(), (
+    assert PULLED_NQ_DESTINATION.is_dir(), (
         "You must use a directory for geoconnex_graph not a file"
     )
 
