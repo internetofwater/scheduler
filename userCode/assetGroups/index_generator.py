@@ -41,7 +41,7 @@ def pull_release_nq_for_all_sources(config: SynchronizerConfig):
     if not os.path.exists(PULLED_NQ_DESTINATION):
         os.mkdir(PULLED_NQ_DESTINATION)
 
-    assert os.path.isdir(PULLED_NQ_DESTINATION), (
+    assert PULLED_NQ_DESTINATION.isdir(), (
         "You must use a directory for geoconnex_graph not a file"
     )
 
