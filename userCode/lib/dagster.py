@@ -1,6 +1,7 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+from collections.abc import Sequence
 import json
 
 from dagster import (
@@ -12,8 +13,56 @@ from dagster import (
     get_dagster_logger,
 )
 
-# This is the list of sources to crawl that is dynamically generated at runtime by parsing the geoconnex config
-sources_partitions_def = DynamicPartitionsDefinition(name="sources_partitions_def")
+
+class AllPartitions:
+    _usgs_partition_name = "usgs_partitions_def"
+    _generic_partition_name = "generic_partitions_def"
+
+    # This is the list of sources to crawl that is dynamically generated at runtime by parsing the geoconnex config
+    usgs_partitions_def = DynamicPartitionsDefinition(name="usgs_partitions_def")
+    generic_partition_def = DynamicPartitionsDefinition(name="generic_partitions_def")
+
+    @classmethod
+    def partition_names_to_keys(
+        cls, instance: DagsterInstance
+    ) -> dict[str, Sequence[str]]:
+        usgs_partitions = cls.usgs_partitions_def.get_partition_keys(
+            dynamic_partitions_store=instance
+        )
+        generic_partitions = cls.generic_partition_def.get_partition_keys(
+            dynamic_partitions_store=instance
+        )
+
+        name_to_keys = {
+            cls._usgs_partition_name: usgs_partitions,
+            cls._generic_partition_name: generic_partitions,
+        }
+        return name_to_keys
+
+    @classmethod
+    def all_dependencies_materialized(
+        cls, context: AssetExecutionContext, dependency_asset_key: str
+    ) -> bool:
+        """Check if all partitions of a given asset are materialized"""
+        instance = context.instance
+
+        all_partitions = cls.partition_names_to_keys(instance)
+
+        # Check if all partitions of finished_individual_crawl are materialized
+        materialized_partitions = context.instance.get_materialized_partitions(
+            asset_key=AssetKey(dependency_asset_key)
+        )
+
+        if len(all_partitions) != len(materialized_partitions):
+            get_dagster_logger().warning(
+                f"Not all partitions of {dependency_asset_key} are materialized, so nq generation will be skipped"
+            )
+            return False
+        else:
+            get_dagster_logger().info(
+                f"All partitions of {dependency_asset_key} are detected as having been materialized"
+            )
+            return True
 
 
 def filter_partitions(
@@ -57,31 +106,6 @@ def dagster_log_with_parsed_level(structural_log_message: str) -> None:
             get_dagster_logger().info(msg)
 
     return
-
-
-def all_dependencies_materialized(
-    context: AssetExecutionContext, dependency_asset_key: str
-) -> bool:
-    """Check if all partitions of a given asset are materialized"""
-    instance = context.instance
-    all_partitions = sources_partitions_def.get_partition_keys(
-        dynamic_partitions_store=instance
-    )
-    # Check if all partitions of finished_individual_crawl are materialized
-    materialized_partitions = context.instance.get_materialized_partitions(
-        asset_key=AssetKey(dependency_asset_key)
-    )
-
-    if len(all_partitions) != len(materialized_partitions):
-        get_dagster_logger().warning(
-            f"Not all partitions of {dependency_asset_key} are materialized, so nq generation will be skipped"
-        )
-        return False
-    else:
-        get_dagster_logger().info(
-            f"All partitions of {dependency_asset_key} are detected as having been materialized"
-        )
-        return True
 
 
 def slack_error_fn(context: RunFailureSensorContext) -> str:

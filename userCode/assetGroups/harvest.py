@@ -12,7 +12,7 @@ from userCode.lib.containers import (
     SitemapHarvestConfig,
     SitemapHarvestContainer,
 )
-from userCode.lib.dagster import sources_partitions_def
+from userCode.lib.dagster import AllPartitions
 
 """
 This file contains all assets relevant to crawling / harvesting
@@ -28,15 +28,33 @@ EXIT_3_IS_FATAL = "exit_3_is_fatal"
 
 
 @asset(
-    partitions_def=sources_partitions_def,
+    partitions_def=AllPartitions.generic_partition_def,
     deps=[docker_client_environment, sitemap_partitions],
     group_name=HARVEST_GROUP,
 )
+def harvest_non_usgs_sitemap(
+    context: AssetExecutionContext, config: SitemapHarvestConfig
+):
+    """Harvest a sitemap not hosted by USGS"""
+    harvest_sitemap(context, config)
+
+
+@asset(
+    partitions_def=AllPartitions.usgs_partitions_def,
+    deps=[docker_client_environment, sitemap_partitions],
+    group_name=HARVEST_GROUP,
+    tags={"host": "usgs"},
+)
+def harvest_usgs_sitemap(context: AssetExecutionContext, config: SitemapHarvestConfig):
+    """Harvest a sitemap hosted by USGS"""
+    harvest_sitemap(context, config)
+
+
 def harvest_sitemap(
     context: AssetExecutionContext,
     config: SitemapHarvestConfig,
 ):
-    """Get the jsonld for each site in the gleaner config"""
+    """Harvest the jsonld for each site in the sitemap"""
     if context.has_tag(EXIT_3_IS_FATAL):
         # we have to dump and reassign since pydantic classes are frozen
         old_config = config.model_dump()
