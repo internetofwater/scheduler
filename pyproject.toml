@@ -33,6 +33,7 @@ dev = [
     "ruff>=0.13.1",
     "geopandas>=1.1.1",
     "fiona>=1.10.1",
+    "rdflib>=7.5.0",
 ]
 
 
