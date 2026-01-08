@@ -14,6 +14,7 @@ from dagster import (
     load_assets_from_modules,
     materialize,
 )
+from rdflib import Dataset, URIRef
 
 from test.lib import SparqlClient, assert_rclone_config_is_accessible
 from userCode.assetGroups.harvest import (
@@ -167,7 +168,7 @@ def test_e2e_harvest_and_release_nquads():
         defs.defs.get_job_def("setup_config")
         .execute_in_process(instance=instance)
         .success
-    )
+    ), "Failed initializing configs for test run"
 
     all_partitions = sources_partitions_def.get_partition_keys(
         dynamic_partitions_store=instance
@@ -220,6 +221,38 @@ def test_e2e_harvest_and_release_nquads():
     assert last_modified == pulled_file.stat().st_mtime, (
         "Since the bytesum is the same there should be no new pull and no new data transferred to disk"
     )
+
+    ds = Dataset()
+    ds.parse(data=text, format="nquads")
+    assert len(ds) > 0
+
+    pid_to_associated_mainstem = """
+    PREFIX hyf: <https://www.opengis.net/def/schema/hy_features/hyf/>
+
+    SELECT DISTINCT ?pid ?mainstem
+    WHERE {
+    GRAPH ?g {
+        ?pid hyf:referencedPosition ?refPos .
+        ?refPos hyf:HY_IndirectPosition ?indPos .
+        ?indPos hyf:linearElement ?mainstem .
+    }
+    }
+    ORDER BY ?mainstem
+    """
+
+    res = ds.query(pid_to_associated_mainstem)
+
+    mainstems = {
+        URIRef("https://pids.geoconnex.dev/ref/dams/1076356"): URIRef(
+            "https://reference.geoconnex.us/collections/mainstems/items/36825"
+        ),
+        URIRef("https://pids.geoconnex.dev/ref/dams/1026348"): URIRef(
+            "https://reference.geoconnex.us/collections/mainstems/items/35394"
+        ),
+    }
+    for row in res.bindings:
+        pid, mainstem = row["pid"], row["mainstem"]  # type: ignore rdflib does not have type hints properly
+        assert mainstems[pid] == mainstem  # type: ignore rdflib does not have type hints properly
 
 
 def test_dynamic_partitions():
