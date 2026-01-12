@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from pathlib import Path
 
 from dagster import Config
 
@@ -10,6 +9,7 @@ from userCode.lib.env import (
     GLEANER_CONCURRENT_SITEMAPS,
     GLEANER_LOG_LEVEL,
     GLEANER_SHACL_VALIDATOR_GRPC_ENDPOINT,
+    GLEANER_SITEMAP_INDEX,
     GLEANER_SITEMAP_WORKERS,
     GLEANER_USE_SHACL,
     NABU_BATCH_SIZE,
@@ -63,13 +63,9 @@ class SitemapHarvestContainer:
         self.source = source
 
     def run(self, config: SitemapHarvestConfig):
-        assert Path("/tmp/geoconnex/").exists(), (
-            "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
-        )
-
         argsAsStr = (
             f"harvest "
-            f"--sitemap-index sitemap.xml "
+            f"--sitemap-index {GLEANER_SITEMAP_INDEX} "
             f"--source {self.source} "
             f"--address {config.address} "
             f"--port {config.port} "
@@ -103,7 +99,6 @@ class SitemapHarvestContainer:
             argsAsStr,
             "sitemap_harvest",
             exit_3_is_fatal=config.exit_3_is_fatal,
-            volumeMapping=["/tmp/geoconnex/sitemap.xml:/app/sitemap.xml"],
         )
 
 
