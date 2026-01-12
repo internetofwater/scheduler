@@ -1,7 +1,8 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-import os
+
+import subprocess
 
 from userCode.lib.classes import RcloneClient
 from userCode.lib.utils import create_max_length_container_name
@@ -17,4 +18,10 @@ def test_create_max_length_container_name():
 
 
 def test_ensure_rclone_bin_installed():
-    assert os.system(f"{RcloneClient.get_bin()} version") == 0
+    result = subprocess.run(
+        [RcloneClient.get_bin(), "version"],
+        capture_output=True,
+        timeout=5,
+        check=False,
+    )
+    assert result.returncode == 0
