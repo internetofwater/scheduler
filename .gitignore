@@ -47,3 +47,5 @@ geoconnex.ui*
 geoconnex_graph/
 test.sh
 *.bin
+
+reference_catchments_and_flowlines.fgb

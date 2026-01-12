@@ -69,7 +69,7 @@ class SitemapHarvestContainer:
 
         argsAsStr = (
             f"harvest "
-            f"--sitemap-index sitemap.xml "
+            f"--sitemap-index https://geoconnex.us/sitemap.xml "
             f"--source {self.source} "
             f"--address {config.address} "
             f"--port {config.port} "
@@ -103,7 +103,6 @@ class SitemapHarvestContainer:
             argsAsStr,
             "sitemap_harvest",
             exit_3_is_fatal=config.exit_3_is_fatal,
-            volumeMapping=["/tmp/geoconnex/sitemap.xml:/app/sitemap.xml"],
         )
 
 

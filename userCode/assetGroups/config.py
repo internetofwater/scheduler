@@ -99,18 +99,10 @@ def rclone_config() -> str:
 @asset(backfill_policy=BackfillPolicy.single_run(), group_name=CONFIG_GROUP)
 def sitemap_partitions(context: AssetExecutionContext):
     """Generate a dynamic partition for each sitemap in the sitemap index"""
-    get_dagster_logger().info("Creating gleaner config")
 
     r = requests.get(GLEANER_SITEMAP_INDEX)
     r.raise_for_status()
     xml = r.text
-
-    if not os.path.exists("/tmp/geoconnex"):
-        os.mkdir("/tmp/geoconnex")
-    # write the sitemap to disk as a cache, that
-    # way if the sitemap index is huge, we don't have to download it every time
-    with open("/tmp/geoconnex/sitemap.xml", "w") as f:
-        f.write(xml)
 
     sitemapTags: ResultSet = BeautifulSoup(xml, features="xml").find_all("sitemap")
     Lines: list[str] = [
