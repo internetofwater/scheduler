@@ -9,6 +9,7 @@ from userCode.lib.env import (
     GLEANER_CONCURRENT_SITEMAPS,
     GLEANER_LOG_LEVEL,
     GLEANER_SHACL_VALIDATOR_GRPC_ENDPOINT,
+    GLEANER_SITEMAP_INDEX,
     GLEANER_SITEMAP_WORKERS,
     GLEANER_USE_SHACL,
     NABU_BATCH_SIZE,
@@ -64,7 +65,7 @@ class SitemapHarvestContainer:
     def run(self, config: SitemapHarvestConfig):
         argsAsStr = (
             f"harvest "
-            f"--sitemap-index https://geoconnex.us/sitemap.xml "
+            f"--sitemap-index {GLEANER_SITEMAP_INDEX} "
             f"--source {self.source} "
             f"--address {config.address} "
             f"--port {config.port} "

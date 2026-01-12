@@ -100,7 +100,7 @@ def rclone_config() -> str:
 def sitemap_partitions(context: AssetExecutionContext):
     """Generate a dynamic partition for each sitemap in the sitemap index"""
 
-    r = requests.get(GLEANER_SITEMAP_INDEX)
+    r = requests.get(GLEANER_SITEMAP_INDEX, timeout=20)
     r.raise_for_status()
     xml = r.text
 
