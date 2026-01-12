@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from pathlib import Path
 
 from dagster import Config
 
@@ -63,10 +62,6 @@ class SitemapHarvestContainer:
         self.source = source
 
     def run(self, config: SitemapHarvestConfig):
-        assert Path("/tmp/geoconnex/").exists(), (
-            "the /tmp/geoconnex directory does not exist. This must exist for us to share configs with the docker socket on the host"
-        )
-
         argsAsStr = (
             f"harvest "
             f"--sitemap-index https://geoconnex.us/sitemap.xml "
