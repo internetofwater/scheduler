@@ -119,7 +119,7 @@ class SynchronizerConfig(Config):
     profiling: bool = NABU_PROFILING
 
 
-MAINSTEM_CONTAINER_FILE_MOUNT = "/app/flatgeobuf_mainstem_file.fgb"
+MAINSTEM_CONTAINER_FILE_MOUNT = "/app/mainstem_file.fgb"
 
 
 class SynchronizerContainer:
