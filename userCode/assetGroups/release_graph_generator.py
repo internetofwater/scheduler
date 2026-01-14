@@ -37,10 +37,14 @@ def release_graphs_for_all_summoned_jsonld(
     context: AssetExecutionContext, config: SynchronizerConfig
 ):
     """Construct an nq file from all the jsonld for a single sitemap"""
-    add_mainstem_info = context.get_tag(ADD_MAINSTEM_INFO_TAG)
-    if not add_mainstem_info:
+
+    if not context.get_tag(ADD_MAINSTEM_INFO_TAG):
         get_dagster_logger().warning(
             f"The tag '{ADD_MAINSTEM_INFO_TAG}' was not set; skipping adding the mainstem metadata file to the release graphs"
+        )
+    else:
+        get_dagster_logger().info(
+            f"The tag '{ADD_MAINSTEM_INFO_TAG}' was set; adding the mainstem metadata file to the release graphs"
         )
 
     override_mainstem_file = context.get_tag(MAINSTEM_FILE_OVERRIDE_TAG)
