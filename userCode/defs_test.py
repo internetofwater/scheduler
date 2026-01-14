@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import gzip
-import os
 from pathlib import Path
 import shutil
 
@@ -24,6 +23,10 @@ from userCode.assetGroups.harvest import (
 from userCode.assetGroups.index_generator import (
     PULLED_NQ_DESTINATION,
     pull_release_nq_for_all_sources,
+)
+from userCode.assetGroups.release_graph_generator import (
+    ADD_MAINSTEM_INFO_TAG,
+    MAINSTEM_FILE_OVERRIDE_TAG,
 )
 import userCode.defs as defs
 from userCode.lib.classes import S3
@@ -176,14 +179,16 @@ def test_e2e_harvest_and_release_nquads():
 
     assert len(all_partitions) > 0, "Partitions were not generated"
     test_flatgeobuf = Path(__file__).parent / "testdata" / "colorado_subset.fgb"
-    # we set this at the start of the test so that the job knows which mainstem file to use and we don't need to query the entire remote dataset
-    os.environ["FLATGEOBUF_MAINSTEM_FILE"] = str(test_flatgeobuf.absolute())
 
     assert (
         defs.defs.get_job_def("harvest_and_release_as_nq")
         .execute_in_process(
             instance=instance,
-            tags={EXIT_3_IS_FATAL: str(True)},
+            tags={
+                EXIT_3_IS_FATAL: str(True),
+                ADD_MAINSTEM_INFO_TAG: str(True),
+                MAINSTEM_FILE_OVERRIDE_TAG: str(test_flatgeobuf),
+            },
             partition_key="ref_dams_dams__0",
         )
         .success

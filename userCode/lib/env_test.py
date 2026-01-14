@@ -3,7 +3,10 @@
 
 import os
 
-from userCode.lib.env import RUNNING_AS_TEST_OR_DEV, repositoryRoot
+from userCode.lib.env import (
+    RUNNING_AS_TEST_OR_DEV,
+    repositoryRoot,
+)
 
 
 def test_test_env_is_detected():

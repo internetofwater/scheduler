@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from pathlib import Path
 
 from bs4 import BeautifulSoup, ResultSet
 from dagster import (
@@ -17,6 +16,7 @@ import requests
 from userCode.lib.dagster import filter_partitions
 from userCode.lib.env import (
     GLEANER_SITEMAP_INDEX,
+    MAINSTEM_FILE,
     NABU_IMAGE,
 )
 from userCode.lib.utils import (
@@ -49,18 +49,16 @@ def mainstem_catchment_metadata():
         "national-hydrologic-geospatial-fabric-reference-hydrofabric/"
         "reference_catchments_and_flowlines.fgb"
     )
-    output_path = "reference_catchments_and_flowlines.fgb"
     ONE_MB = 1024 * 1024
-    output_path = Path(output_path)
 
-    if output_path.exists():
+    if MAINSTEM_FILE.exists():
         get_dagster_logger().info(
-            f"File {output_path} already exists; skipping download"
+            f"File {MAINSTEM_FILE} already exists; skipping download"
         )
         return
 
     FIFTEEN_MINUTES = 60 * 15
-    get_dagster_logger(f"Downloading {url} to {output_path.absolute()} ...")
+    get_dagster_logger(f"Downloading {url} to {MAINSTEM_FILE.absolute()} ...")
 
     LOG_EVERY_BYTES = 250 * ONE_MB
     bytes_downloaded = 0
@@ -69,7 +67,7 @@ def mainstem_catchment_metadata():
     with requests.get(url, stream=True, timeout=FIFTEEN_MINUTES) as response:
         response.raise_for_status()
 
-        with output_path.open("wb") as f:
+        with MAINSTEM_FILE.open("wb") as f:
             for chunk in response.iter_content(chunk_size=ONE_MB):
                 if not chunk:  # filter out keep-alive chunks
                     continue

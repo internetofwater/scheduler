@@ -73,8 +73,10 @@ GHCR_TOKEN = strict_env("GHCR_TOKEN")
 
 ### Dagster Options
 repositoryRoot = Path(__file__).parent.parent.parent.absolute()
-DAGSTER_YAML_CONFIG: str = os.path.join(repositoryRoot, "dagster.yaml")
+DAGSTER_YAML_CONFIG: str = (repositoryRoot / "dagster.yaml").as_posix()
 
 assert Path(DAGSTER_YAML_CONFIG).exists(), (
     f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
 )
+
+MAINSTEM_FILE = repositoryRoot / strict_env("FLATGEOBUF_MAINSTEM_FILE")

@@ -1,7 +1,6 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 
 from dagster import Config
 
@@ -120,6 +119,9 @@ class SynchronizerConfig(Config):
     profiling: bool = NABU_PROFILING
 
 
+MAINSTEM_CONTAINER_FILE_MOUNT = "/app/flatgeobuf_mainstem_file.fgb"
+
+
 class SynchronizerContainer:
     """A container for running nabu graph sync operations"""
 
@@ -128,10 +130,12 @@ class SynchronizerContainer:
         operation_name: cli_modes,
         partition: str,
         volume_mapping: list[str] | None = None,
+        mainstem_file: None | str = None,
     ):
         self.source = partition
         self.operation: cli_modes = operation_name
         self.volume_mapping = volume_mapping
+        self.mainstem_file = mainstem_file
 
     def run(self, args: str, config: SynchronizerConfig):
         # args that should be applied to all nabu commands
@@ -155,15 +159,12 @@ class SynchronizerContainer:
         if config.profiling:
             argsAsStr += " --trace"
 
-        # this is outside of the config so that it can be dynamically changed easier in tests
-        flatgeobuf_mainstem_file: str = os.getenv("FLATGEOBUF_MAINSTEM_FILE", "")
-
         # only add mainstem info to release nquads; other operations on provenance data
         # or orgs has no geospatial data and thus checking for mainstem would be pointless
-        if self.operation == "release" and flatgeobuf_mainstem_file:
+        if self.operation == "release" and self.mainstem_file:
             # we can hard code the path since it is mounted with a volume
             # and thus will always be the same
-            argsAsStr += " --mainstem-metadata /app/flatgeobuf_mainstem_file.fgb "
+            argsAsStr += f" --mainstem-metadata {MAINSTEM_CONTAINER_FILE_MOUNT} "
 
         run_docker_image(
             self.source,
