@@ -14,6 +14,7 @@ services:
     profiles:
       - localInfra
       - production
+    restart: always
 
   # MinIO service for storage
   minio:
