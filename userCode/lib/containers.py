@@ -119,9 +119,6 @@ class SynchronizerConfig(Config):
     profiling: bool = NABU_PROFILING
 
 
-MAINSTEM_CONTAINER_FILE_MOUNT = "/app/mainstem_file.fgb"
-
-
 class SynchronizerContainer:
     """A container for running nabu graph sync operations"""
 
@@ -164,7 +161,7 @@ class SynchronizerContainer:
         if self.operation == "release" and self.mainstem_file:
             # we can hard code the path since it is mounted with a volume
             # and thus will always be the same
-            argsAsStr += f" --mainstem-metadata {MAINSTEM_CONTAINER_FILE_MOUNT} "
+            argsAsStr += f" --mainstem-metadata {self.mainstem_file} "
 
         run_docker_image(
             self.source,

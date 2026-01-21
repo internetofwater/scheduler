@@ -139,13 +139,30 @@ services:
       - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # we mount the temp dir to allow us to access the nabu / gleaner configs from host
-      # since the docker socket mounts volumes relative to the host
-      - /tmp/geoconnex/:/tmp/geoconnex/
+      # mounts are resolved relative to the location of the docker-compose.yml not the build context
+      - ../assets/:/opt/dagster/app/assets
     env_file:
       - "../.env"
     profiles:
       - production
+
+  # Docker does not support mounting volumes inside docker containers
+  # which are launched in another container; as a result, instead of mounting
+  # we use a separate static asset server to serve the assets directly;
+  # any geospatial formats that support http range requests can
+  # efficiently query this as if it were a local file without needing to mount
+  asset_server:
+    image: nginx:stable-alpine
+    container_name: asset_server
+    ports:
+      - "8089:80"
+    volumes:
+      # mounts are resolved relative to the location of the docker-compose.yml not the build context
+      - ../assets:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+    networks:
+      - dagster_network
 
   # # Headless browser (currently commented out since not needed)
   # scheduler_headless:
