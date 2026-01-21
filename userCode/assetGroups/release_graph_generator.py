@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from pathlib import Path
+
 from dagster import (
     AssetExecutionContext,
     asset,
@@ -48,15 +50,26 @@ def release_graphs_for_all_summoned_jsonld(
         )
 
     override_mainstem_file = context.get_tag(MAINSTEM_FILE_OVERRIDE_TAG)
-    mainstem_file = (
-        str(MAINSTEM_FILE.absolute())
-        if not override_mainstem_file
-        else override_mainstem_file
-    )
+
+    def verify_valid(path: Path):
+        if not path.exists():
+            raise ValueError(f"Mainstem file {path} does not exist")
+        if not path.is_file():
+            raise ValueError(f"Mainstem file {path} is not a file")
+
+    if override_mainstem_file:
+        verify_valid(Path(override_mainstem_file))
+        mainstem_file = override_mainstem_file
+    else:
+        verify_valid(MAINSTEM_FILE)
+        mainstem_file = str(MAINSTEM_FILE.absolute())
 
     volume_mapping: list | None = (
         [f"{mainstem_file}:{MAINSTEM_CONTAINER_FILE_MOUNT}"] if mainstem_file else None
     )
+
+    if volume_mapping:
+        get_dagster_logger().info(f"Mainstem file volume mapping: {mainstem_file}")
 
     SynchronizerContainer(
         "release",

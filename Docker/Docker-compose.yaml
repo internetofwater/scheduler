@@ -125,12 +125,13 @@ services:
     profiles:
       - production
 
-  # Dagster User Code
   dagster_user_code:
     container_name: dagster_user_code
     build:
       context: ..
       dockerfile: ./Docker/dagster/Dockerfile_user_code
+      args:
+        DOWNLOAD_MAINSTEM_METADATA: "1"
     restart: always
     networks:
       - dagster_network
@@ -139,9 +140,6 @@ services:
       - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # we mount the temp dir to allow us to access the nabu / gleaner configs from host
-      # since the docker socket mounts volumes relative to the host
-      - /tmp/geoconnex/:/tmp/geoconnex/
     env_file:
       - "../.env"
     profiles:

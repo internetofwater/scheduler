@@ -58,7 +58,7 @@ def mainstem_catchment_metadata():
         return
 
     FIFTEEN_MINUTES = 60 * 15
-    get_dagster_logger(f"Downloading {url} to {MAINSTEM_FILE.absolute()} ...")
+    get_dagster_logger().info(f"Downloading {url} to {MAINSTEM_FILE.absolute()} ...")
 
     LOG_EVERY_BYTES = 250 * ONE_MB
     bytes_downloaded = 0

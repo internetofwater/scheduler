@@ -79,4 +79,4 @@ assert Path(DAGSTER_YAML_CONFIG).exists(), (
     f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"
 )
 
-MAINSTEM_FILE = repositoryRoot / strict_env("MAINSTEM_FILE")
+MAINSTEM_FILE = repositoryRoot / "assets" / strict_env("MAINSTEM_FILE")
