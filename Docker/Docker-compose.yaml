@@ -146,12 +146,18 @@ services:
     profiles:
       - production
 
+  # Docker does not support mounting volumes inside docker containers
+  # which are launched in another container; as a result, instead of mounting
+  # we use a separate static asset server to serve the assets directly;
+  # any geospatial formats that support http range requests can
+  # efficiently query this as if it were a local file without needing to mount
   asset_server:
     image: nginx:stable-alpine
     container_name: asset_server
     ports:
       - "8089:80"
     volumes:
+      # mounts are resolved relative to the location of the docker-compose.yml not the build context
       - ../assets:/usr/share/nginx/html:ro
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     restart: unless-stopped
