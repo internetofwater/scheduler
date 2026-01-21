@@ -49,7 +49,6 @@ def run_docker_image(
     action_name: cli_modes,  # the name of the action to run inside gleaner/nabu
     exit_3_is_fatal: bool = False,
     volumeMapping: list[str] | None = None,
-    copy_files: list[str] | None = None,
 ):
     """Run a docker using the same docker socket inside dagster"""
     container_name = create_max_length_container_name(source, action_name)
