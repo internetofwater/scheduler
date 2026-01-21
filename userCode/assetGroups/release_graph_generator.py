@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from pathlib import Path
+
 from dagster import (
     AssetExecutionContext,
     asset,
@@ -10,12 +12,11 @@ from dagster import (
 
 from userCode.assetGroups.harvest import harvest_sitemap
 from userCode.lib.containers import (
-    MAINSTEM_CONTAINER_FILE_MOUNT,
     SynchronizerConfig,
     SynchronizerContainer,
 )
 from userCode.lib.dagster import sources_partitions_def
-from userCode.lib.env import MAINSTEM_FILE
+from userCode.lib.env import MAINSTEM_FILE, RUNNING_AS_TEST_OR_DEV
 
 """
 All assets in this graph work to generate a release graph for each partition
@@ -48,20 +49,27 @@ def release_graphs_for_all_summoned_jsonld(
         )
 
     override_mainstem_file = context.get_tag(MAINSTEM_FILE_OVERRIDE_TAG)
-    mainstem_file = (
-        str(MAINSTEM_FILE.absolute())
-        if not override_mainstem_file
-        else override_mainstem_file
-    )
 
-    volume_mapping: list | None = (
-        [f"{mainstem_file}:{MAINSTEM_CONTAINER_FILE_MOUNT}"] if mainstem_file else None
-    )
+    def verify_mainstem_file(file: Path):
+        if not file.exists():
+            raise Exception(f"Mainstem file {file} does not exist")
+        if not file.is_file():
+            raise Exception(f"Mainstem file {file} is not a file")
+
+    if override_mainstem_file:
+        mainstem_file = Path(override_mainstem_file)
+    else:
+        mainstem_file = MAINSTEM_FILE
+
+    verify_mainstem_file(mainstem_file)
+    if not RUNNING_AS_TEST_OR_DEV:
+        mainstem_file = f"http://asset_server:8089/{mainstem_file.name}"
+    else:
+        mainstem_file = f"http://localhost:8089/{mainstem_file.name}"
 
     SynchronizerContainer(
         "release",
         context.partition_key,
-        volume_mapping=volume_mapping,
         mainstem_file=mainstem_file,
     ).run(f"release --compress --prefix summoned/{context.partition_key}", config)
 
