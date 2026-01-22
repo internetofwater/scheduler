@@ -90,6 +90,6 @@ def slack_error_fn(context: RunFailureSensorContext) -> str:
     # id and name so you can just send the error. We don't need other data in the string
     source_being_crawled = context.partition_key
     if source_being_crawled:
-        return f"Error for partition: {source_being_crawled}: {context.failure_event.message}"
+        return f"Error in Geoconnex pipeline for partition: {source_being_crawled}: {context.failure_event.message}"
     else:
-        return f"Error: {context.failure_event.message}"
+        return f"Error in Geoconnex pipeline: {context.failure_event.message}"
