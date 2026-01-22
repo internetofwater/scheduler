@@ -41,6 +41,7 @@ COPY dagster.yaml /opt/scheduler/
 # Expose the necessary ports
 EXPOSE 4000
 # Set the home variable so the code locations are loaded properly
+
 ENV DAGSTER_HOME=/opt/scheduler/
 
 COPY ./Docker/dagster/entrypoint.sh /opt/scheduler/entrypoint.sh
