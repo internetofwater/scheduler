@@ -157,11 +157,11 @@ defs = Definitions(
             default_status=DefaultSensorStatus.STOPPED
             if RUNNING_AS_TEST_OR_DEV()
             else DefaultSensorStatus.RUNNING,
-            monitor_all_code_locations=True,
+            monitor_all_repositories=True,
         )
     ],
-    # Commented out but can uncomment if we want to send other slack msgs
-    # resources={
-    #     "slack": dagster_slack.SlackResource(token=strict_env("DAGSTER_SLACK_TOKEN")),
-    # },
+    # Can be used to send arbitrary slack messages
+    resources={
+        "slack": dagster_slack.SlackResource(token=strict_env("DAGSTER_SLACK_TOKEN")),
+    },
 )
