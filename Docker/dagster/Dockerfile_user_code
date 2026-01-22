@@ -43,7 +43,7 @@ EXPOSE 4000
 # Set the home variable so the code locations are loaded properly
 ENV DAGSTER_HOME=/opt/scheduler/app
 
-COPY ./Docker/scheduler/entrypoint.sh /opt/scheduler/app/entrypoint.sh
+COPY ./Docker/dagster/entrypoint.sh /opt/scheduler/app/entrypoint.sh
 
 # This needs to be a CMD and not an ENTRYPOINT for some reason; it appears that docker swarm might pass implicit arguments and thus not work if it is an ENTRYPOINT
 CMD [ "/opt/scheduler/app/entrypoint.sh" ]
