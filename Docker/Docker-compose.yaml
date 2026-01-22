@@ -140,7 +140,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # mounts are resolved relative to the location of the docker-compose.yml not the build context
-      - ../assets/:/opt/scheduler/app/assets
+      - ../assets/:/opt/scheduler/assets
     env_file:
       - "../.env"
     profiles:

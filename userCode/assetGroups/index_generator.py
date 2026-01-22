@@ -18,7 +18,7 @@ from userCode.lib.containers import (
     SynchronizerConfig,
     SynchronizerContainer,
 )
-from userCode.lib.env import GHCR_TOKEN, RUNNING_AS_TEST_OR_DEV
+from userCode.lib.env import GHCR_TOKEN, RUNNING_AS_TEST_OR_DEV, repositoryRoot
 
 """
 All assets in this pipeline work to build an index for 
@@ -27,7 +27,7 @@ qlever
 
 INDEX_GEN_GROUP = "index"
 
-PULLED_NQ_DESTINATION = Path(__file__).parent / "qlever" / "geoconnex_graph/"
+PULLED_NQ_DESTINATION = repositoryRoot / "assets" / "geoconnex_graph/"
 
 
 @asset(
