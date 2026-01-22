@@ -15,8 +15,6 @@ from .dagster import (
     dagster_log_with_parsed_level,
 )
 from .env import (
-    DATAGRAPH_REPOSITORY,
-    PROVGRAPH_REPOSITORY,
     RUNNING_AS_TEST_OR_DEV,
     strict_env,
 )
@@ -53,8 +51,6 @@ def run_docker_image(
     """Run a docker using the same docker socket inside dagster"""
     container_name = create_max_length_container_name(source, action_name)
 
-    get_dagster_logger().info(f"Datagraph value: {DATAGRAPH_REPOSITORY}")
-    get_dagster_logger().info(f"Provgraph value: {PROVGRAPH_REPOSITORY}")
     client = docker.DockerClient()
 
     container = client.containers.run(
