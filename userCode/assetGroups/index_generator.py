@@ -41,14 +41,18 @@ def pull_release_nq_for_all_sources(config: SynchronizerConfig):
     PULLED_NQ_DESTINATION.mkdir(exist_ok=True)
 
     assert PULLED_NQ_DESTINATION.is_dir(), (
-        "You must use a directory for geoconnex_graph not a file"
+        "You must use a directory for geoconnex_graph, not a file"
     )
 
     fullGraphNqInContainer = "/app/geoconnex_graph/"
+    volumeMapping = [f"{PULLED_NQ_DESTINATION}:{fullGraphNqInContainer}"]
+    get_dagster_logger().info(
+        f"Pulling release graphs to {PULLED_NQ_DESTINATION.absolute()} in host filesystem using volume mapping: {volumeMapping}"
+    )
     SynchronizerContainer(
         "pull",
         "all",
-        volume_mapping=[f"{PULLED_NQ_DESTINATION}:{fullGraphNqInContainer}"],
+        volume_mapping=volumeMapping,
     ).run(
         f"pull --prefix graphs/latest/ {fullGraphNqInContainer}",
         config,
