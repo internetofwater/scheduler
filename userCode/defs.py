@@ -1,6 +1,7 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+
 from dagster import (
     AssetSelection,
     DefaultScheduleStatus,
@@ -130,7 +131,9 @@ defs = Definitions(
             index_generator,
         ]
     ),
-    schedules=[crawl_entire_graph_schedule],
+    schedules=[
+        crawl_entire_graph_schedule,
+    ],
     asset_checks=load_asset_checks_from_modules(
         [
             instance,
