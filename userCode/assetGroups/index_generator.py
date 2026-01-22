@@ -101,11 +101,9 @@ def qlever_index():
     geoconnex_index.mkdir(exist_ok=True)
 
     # move all geoconnex.* files to geoconnex_index
-    target_dir = repositoryRoot / "assets" / "geoconnex_index"
-
     for path in PULLED_NQ_DESTINATION.iterdir():
         if path.is_file() and path.name.startswith("geoconnex."):
-            path.rename(target_dir / path.name)
+            path.rename(geoconnex_index / path.name)
 
 
 @asset(
