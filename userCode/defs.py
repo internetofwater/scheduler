@@ -1,14 +1,19 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+import shutil
+
 from dagster import (
     AssetSelection,
     DefaultScheduleStatus,
     DefaultSensorStatus,
     Definitions,
     RunRequest,
+    ScheduleDefinition,
     ScheduleEvaluationContext,
+    asset,
     define_asset_job,
+    get_dagster_logger,
     load_asset_checks_from_modules,
     load_assets_from_modules,
     materialize,
@@ -83,6 +88,41 @@ index_generator_job = define_asset_job(
 )
 
 
+@asset
+def disk_space_check(slack: dagster_slack.SlackResource):
+    """
+    Asset that fails if disk usage exceeds a specified threshold
+    """
+    ROOT_DISK = "/"
+    MAX_USAGE_PERCENT = 80.0
+
+    usage = shutil.disk_usage(ROOT_DISK)
+
+    total_gb = usage.total / (1024**3)
+    free_gb = usage.free / (1024**3)
+    percent_used = (usage.used / usage.total) * 100
+
+    metadata = {
+        "path": ROOT_DISK,
+        "percent_used": round(percent_used, 1),
+        "free_gb": round(free_gb, 2),
+        "total_gb": round(total_gb, 2),
+        "max_threshold_percent": MAX_USAGE_PERCENT,
+    }
+
+    if percent_used >= MAX_USAGE_PERCENT:
+        get_dagster_logger().warning(
+            f"Geoconnex VM disk usage exceeded threshold: {metadata}"
+        )
+        slack.get_client().chat_postMessage(
+            channel="#cgs-iow-bots",
+            text=f"Geoconnex VM disk usage exceeded threshold {metadata}",
+        )
+        raise Exception(
+            f"Disk usage exceeded threshold: {percent_used:.1f}% > {MAX_USAGE_PERCENT:.1f}%"
+        )
+
+
 @schedule(
     cron_schedule="@monthly",
     job=harvest_and_generate_release_graph_job,
@@ -130,7 +170,17 @@ defs = Definitions(
             index_generator,
         ]
     ),
-    schedules=[crawl_entire_graph_schedule],
+    schedules=[
+        crawl_entire_graph_schedule,
+        ScheduleDefinition(
+            name="disk_space_check",
+            cron_schedule="@hourly",
+            target=disk_space_check,
+            default_status=DefaultScheduleStatus.STOPPED
+            if RUNNING_AS_TEST_OR_DEV()
+            else DefaultScheduleStatus.RUNNING,
+        ),
+    ],
     asset_checks=load_asset_checks_from_modules(
         [
             instance,
