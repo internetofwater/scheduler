@@ -34,16 +34,17 @@ COPY --from=builder /app /app
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
-WORKDIR /opt/scheduler/app
-COPY userCode/ /opt/scheduler/app/userCode
-COPY dagster.yaml /opt/scheduler/app/
+WORKDIR /opt/scheduler/
+COPY userCode/ /opt/scheduler/userCode
+COPY dagster.yaml /opt/scheduler/
 
 # Expose the necessary ports
 EXPOSE 4000
 # Set the home variable so the code locations are loaded properly
-ENV DAGSTER_HOME=/opt/scheduler/app
 
-COPY ./Docker/dagster/entrypoint.sh /opt/scheduler/app/entrypoint.sh
+ENV DAGSTER_HOME=/opt/scheduler/
+
+COPY ./Docker/dagster/entrypoint.sh /opt/scheduler/entrypoint.sh
 
 # This needs to be a CMD and not an ENTRYPOINT for some reason; it appears that docker swarm might pass implicit arguments and thus not work if it is an ENTRYPOINT
-CMD [ "/opt/scheduler/app/entrypoint.sh" ]
+CMD [ "/opt/scheduler/entrypoint.sh" ]

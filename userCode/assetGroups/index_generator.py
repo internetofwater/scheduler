@@ -18,7 +18,7 @@ from userCode.lib.containers import (
     SynchronizerConfig,
     SynchronizerContainer,
 )
-from userCode.lib.env import GHCR_TOKEN, RUNNING_AS_TEST_OR_DEV
+from userCode.lib.env import GHCR_TOKEN, RUNNING_AS_TEST_OR_DEV, repositoryRoot
 
 """
 All assets in this pipeline work to build an index for 
@@ -27,7 +27,7 @@ qlever
 
 INDEX_GEN_GROUP = "index"
 
-PULLED_NQ_DESTINATION = Path(__file__).parent / "qlever" / "geoconnex_graph/"
+PULLED_NQ_DESTINATION = repositoryRoot / "assets" / "geoconnex_graph/"
 
 
 @asset(
@@ -41,14 +41,18 @@ def pull_release_nq_for_all_sources(config: SynchronizerConfig):
     PULLED_NQ_DESTINATION.mkdir(exist_ok=True)
 
     assert PULLED_NQ_DESTINATION.is_dir(), (
-        "You must use a directory for geoconnex_graph not a file"
+        "You must use a directory for geoconnex_graph, not a file"
     )
 
     fullGraphNqInContainer = "/app/geoconnex_graph/"
+    volumeMapping = [f"{PULLED_NQ_DESTINATION}:{fullGraphNqInContainer}"]
+    get_dagster_logger().info(
+        f"Pulling release graphs to {PULLED_NQ_DESTINATION.absolute()} in host filesystem using volume mapping: {volumeMapping}"
+    )
     SynchronizerContainer(
         "pull",
         "all",
-        volume_mapping=[f"{PULLED_NQ_DESTINATION}:{fullGraphNqInContainer}"],
+        volume_mapping=volumeMapping,
     ).run(
         f"pull --prefix graphs/latest/ {fullGraphNqInContainer}",
         config,
