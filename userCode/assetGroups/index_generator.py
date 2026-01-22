@@ -3,7 +3,6 @@
 
 from datetime import datetime
 import os
-from pathlib import Path
 import subprocess
 
 from dagster import (
@@ -67,17 +66,15 @@ def pull_release_nq_for_all_sources(config: SynchronizerConfig):
 )
 def qlever_index():
     logger = get_dagster_logger()
-    current_dir = Path(__file__).parent
-    qlever_dir = current_dir / "qlever"
+
+    os.chdir(repositoryRoot / "assets")
+
     qlever_cmd = [
         "qlever",
         "index",
         "--overwrite-existing",
-        "--image",
-        "docker.io/adfreiburg/qlever:commit-55c05d4",
     ]
 
-    os.chdir(qlever_dir)
     result = subprocess.run(
         qlever_cmd,
         capture_output=True,
@@ -99,6 +96,16 @@ def qlever_index():
 
     result.check_returncode()
     get_dagster_logger().info("qlever index generation complete")
+
+    geoconnex_index = repositoryRoot / "assets" / "geoconnex_index"
+    geoconnex_index.mkdir(exist_ok=True)
+
+    # move all geoconnex.* files to geoconnex_index
+    target_dir = repositoryRoot / "assets" / "geoconnex_index"
+
+    for path in PULLED_NQ_DESTINATION.iterdir():
+        if path.is_file() and path.name.startswith("geoconnex."):
+            path.rename(target_dir / path.name)
 
 
 @asset(
