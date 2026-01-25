@@ -251,7 +251,7 @@ class RcloneClient:
             if destination_filename.endswith(".gz")
             else "-v --s3-decompress --gcs-decompress --s3-use-accept-encoding-gzip=true --s3-might-gzip=true"
         )
-        cmd_to_run = " ".join([self.get_bin(), "copyto", src, dst, opts])
+        cmd_to_run = f"{self.get_bin()} copyto {src} {dst} {opts}"
         get_dagster_logger().info(f"Running bash command: {cmd_to_run}")
         self._run_subprocess(cmd_to_run)
 
