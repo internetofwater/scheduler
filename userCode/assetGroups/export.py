@@ -111,7 +111,7 @@ def stream_nquad_file_to_renci(
     rclone_client = RcloneClient(rclone_config)
     lakefs_client = LakeFSClient("geoconnex")
 
-    rclone_client.copy_to_lakefs(
+    rclone_client.copy_file_to_lakefs(
         destination_branch="develop",
         destination_filename="geoconnex-graph.nq.gz",
         path_to_file=export_graphdb_as_nquads,
@@ -137,7 +137,7 @@ def stream_all_release_graphs_to_renci(
 
     RELEASE_GRAPH_LOCATION_IN_S3 = "graphs/latest/"
 
-    RcloneClient(rclone_config).copy_to_lakefs(
+    RcloneClient(rclone_config).copy_file_to_lakefs(
         destination_branch="develop",
         destination_filename="geoconnex-graph.nq.gz",
         path_to_file=RELEASE_GRAPH_LOCATION_IN_S3,

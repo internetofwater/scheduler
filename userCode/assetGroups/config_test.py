@@ -99,7 +99,7 @@ def test_rclone_s3_to_lakefs(lakefs_client: LakeFSClient):
     result = materialize_to_memory(assets=[rclone_config])
     assert result.success
     rclone_client = RcloneClient(config_data=result.output_for_node("rclone_config"))
-    rclone_client.copy_to_lakefs(
+    rclone_client.copy_file_to_lakefs(
         filename,
         destination_branch="test_branch_for_CI",
         destination_filename=filename,

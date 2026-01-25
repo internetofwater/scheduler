@@ -3,3 +3,5 @@ node_modules/
 assets/*.fgb
 .git/
 .pytest_cache/   
+.ruff_cache/
+__pycache__/
