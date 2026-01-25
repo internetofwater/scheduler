@@ -25,9 +25,11 @@ ENV DOCKERVERSION=29.1.5
 
 RUN set -eux; \
     ARCH="${TARGETARCH}"; \
-    # docker uses the name aarch64 in the binary downloads; not arm64
+    # docker uses different names for different architectures
     if [ "${TARGETARCH}" = "arm64" ]; then \
     ARCH="aarch64"; \
+    elif [ "${TARGETARCH}" = "amd64" ]; then \
+    ARCH="x86_64"; \
     fi; \
     curl -fsSLO "https://download.docker.com/${TARGETOS}/static/stable/${ARCH}/docker-${DOCKERVERSION}.tgz"; \
     tar xzvf "docker-${DOCKERVERSION}.tgz" --strip 1 -C /usr/local/bin docker/docker; \
