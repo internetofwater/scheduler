@@ -55,6 +55,9 @@ def stream_all_release_graphs_to_renci(
     """
     Stream all release graphs to RENCI
     """
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning("Skipping export as we are running in test mode")
+        return
     lakefs_client = LakeFSClient("geoconnex")
 
     RcloneClient(rclone_config).copy_directory_to_lakefs(
@@ -65,10 +68,13 @@ def stream_all_release_graphs_to_renci(
 
 
 @asset(group_name=EXPORT_GROUP)
-def stream_qlever_index_to_gcs():
+def stream_qlever_index_to_gcs(context: AssetExecutionContext):
     """
     Stream all files in the generated qlever index to GCS
     """
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning("Skipping export as we are running in test mode")
+        return
     s3 = S3()
     for file in INDEX_DIRECTORY.iterdir():
         if not file.is_file():
@@ -92,6 +98,9 @@ def merge_lakefs_branch_into_main():
     auto merging unfinished or incorrect assets until they have been
     checked
     """
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning("Skipping export as we are running in test mode")
+        return
     LakeFSClient("geoconnex").merge_branch_into_main(branch="develop")
 
 
