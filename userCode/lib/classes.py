@@ -294,6 +294,12 @@ class RcloneClient:
 
         new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
 
+        # remove all old / existing files in the lakefs directory in that specific branch; i.e. start fresh on the branch
+        # so we don't have old files like large .nq dumps from previous runs or outdated sitemap names that would cause duplicates
+        lakefs_client.remove_files_in_directory(
+            destination_branch, directory_prefix=destination_prefix
+        )
+
         src = (
             f"s3:{S3_DEFAULT_BUCKET}/{source_prefix}"
             if RUNNING_AS_TEST_OR_DEV()

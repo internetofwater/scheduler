@@ -94,3 +94,14 @@ class LakeFSClient:
         """Merge a branch into the main branch of the lakefs cluster"""
 
         self.repository.branch(branch).merge_into(self.repository.branch("main"))
+
+    def remove_files_in_directory(self, branch: str, directory_prefix: str | None):
+        """
+        Remove all files in a specific directory prefix within a specified branch
+        """
+        branch_ref = self.get_branch(branch)
+        if not branch_ref:
+            raise ValueError(f"Branch {branch} not found in lakeFS")
+
+        objs = branch_ref.objects(prefix=directory_prefix)
+        branch_ref.delete_objects([o.path for o in objs])
