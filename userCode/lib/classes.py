@@ -270,9 +270,9 @@ class RcloneClient:
     def copy_directory_to_lakefs(
         self,
         source_prefix: str,
-        destination_prefix: str,
         destination_branch: str,
         lakefs_client: LakeFSClient,
+        destination_prefix: str | None = None,
     ):
         """
         Recursively copy only .nq and .nq.gz files from a directory in minio/GCS
@@ -306,7 +306,9 @@ class RcloneClient:
             else f"gs:{S3_DEFAULT_BUCKET}/{source_prefix}"
         )
 
-        dst = f"lakefs:geoconnex/{destination_branch}/{destination_prefix}"
+        dst = f"lakefs:geoconnex/{destination_branch}"
+        if destination_prefix:
+            dst = f"{dst}/{destination_prefix}"
 
         # rclone include rules:
         # - include *.nq and *.nq.gz

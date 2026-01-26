@@ -1,7 +1,6 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime
 import os
 
 from dagster import (
@@ -11,13 +10,10 @@ from dagster import (
 )
 import requests
 
-from userCode.assetGroups.sync import finished_individual_crawl
 from userCode.lib.classes import RcloneClient, S3
 from userCode.lib.dagster import all_dependencies_materialized
 from userCode.lib.env import (
-    DATAGRAPH_REPOSITORY,
     RUNNING_AS_TEST_OR_DEV,
-    TRIPLESTORE_URL,
     ZENODO_ACCESS_TOKEN,
     ZENODO_SANDBOX_ACCESS_TOKEN,
 )
@@ -30,6 +26,11 @@ outside of the triplestore.
 """
 
 EXPORT_GROUP = "exports"
+
+
+RELEASE_GRAPH_LOCATION_IN_S3 = "graphs/latest/"
+
+DEVELOPMENT_BRANCH_IN_LAKEFS = "develop"
 
 
 def skip_export(context: AssetExecutionContext) -> bool:
@@ -48,99 +49,20 @@ def skip_export(context: AssetExecutionContext) -> bool:
 
 
 @asset(
-    deps=[finished_individual_crawl],
-    group_name=EXPORT_GROUP,
-)
-def export_graphdb_as_nquads(context: AssetExecutionContext) -> str | None:
-    """Export the graphdb to nquads"""
-    if skip_export(context):
-        return
-
-    base_url = (
-        TRIPLESTORE_URL if not RUNNING_AS_TEST_OR_DEV() else "http://localhost:7200"
-    )
-
-    # Define the repository name and endpoint
-    endpoint = f"{base_url}/repositories/{DATAGRAPH_REPOSITORY}"
-
-    query = "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }"
-
-    headers: dict[str, str] = {
-        "Content-Type": "application/sparql-query",
-        "Accept": "application/n-quads",
-    }
-
-    get_dagster_logger().info(
-        f"Exporting graphdb to nquads; fetching data from {endpoint}"
-    )
-
-    with requests.post(
-        endpoint,
-        headers=headers,
-        data=query,
-        stream=True,
-    ) as r:
-        r.raise_for_status()
-        filename = f"backups/nquads_{datetime.now().strftime('%Y%m%d_%H%M%S')}.nq.gz"
-
-        s3_client = S3()
-        s3_client.load_stream(
-            r.raw,
-            filename,
-            -1,
-            content_type="application/n-quads",
-            headers=dict(r.headers),
-        )
-        assert s3_client.object_has_content(filename)
-
-        return filename
-
-
-@asset(
-    group_name=EXPORT_GROUP,
-)
-def stream_nquad_file_to_renci(
-    context: AssetExecutionContext,
-    rclone_config: str,
-    export_graphdb_as_nquads: str | None,
-):
-    """Upload the nquads to the renci bucket in lakefs"""
-    if skip_export(context) or not export_graphdb_as_nquads:
-        return
-
-    rclone_client = RcloneClient(rclone_config)
-    lakefs_client = LakeFSClient("geoconnex")
-
-    rclone_client.copy_file_to_lakefs(
-        destination_branch="develop",
-        destination_filename="geoconnex-graph.nq.gz",
-        path_to_file=export_graphdb_as_nquads,
-        lakefs_client=lakefs_client,
-    )
-
-
-@asset(
     group_name=EXPORT_GROUP,
 )
 def stream_all_release_graphs_to_renci(
     context: AssetExecutionContext,
     rclone_config: str,
-    export_graphdb_as_nquads: str | None,
 ):
     """
     Stream all release graphs to RENCI
     """
-    if skip_export(context) or not export_graphdb_as_nquads:
-        return
-
     lakefs_client = LakeFSClient("geoconnex")
 
-    RELEASE_GRAPH_LOCATION_IN_S3 = "graphs/latest/"
-
-    RcloneClient(rclone_config).copy_file_to_lakefs(
-        destination_branch="develop",
-        destination_filename="geoconnex-graph.nq.gz",
-        path_to_file=RELEASE_GRAPH_LOCATION_IN_S3,
+    RcloneClient(rclone_config).copy_directory_to_lakefs(
+        destination_branch=DEVELOPMENT_BRANCH_IN_LAKEFS,
+        source_prefix=RELEASE_GRAPH_LOCATION_IN_S3,
         lakefs_client=lakefs_client,
     )
 
