@@ -304,7 +304,7 @@ class RcloneClient:
 
         # rclone include rules:
         # - include *.nq and *.nq.gz
-        # - exclude everything else
+        # - exclude bytesum hash metadata files
         opts = [
             "-v",
             "--include",
@@ -312,7 +312,7 @@ class RcloneClient:
             "--include",
             "*.nq.gz",
             "--exclude",
-            "*",
+            "*.bytesum",
             "--s3-upload-concurrency",
             "8",
         ]
