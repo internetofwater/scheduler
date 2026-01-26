@@ -10,6 +10,7 @@ from dagster import (
 )
 import requests
 
+from userCode.assetGroups.index_generator import INDEX_DIRECTORY
 from userCode.lib.classes import RcloneClient, S3
 from userCode.lib.dagster import all_dependencies_materialized
 from userCode.lib.env import (
@@ -65,6 +66,26 @@ def stream_all_release_graphs_to_renci(
         source_prefix=RELEASE_GRAPH_LOCATION_IN_S3,
         lakefs_client=lakefs_client,
     )
+
+
+@asset(group_name=EXPORT_GROUP)
+def stream_qlever_index_to_gcs():
+    """
+    Stream all files in the generated qlever index to GCS
+    """
+    s3 = S3()
+    for file in INDEX_DIRECTORY.iterdir():
+        if not file.is_file():
+            raise Exception(f"{file} is not a file and thus cannot be uploaded")
+
+        with file.open("rb") as f:
+            s3.load_stream(
+                stream=f,
+                remote_path=f"geoconnex_index/{file.name}",
+                content_length=file.stat().st_size,
+                content_type="octet-stream",
+                headers={},
+            )
 
 
 @asset(group_name=EXPORT_GROUP)

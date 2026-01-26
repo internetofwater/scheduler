@@ -17,7 +17,11 @@ from userCode.lib.containers import (
     SynchronizerConfig,
     SynchronizerContainer,
 )
-from userCode.lib.env import GHCR_TOKEN, RUNNING_AS_TEST_OR_DEV, repositoryRoot
+from userCode.lib.env import (
+    ASSETS_DIRECTORY,
+    GHCR_TOKEN,
+    RUNNING_AS_TEST_OR_DEV,
+)
 
 """
 All assets in this pipeline work to build an index for 
@@ -26,7 +30,9 @@ qlever
 
 INDEX_GEN_GROUP = "index"
 
-PULLED_NQ_DESTINATION = repositoryRoot / "assets" / "geoconnex_graph/"
+PULLED_NQ_DESTINATION = ASSETS_DIRECTORY / "geoconnex_graph/"
+
+INDEX_DIRECTORY = ASSETS_DIRECTORY / "geoconnex_index"
 
 
 @asset(
@@ -67,7 +73,7 @@ def pull_release_nq_for_all_sources(config: SynchronizerConfig):
 def qlever_index():
     logger = get_dagster_logger()
 
-    os.chdir(repositoryRoot / "assets")
+    os.chdir(ASSETS_DIRECTORY)
 
     # overwrite existing index if it exists and use up to 11GB of memory for building the
     # index; otherwise qlever will only use the default of 1GB
@@ -95,13 +101,12 @@ def qlever_index():
     result.check_returncode()
     get_dagster_logger().info("qlever index generation complete")
 
-    geoconnex_index = repositoryRoot / "assets" / "geoconnex_index"
-    geoconnex_index.mkdir(exist_ok=True)
+    INDEX_DIRECTORY.mkdir(exist_ok=True)
 
     # move all geoconnex.* files to geoconnex_index directory for cleanliness
     for path in PULLED_NQ_DESTINATION.iterdir():
         if path.is_file() and path.name.startswith("geoconnex."):
-            path.rename(geoconnex_index / path.name)
+            path.rename(INDEX_DIRECTORY / path.name)
 
 
 @asset(
