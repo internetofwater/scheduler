@@ -220,7 +220,7 @@ class RcloneClient:
 
         return stdout, stderr
 
-    def copy_to_lakefs(
+    def copy_file_to_lakefs(
         self,
         path_to_file: str,
         destination_filename: str,
@@ -251,7 +251,7 @@ class RcloneClient:
             if destination_filename.endswith(".gz")
             else "-v --s3-decompress --gcs-decompress --s3-use-accept-encoding-gzip=true --s3-might-gzip=true"
         )
-        cmd_to_run = " ".join([self.get_bin(), "copyto", src, dst, opts])
+        cmd_to_run = f"{self.get_bin()} copyto {src} {dst} {opts}"
         get_dagster_logger().info(f"Running bash command: {cmd_to_run}")
         self._run_subprocess(cmd_to_run)
 
@@ -265,4 +265,84 @@ class RcloneClient:
             get_dagster_logger().warning(
                 """"The lakefs client copied a file but no new changes were detected on the remote lakefs cluster. 
                 This is a sign that either the file was already present or something may be wrong"""
+            )
+
+    def copy_directory_to_lakefs(
+        self,
+        source_prefix: str,
+        destination_branch: str,
+        lakefs_client: LakeFSClient,
+        destination_prefix: str | None = None,
+    ):
+        """
+        Recursively copy only .nq and .nq.gz files from a directory in minio/GCS
+        into lakeFS, preserving relative paths.
+
+        source_prefix:
+            Path relative to the bucket (e.g. "graphs/latest")
+
+        destination_prefix:
+            Path inside the lakeFS branch (e.g. "geoconnex/release_graphs")
+
+        destination_branch:
+            lakeFS branch name
+        """
+
+        get_dagster_logger().info(
+            f"Uploading .nq/.nq.gz files from {source_prefix} to lakeFS branch {destination_branch}"
+        )
+
+        new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
+
+        # remove all old / existing files in the lakefs directory in that specific branch; i.e. start fresh on the branch
+        # so we don't have old files like large .nq dumps from previous runs or outdated sitemap names that would cause duplicates
+        lakefs_client.remove_files_in_directory(
+            destination_branch, directory_prefix=destination_prefix
+        )
+
+        src = (
+            f"s3:{S3_DEFAULT_BUCKET}/{source_prefix}"
+            if RUNNING_AS_TEST_OR_DEV()
+            else f"gs:{S3_DEFAULT_BUCKET}/{source_prefix}"
+        )
+
+        dst = f"lakefs:geoconnex/{destination_branch}"
+        if destination_prefix:
+            dst = f"{dst}/{destination_prefix}"
+
+        # rclone include rules:
+        # - include *.nq and *.nq.gz
+        # - exclude bytesum hash metadata files
+        opts = [
+            "-v",
+            "--include",
+            "*.nq",
+            "--include",
+            "*.nq.gz",
+            "--exclude",
+            "*.bytesum",
+            "--s3-upload-concurrency",
+            "8",
+        ]
+
+        cmd_to_run = f"{self.get_bin()} copy {src} {dst} {' '.join(opts)}"
+
+        get_dagster_logger().info(f"Running rclone CLI command: {cmd_to_run}")
+        self._run_subprocess(cmd_to_run)
+
+        if list(new_branch.uncommitted()):
+            get_dagster_logger().info(
+                f"Committing .nq/.nq.gz files to branch: {destination_branch}"
+            )
+            new_branch.commit(
+                message=(
+                    f"Adding .nq/.nq.gz files from {source_prefix} "
+                    "automatically from the geoconnex scheduler"
+                ),
+                metadata={},
+            )
+        else:
+            get_dagster_logger().warning(
+                "rclone copy completed but no new .nq/.nq.gz files were detected "
+                "to commit — files may already exist or none matched the filter"
             )

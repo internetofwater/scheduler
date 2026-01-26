@@ -3,7 +3,6 @@
 
 from datetime import datetime
 import os
-from pathlib import Path
 import subprocess
 
 from dagster import (
@@ -18,7 +17,11 @@ from userCode.lib.containers import (
     SynchronizerConfig,
     SynchronizerContainer,
 )
-from userCode.lib.env import GHCR_TOKEN, RUNNING_AS_TEST_OR_DEV, repositoryRoot
+from userCode.lib.env import (
+    ASSETS_DIRECTORY,
+    GHCR_TOKEN,
+    RUNNING_AS_TEST_OR_DEV,
+)
 
 """
 All assets in this pipeline work to build an index for 
@@ -27,7 +30,9 @@ qlever
 
 INDEX_GEN_GROUP = "index"
 
-PULLED_NQ_DESTINATION = repositoryRoot / "assets" / "geoconnex_graph/"
+PULLED_NQ_DESTINATION = ASSETS_DIRECTORY / "geoconnex_graph/"
+
+INDEX_DIRECTORY = ASSETS_DIRECTORY / "geoconnex_index"
 
 
 @asset(
@@ -67,17 +72,13 @@ def pull_release_nq_for_all_sources(config: SynchronizerConfig):
 )
 def qlever_index():
     logger = get_dagster_logger()
-    current_dir = Path(__file__).parent
-    qlever_dir = current_dir / "qlever"
-    qlever_cmd = [
-        "qlever",
-        "index",
-        "--overwrite-existing",
-        "--image",
-        "docker.io/adfreiburg/qlever:commit-55c05d4",
-    ]
 
-    os.chdir(qlever_dir)
+    os.chdir(ASSETS_DIRECTORY)
+
+    # overwrite existing index if it exists and use up to 11GB of memory for building the
+    # index; otherwise qlever will only use the default of 1GB
+    qlever_cmd = ["qlever", "index", "--overwrite-existing", "--stxxl-memory", "11GB"]
+
     result = subprocess.run(
         qlever_cmd,
         capture_output=True,
@@ -99,6 +100,13 @@ def qlever_index():
 
     result.check_returncode()
     get_dagster_logger().info("qlever index generation complete")
+
+    INDEX_DIRECTORY.mkdir(exist_ok=True)
+
+    # move all geoconnex.* files to geoconnex_index directory for cleanliness
+    for path in PULLED_NQ_DESTINATION.iterdir():
+        if path.is_file() and path.name.startswith("geoconnex."):
+            path.rename(INDEX_DIRECTORY / path.name)
 
 
 @asset(

@@ -13,6 +13,28 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 # for an example.
 ENV UV_PYTHON_DOWNLOADS=0
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG TARGETOS
+ARG TARGETARCH
+ENV DOCKERVERSION=29.1.5
+
+RUN set -eux; \
+    ARCH="${TARGETARCH}"; \
+    # docker uses different names for different architectures
+    if [ "${TARGETARCH}" = "arm64" ]; then \
+    ARCH="aarch64"; \
+    elif [ "${TARGETARCH}" = "amd64" ]; then \
+    ARCH="x86_64"; \
+    fi; \
+    curl -fsSLO "https://download.docker.com/${TARGETOS}/static/stable/${ARCH}/docker-${DOCKERVERSION}.tgz"; \
+    tar xzvf "docker-${DOCKERVERSION}.tgz" --strip 1 -C /usr/local/bin docker/docker; \
+    rm "docker-${DOCKERVERSION}.tgz"
+
 WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
@@ -30,6 +52,8 @@ FROM python:3.12-slim-bookworm
 
 # Copy the application from the builder
 COPY --from=builder /app /app
+# Copy the Docker CLI from the builder
+COPY --from=builder /usr/local/bin/docker /usr/local/bin/docker
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
