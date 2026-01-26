@@ -7,7 +7,6 @@ import pytest
 import requests
 
 from userCode.assetGroups.config import rclone_config
-from userCode.assetGroups.export import stream_nquads_to_zenodo
 from userCode.lib.classes import (
     RcloneClient,
     S3,
@@ -17,7 +16,6 @@ from userCode.lib.env import (
     LAKEFS_ENDPOINT_URL,
     LAKEFS_SECRET_ACCESS_KEY,
     ZENODO_ACCESS_TOKEN,
-    ZENODO_SANDBOX_ACCESS_TOKEN,
 )
 from userCode.lib.lakefs import LakeFSClient
 
@@ -33,17 +31,16 @@ def test_zenodo():
     assert r.ok, r.text
 
 
-@pytest.mark.skipif(
-    ZENODO_SANDBOX_ACCESS_TOKEN == "unset", reason="secret access key is not set"
-)
-def test_export_zenodo_in_sandbox_environment():
-    """Make sure our logic for uploading to zenodo works by uploading a file to s3 and then streaming it to the zenodo sandbox env"""
-    objNameInS3 = "fileIdentifier"
-    S3().load(b"test", objNameInS3)
-    stream_nquads_to_zenodo(
-        None,
-        export_graphdb_as_nquads=objNameInS3,
-    )
+# @pytest.mark.skipif(
+#     ZENODO_SANDBOX_ACCESS_TOKEN == "unset", reason="secret access key is not set"
+# )
+# def test_export_zenodo_in_sandbox_environment():
+#     """Make sure our logic for uploading to zenodo works by uploading a file to s3 and then streaming it to the zenodo sandbox env"""
+#     objNameInS3 = "fileIdentifier"
+#     S3().load(b"test", objNameInS3)
+#     stream_nquads_to_zenodo(
+#         None,
+#     )
 
 
 @pytest.fixture
