@@ -69,11 +69,9 @@ def qlever_index():
 
     os.chdir(repositoryRoot / "assets")
 
-    qlever_cmd = [
-        "qlever",
-        "index",
-        "--overwrite-existing",
-    ]
+    # overwrite existing index if it exists and use up to 11GB of memory for building the
+    # index; otherwise qlever will only use the default of 1GB
+    qlever_cmd = ["qlever", "index", "--overwrite-existing", "--stxxl-memory", "11GB"]
 
     result = subprocess.run(
         qlever_cmd,
@@ -100,7 +98,7 @@ def qlever_index():
     geoconnex_index = repositoryRoot / "assets" / "geoconnex_index"
     geoconnex_index.mkdir(exist_ok=True)
 
-    # move all geoconnex.* files to geoconnex_index
+    # move all geoconnex.* files to geoconnex_index directory for cleanliness
     for path in PULLED_NQ_DESTINATION.iterdir():
         if path.is_file() and path.name.startswith("geoconnex."):
             path.rename(geoconnex_index / path.name)
