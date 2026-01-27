@@ -21,7 +21,7 @@ from userCode.assetGroups.harvest import (
     sources_partitions_def,
 )
 from userCode.assetGroups.index_generator import (
-    PULLED_NQ_DESTINATION,
+    GEOCONNEX_GRAPH_DIRECTORY,
     pull_release_nq_for_all_sources,
 )
 from userCode.assetGroups.release_graph_generator import (
@@ -208,14 +208,14 @@ def test_e2e_harvest_and_release_nquads():
     ), (
         "Mainstem info should have been inserted into the nquads during converstion. The mainstem should be associated with https://features.geoconnex.dev/collections/dams/items/1076356"
     )
-    if PULLED_NQ_DESTINATION.exists():
-        shutil.rmtree(PULLED_NQ_DESTINATION)
+    if GEOCONNEX_GRAPH_DIRECTORY.exists():
+        shutil.rmtree(GEOCONNEX_GRAPH_DIRECTORY)
     pull_release_nq_for_all_sources()
-    assert PULLED_NQ_DESTINATION.exists(), "Pulled nq folder does not exist"
+    assert GEOCONNEX_GRAPH_DIRECTORY.exists(), "Pulled nq folder does not exist"
 
-    pulled_file = PULLED_NQ_DESTINATION.joinpath("ref_dams_dams__0_release.nq.gz")
+    pulled_file = GEOCONNEX_GRAPH_DIRECTORY.joinpath("ref_dams_dams__0_release.nq.gz")
     last_modified = pulled_file.stat().st_mtime
-    pulled_file_bytesum = PULLED_NQ_DESTINATION.joinpath(
+    pulled_file_bytesum = GEOCONNEX_GRAPH_DIRECTORY.joinpath(
         "ref_dams_dams__0_release.nq.gz.bytesum"
     )
     assert pulled_file.exists()
