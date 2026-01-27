@@ -152,7 +152,7 @@ def stream_nquads_to_zenodo(
 
     # Create a new deposit (this is essentially akin to a commit
     # that groups multiple file additions together in an update request
-    response = requests.post(ZENODO_API_URL, json={}, headers=headers)
+    response = requests.post(ZENODO_API_URL, json={}, headers=headers, timeout=30)
     response.raise_for_status()
     deposit = response.json()
 
@@ -187,10 +187,12 @@ def stream_nquads_to_zenodo(
                 f"Uploading {graph.name} #{i} of size {graph.stat().st_size} bytes to Zenodo"
             )
             # Use the deposit ID to upload the file
+            FOURTY_MINUTES = 60 * 40
             response = requests.put(
                 f"{deposit['links']['bucket']}/{graph.name}",
                 data=f,
                 headers={"Authorization": f"Bearer {TOKEN}"},
+                timeout=FOURTY_MINUTES,
             )
             response.raise_for_status()
 
@@ -216,7 +218,7 @@ def stream_nquads_to_zenodo(
     }
 
     metadata_url = f"{ZENODO_API_URL}/{deposit_id}"
-    response = requests.put(metadata_url, json=metadata, headers=headers)
+    response = requests.put(metadata_url, json=metadata, headers=headers, timeout=30)
     response.raise_for_status()
 
     get_dagster_logger().info(f"Metadata updated for deposit ID {deposit_id}")
