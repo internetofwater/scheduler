@@ -59,7 +59,9 @@ def stream_all_release_graphs_to_renci(
         get_dagster_logger().warning("Skipping export as we are running in test mode")
         return
     lakefs_client = LakeFSClient("geoconnex")
-
+    get_dagster_logger().info(
+        f"Uploading release graphs from {RELEASE_GRAPH_LOCATION_IN_S3} to lakefs at {DEVELOPMENT_BRANCH_IN_LAKEFS}"
+    )
     RcloneClient(rclone_config).copy_directory_to_lakefs(
         destination_branch=DEVELOPMENT_BRANCH_IN_LAKEFS,
         source_prefix=RELEASE_GRAPH_LOCATION_IN_S3,
@@ -80,6 +82,9 @@ def stream_qlever_index_to_gcs(context: AssetExecutionContext):
         if not file.is_file():
             raise Exception(f"{file} is not a file and thus cannot be uploaded")
 
+        get_dagster_logger().info(
+            f"Uploading {file.name} of size {file.stat().st_size} to the object store"
+        )
         with file.open("rb") as f:
             s3.load_stream(
                 stream=f,
@@ -91,7 +96,7 @@ def stream_qlever_index_to_gcs(context: AssetExecutionContext):
 
 
 @asset(group_name=EXPORT_GROUP)
-def merge_lakefs_branch_into_main():
+def merge_lakefs_branch_into_main(context: AssetExecutionContext):
     """
     Manually merge the develop branch into the main branch
     the renci lakefs. This is done as a separate step to avoid

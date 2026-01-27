@@ -17,8 +17,8 @@ HOST_NAME = 127.0.0.1
 # loading process.
 [index]
 # you can mimic being in a different directory by just using cat with relative path
-INPUT_FILES     = geoconnex_graph/*.nq.gz
-CAT_INPUT_FILES = find . -name '*.nq.gz' -print0 | xargs -0 gunzip -c
+INPUT_FILES     = ./geoconnex_graph/*.nq.gz
+CAT_INPUT_FILES = sh -c "find geoconnex_graph -name '*.nq.gz' -print0 | xargs -0 gunzip -c"
 SETTINGS_JSON   = { "num-triples-per-batch": 100000 }
 
 [server]
@@ -29,7 +29,7 @@ ACCESS_TOKEN = ChangeMe
 [runtime]
 SYSTEM = docker
 # pin to a specific image
-IMAGE  = docker.io/adfreiburg/qlever:commit-18faf93
+IMAGE  = docker.io/adfreiburg/qlever:commit-93ec01a
 
 [ui]
 UI_PORT   = 8176
