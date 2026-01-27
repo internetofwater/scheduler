@@ -76,6 +76,8 @@ repositoryRoot = Path(__file__).parent.parent.parent.absolute()
 DAGSTER_YAML_CONFIG: str = (repositoryRoot / "dagster.yaml").as_posix()
 
 ASSETS_DIRECTORY = repositoryRoot / "assets"
+GEOCONNEX_GRAPH_DIRECTORY = ASSETS_DIRECTORY / "geoconnex_graph"
+GEOCONNEX_INDEX_DIRECTORY = ASSETS_DIRECTORY / "geoconnex_index"
 
 assert Path(DAGSTER_YAML_CONFIG).exists(), (
     f"the dagster.yaml file does not exist at {DAGSTER_YAML_CONFIG}"

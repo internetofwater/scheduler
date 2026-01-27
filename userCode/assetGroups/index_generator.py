@@ -19,6 +19,8 @@ from userCode.lib.containers import (
 )
 from userCode.lib.env import (
     ASSETS_DIRECTORY,
+    GEOCONNEX_GRAPH_DIRECTORY,
+    GEOCONNEX_INDEX_DIRECTORY,
     GHCR_TOKEN,
     RUNNING_AS_TEST_OR_DEV,
 )
@@ -30,10 +32,6 @@ qlever
 
 INDEX_GEN_GROUP = "index"
 
-PULLED_NQ_DESTINATION = ASSETS_DIRECTORY / "geoconnex_graph/"
-
-INDEX_DIRECTORY = ASSETS_DIRECTORY / "geoconnex_index"
-
 
 @asset(
     deps=[release_graphs_for_all_summoned_jsonld],
@@ -43,16 +41,16 @@ INDEX_DIRECTORY = ASSETS_DIRECTORY / "geoconnex_index"
 )
 def pull_release_nq_for_all_sources(config: SynchronizerConfig):
     """pull all release graphs on disk and put them in one folder"""
-    PULLED_NQ_DESTINATION.mkdir(exist_ok=True)
+    GEOCONNEX_GRAPH_DIRECTORY.mkdir(exist_ok=True)
 
-    assert PULLED_NQ_DESTINATION.is_dir(), (
+    assert GEOCONNEX_GRAPH_DIRECTORY.is_dir(), (
         "You must use a directory for geoconnex_graph, not a file"
     )
 
     fullGraphNqInContainer = "/app/geoconnex_graph/"
-    volumeMapping = [f"{PULLED_NQ_DESTINATION}:{fullGraphNqInContainer}"]
+    volumeMapping = [f"{GEOCONNEX_GRAPH_DIRECTORY}:{fullGraphNqInContainer}"]
     get_dagster_logger().info(
-        f"Pulling release graphs to {PULLED_NQ_DESTINATION.absolute()} in host filesystem using volume mapping: {volumeMapping}"
+        f"Pulling release graphs to {GEOCONNEX_GRAPH_DIRECTORY.absolute()} in host filesystem using volume mapping: {volumeMapping}"
     )
     SynchronizerContainer(
         "pull",
@@ -101,12 +99,12 @@ def qlever_index():
     result.check_returncode()
     get_dagster_logger().info("qlever index generation complete")
 
-    INDEX_DIRECTORY.mkdir(exist_ok=True)
+    GEOCONNEX_INDEX_DIRECTORY.mkdir(exist_ok=True)
 
     # move all geoconnex.* files to geoconnex_index directory for cleanliness
     for path in ASSETS_DIRECTORY.iterdir():
         if path.is_file() and path.name.startswith("geoconnex."):
-            path.rename(INDEX_DIRECTORY / path.name)
+            path.rename(GEOCONNEX_INDEX_DIRECTORY / path.name)
 
 
 @asset(
