@@ -187,12 +187,12 @@ def stream_nquads_to_zenodo(
                 f"Uploading {graph.name} #{i} of size {graph.stat().st_size} bytes to Zenodo"
             )
             # Use the deposit ID to upload the file
-            FOURTY_MINUTES = 60 * 40
+            TWENTY_MINUTES = 60 * 20
             response = requests.put(
                 f"{deposit['links']['bucket']}/{graph.name}",
                 data=f,
                 headers={"Authorization": f"Bearer {TOKEN}"},
-                timeout=FOURTY_MINUTES,
+                timeout=TWENTY_MINUTES,
             )
             response.raise_for_status()
 
