@@ -116,54 +116,52 @@ def qlever_index():
     group_name=INDEX_GEN_GROUP,
 )
 def oci_artifact():
-    # change directory to where the index is;
-    # this allows us to use a direct path to the index;
-    # oras does not interact well with full paths so it is easier to do this
-    index_dir = os.path.join(os.path.dirname(__file__), "qlever")
-    os.chdir(index_dir)
-
+    os.chdir(GEOCONNEX_GRAPH_DIRECTORY)
     date_str = datetime.now().strftime("%Y_%m_%d")
-
-    # by putting both tags, the latest image will be labeled as such
-    # but it will also have a date tag so that when a new image is
-    # pushed we can refer to it by the date. tags in oci registries are essentially
-    # just pointers
     tags = f"{date_str},latest"
 
     registry = "localhost:5000" if RUNNING_AS_TEST_OR_DEV() else "ghcr.io"
 
-    # push the index to the remote
-    filesToUpload = ""
-    for file in os.listdir("geoconnex_graph"):
-        if file.endswith(".nq"):
-            filesToUpload += f" geoconnex_graph/{file}:application/n-quads"
+    files_to_upload = []
+    for file in GEOCONNEX_GRAPH_DIRECTORY.iterdir():
+        if file.name.endswith(".nq.gz") or file.name.endswith(".nq"):
+            relative_path = file.relative_to(GEOCONNEX_GRAPH_DIRECTORY)
+            files_to_upload.append(f"{relative_path}:application/n-quads")
 
-    command = f"oras push {registry}/internetofwater/geoconnex-graph:{tags} {filesToUpload} --username internetofwater --password-stdin"
-    get_dagster_logger().info(f"Running '{command}'")
+    command = f"oras push {registry}/internetofwater/geoconnex-graph:{tags} {' '.join(files_to_upload)} --username internetofwater --password-stdin"
 
-    result = subprocess.run(
-        command.split(),
-        capture_output=True,
-        text=True,  # Automatically decodes output
-        # we provide the ghcr token here, but in localhost if we are testing against a local registry
-        # this is ignored so its fine either way
-        input=GHCR_TOKEN,
+    logger = get_dagster_logger()
+    logger.info(f"Running '{command}'")
+
+    # Use shell=True so the command string is interpreted correctly
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        stdin=subprocess.PIPE,
+        shell=True,
     )
 
-    def log(input: str):
-        for line in input.splitlines():
-            if line.strip() == "":  # Skip empty lines
-                continue
-            if "WARN" in line:
-                get_dagster_logger().warning(line)
-            else:
-                get_dagster_logger().info(line)
+    assert process.stdout, "No stdout present; process didn't launch properly"
+    assert process.stdin, "No stdin present; process didn't launch properly"
 
-    log(result.stdout)
-    # qlever logs some things that aren't errors to stderr so we need to log them as normal
-    log(result.stderr)
+    process.stdin.write(GHCR_TOKEN)
+    process.stdin.close()
 
-    result.check_returncode()
+    for line in process.stdout:
+        line = line.rstrip()
+        if not line:
+            continue
+        if "WARN" in line:
+            logger.warning(line)
+        else:
+            logger.info(line)
+
+    returncode = process.wait()
+    if returncode != 0:
+        raise RuntimeError("ORAS push failed")
     get_dagster_logger().info("Pushing qlever index to registry")
 
     # restore the dir
