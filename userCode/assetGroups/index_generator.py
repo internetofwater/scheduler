@@ -77,26 +77,28 @@ def qlever_index():
     # index; otherwise qlever will only use the default of 1GB
     qlever_cmd = ["qlever", "index", "--overwrite-existing", "--stxxl-memory", "11GB"]
 
-    result = subprocess.run(
+    process = subprocess.Popen(
         qlever_cmd,
-        capture_output=True,
-        text=True,  # Automatically decodes output
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,  # merge streams
+        text=True,
+        bufsize=1,
     )
+    assert process.stdout, (
+        "no stdout present for process; this is a sign something didn't launch properly"
+    )
+    for line in process.stdout:
+        line = line.rstrip()
+        if not line:
+            continue
+        if "WARN" in line:
+            logger.warning(line)
+        else:
+            logger.info(line)
+    returncode = process.wait()
+    if returncode != 0:
+        raise RuntimeError("qlever index generation failed")
 
-    def log(input: str):
-        for line in input.splitlines():
-            if line.strip() == "":  # Skip empty lines
-                continue
-            if "WARN" in line:
-                logger.warning(line)
-            else:
-                logger.info(line)
-
-    log(result.stdout)
-    # qlever logs some things that aren't errors to stderr so we need to log them as normal
-    log(result.stderr)
-
-    result.check_returncode()
     get_dagster_logger().info("qlever index generation complete")
 
     GEOCONNEX_INDEX_DIRECTORY.mkdir(exist_ok=True)

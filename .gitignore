@@ -49,3 +49,5 @@ test.sh
 *.bin
 
 reference_catchments_and_flowlines.fgb
+
+assets/geoconnex_index
