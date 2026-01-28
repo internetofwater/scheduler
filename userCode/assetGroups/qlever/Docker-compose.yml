@@ -1,8 +1,0 @@
-# Copyright 2025 Lincoln Institute of Land Policy
-# SPDX-License-Identifier: Apache-2.0
-
-services:
-  qlever:
-    build: .
-    ports:
-      - 8888:8888
