@@ -10,6 +10,7 @@ from dagster import (
     get_dagster_logger,
 )
 import docker
+import geoparquet_io as gpio
 
 from userCode.assetGroups.release_graph_generator import (
     release_graphs_for_all_summoned_jsonld,
@@ -97,16 +98,35 @@ def geoparquet_from_triples():
     if exit_status != 0:
         raise Exception(f"triples_to_geoparquet failed with exit status {exit_status}")
 
+    geoparquet_file = ASSETS_DIRECTORY / "geoconnex_features.parquet"
+
+    (
+        gpio.read(geoparquet_file)
+        .add_bbox()
+        .sort_hilbert()
+        .add_bbox_metadata()
+        .write(geoparquet_file, overwrite=True)
+    )
+
+    result = gpio.read(geoparquet_file).check()
+    if result.passed():
+        get_dagster_logger().info(
+            "Geoparquet passed all checks and appears to be valid"
+        )
+    else:
+        get_dagster_logger().warning("Geoparquet has issues:")
+        for res in result.failures():
+            get_dagster_logger().warning(res)
+
+    assert geoparquet_file.is_file(), (
+        f"{geoparquet_file} is not a file and thus cannot be uploaded"
+    )
+
     if RUNNING_AS_TEST_OR_DEV():
         get_dagster_logger().warning("Skipping export as we are running in test mode")
         return
 
     s3 = S3()
-
-    geoparquet_file = ASSETS_DIRECTORY / "geoconnex_features.parquet"
-    assert geoparquet_file.is_file(), (
-        f"{geoparquet_file} is not a file and thus cannot be uploaded"
-    )
 
     get_dagster_logger().info(
         f"Uploading {geoparquet_file.name} of size {geoparquet_file.stat().st_size} to the object store"

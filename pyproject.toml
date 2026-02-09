@@ -20,6 +20,7 @@ dependencies = [
     "requests>=2.32.3",
     "docker>=7.1.0",
     "qlever>=0.5.23",
+    "geoparquet-io>=0.9.0",
 ]
 
 [dependency-groups]
