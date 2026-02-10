@@ -34,7 +34,8 @@ EIGHT_MB = 8 * 1024 * 1024
 
 
 class S3:
-    def __init__(self):
+    def __init__(self, bucket: str = S3_DEFAULT_BUCKET):
+        self.bucket = bucket
         # If we are in a test environment then we want to use localhost
         # since we are outside of the docker network.
         if RUNNING_AS_TEST_OR_DEV() and "googleapis.com" not in S3_ADDRESS:
@@ -55,23 +56,23 @@ class S3:
             ),
         )
 
-        if not self.client.bucket_exists(S3_DEFAULT_BUCKET):
+        if not self.client.bucket_exists(self.bucket):
             try:
-                self.client.make_bucket(S3_DEFAULT_BUCKET)
+                self.client.make_bucket(self.bucket)
             except minio.error.S3Error as e:
                 # there is race condition if two clients try to create the same bucket at the same time
                 # if that is the case one will throw an error even though that is fine; as long as the bucket
                 # is there that is all that matters
                 if e.code == "BucketAlreadyOwnedByYou":
                     get_dagster_logger().warning(
-                        f"S3 client requested to create '{S3_DEFAULT_BUCKET}' but it already exists; skipping creation"
+                        f"S3 client requested to create '{self.bucket}' but it already exists; skipping creation"
                     )
                 else:
                     raise
 
     def object_has_content(self, remote_path: str) -> bool:
         """Check if an object has data in it"""
-        obj = self.client.stat_object(S3_DEFAULT_BUCKET, remote_path)
+        obj = self.client.stat_object(self.bucket, remote_path)
         return any(
             [
                 obj is not None and obj.size is not None and obj.size != 0,
@@ -87,7 +88,7 @@ class S3:
         length = f.write(data)
         f.seek(0)  # Reset the stream position to the beginning for reading
         self.client.put_object(
-            S3_DEFAULT_BUCKET,
+            self.bucket,
             remote_path,
             f,
             length,
@@ -105,7 +106,7 @@ class S3:
     ):
         """Stream data into S3 without loading it all into memory"""
         self.client.put_object(
-            S3_DEFAULT_BUCKET,
+            self.bucket,
             remote_path,
             stream,
             content_length,
@@ -122,11 +123,9 @@ class S3:
         logger = get_dagster_logger()
         logger.info(f"S3 endpoint that dagster will connect to: {self.endpoint}")
         logger.info(f"S3 Address that gleaner will use: {S3_ADDRESS}")
-        logger.info(f"S3 BUCKET : {S3_DEFAULT_BUCKET}")
+        logger.info(f"S3 BUCKET : {self.bucket}")
         logger.debug(f"S3 object path : {remote_path}")
-        response: BaseHTTPResponse = self.client.get_object(
-            S3_DEFAULT_BUCKET, remote_path
-        )
+        response: BaseHTTPResponse = self.client.get_object(self.bucket, remote_path)
         data = response.read()
         response.close()
         response.release_conn()
@@ -134,9 +133,7 @@ class S3:
 
     def read_stream(self, remote_path: str, decode_content: bool = False):
         """Read an object from S3 as a stream"""
-        response: BaseHTTPResponse = self.client.get_object(
-            S3_DEFAULT_BUCKET, remote_path
-        )
+        response: BaseHTTPResponse = self.client.get_object(self.bucket, remote_path)
         try:
             yield from response.stream(EIGHT_MB, decode_content=decode_content)
         finally:
@@ -151,11 +148,11 @@ class S3:
             )
 
         objects = self.client.list_objects(
-            S3_DEFAULT_BUCKET, prefix=remote_path, recursive=True
+            self.bucket, prefix=remote_path, recursive=True
         )
         for obj in objects:
             assert obj.object_name, "object_name should not be empty"
-            self.client.remove_object(S3_DEFAULT_BUCKET, obj.object_name)
+            self.client.remove_object(self.bucket, obj.object_name)
 
 
 class RcloneClient:
