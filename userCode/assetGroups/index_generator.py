@@ -9,14 +9,18 @@ from dagster import (
     asset,
     get_dagster_logger,
 )
+import docker
+import geoparquet_io as gpio
 
 from userCode.assetGroups.release_graph_generator import (
     release_graphs_for_all_summoned_jsonld,
 )
+from userCode.lib.classes import S3
 from userCode.lib.containers import (
     SynchronizerConfig,
     SynchronizerContainer,
 )
+from userCode.lib.dagster import dagster_log_with_parsed_level
 from userCode.lib.env import (
     ASSETS_DIRECTORY,
     GEOCONNEX_GRAPH_DIRECTORY,
@@ -60,6 +64,81 @@ def pull_release_nq_for_all_sources(config: SynchronizerConfig):
         f"pull --prefix graphs/latest/ {fullGraphNqInContainer}",
         config,
     )
+
+
+@asset(deps=[pull_release_nq_for_all_sources], group_name=INDEX_GEN_GROUP)
+def geoparquet_from_triples():
+    client = docker.DockerClient()
+
+    geoparquet_converter = "internetofwater/triples_to_geoparquet:latest"
+    get_dagster_logger().info(f"Pulling {geoparquet_converter}")
+    client.images.pull(geoparquet_converter)
+    get_dagster_logger().info(
+        f"Running triples_to_geoparquet on {GEOCONNEX_GRAPH_DIRECTORY.absolute()}"
+    )
+
+    container = client.containers.run(
+        image=geoparquet_converter,
+        name="triples_to_geoparquet",
+        detach=True,
+        command="--triples /app/assets/geoconnex_graph --output /app/assets/geoconnex_features.parquet",
+        volumes=[
+            f"{ASSETS_DIRECTORY.absolute()}:/app/assets/",
+        ],
+        auto_remove=True,
+    )
+
+    for line in container.logs(stdout=True, stderr=True, stream=True, follow=True):
+        decoded = line.decode("utf-8")
+        dagster_log_with_parsed_level(decoded)
+
+    exit_status: int = container.wait()["StatusCode"]
+    get_dagster_logger().info(f"Container Wait Exit status:  {exit_status}")
+
+    if exit_status != 0:
+        raise Exception(f"triples_to_geoparquet failed with exit status {exit_status}")
+
+    geoparquet_file = ASSETS_DIRECTORY / "geoconnex_features.parquet"
+
+    (
+        gpio.read(geoparquet_file)
+        .add_bbox()
+        .sort_hilbert()
+        .add_bbox_metadata()
+        .write(geoparquet_file, overwrite=True)
+    )
+
+    result = gpio.read(geoparquet_file).check()
+    if result.passed():
+        get_dagster_logger().info(
+            "Geoparquet passed all checks and appears to be valid"
+        )
+    else:
+        get_dagster_logger().warning("Geoparquet has issues:")
+        for res in result.failures():
+            get_dagster_logger().warning(res)
+
+    assert geoparquet_file.is_file(), (
+        f"{geoparquet_file} is not a file and thus cannot be uploaded"
+    )
+
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning("Skipping export as we are running in test mode")
+        return
+
+    s3 = S3()
+
+    get_dagster_logger().info(
+        f"Uploading {geoparquet_file.name} of size {geoparquet_file.stat().st_size} to the object store"
+    )
+    with geoparquet_file.open("rb") as f:
+        s3.load_stream(
+            stream=f,
+            remote_path=f"geoconnex_exports/{geoparquet_file.name}",
+            content_length=geoparquet_file.stat().st_size,
+            content_type="application/vnd.apache.parquet",
+            headers={},
+        )
 
 
 @asset(

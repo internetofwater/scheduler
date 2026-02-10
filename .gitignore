@@ -51,3 +51,5 @@ test.sh
 reference_catchments_and_flowlines.fgb
 
 assets/geoconnex_index
+
+assets/*.parquet
