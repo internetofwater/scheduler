@@ -105,7 +105,7 @@ def geoparquet_from_triples():
         .add_bbox()
         .sort_hilbert()
         .add_bbox_metadata()
-        .write(geoparquet_file, overwrite=True)
+        .write(geoparquet_file, overwrite=True, row_group_size_mb=4)
     )
 
     result = gpio.read(geoparquet_file).check()
