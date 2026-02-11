@@ -126,15 +126,15 @@ def geoparquet_from_triples():
         get_dagster_logger().warning("Skipping export as we are running in test mode")
         return
 
-    s3 = S3()
+    s3 = S3(bucket="metadata-geoconnex-us")
 
     get_dagster_logger().info(
-        f"Uploading {geoparquet_file.name} of size {geoparquet_file.stat().st_size} to the object store"
+        f"Uploading {geoparquet_file.name} of size {geoparquet_file.stat().st_size} to bucket '{s3.bucket}' in the object store"
     )
     with geoparquet_file.open("rb") as f:
         s3.load_stream(
             stream=f,
-            remote_path=f"geoconnex_exports/{geoparquet_file.name}",
+            remote_path=f"exports/{geoparquet_file.name}",
             content_length=geoparquet_file.stat().st_size,
             content_type="application/vnd.apache.parquet",
             headers={},
