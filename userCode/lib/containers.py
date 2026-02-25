@@ -98,6 +98,9 @@ class SitemapHarvestContainer:
             argsAsStr,
             "sitemap_harvest",
             exit_3_is_fatal=config.exit_3_is_fatal,
+            # the docker sock must be mounted for bulk sitemap operations
+            # this allows nabu to spin up containers in the sitemap.xml file
+            volumeMapping=["/var/run/docker.sock:/var/run/docker.sock"],
         )
 
 
