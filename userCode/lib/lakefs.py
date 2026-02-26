@@ -104,4 +104,8 @@ class LakeFSClient:
             raise ValueError(f"Branch {branch} not found in lakeFS")
 
         objs = branch_ref.objects(prefix=directory_prefix)
-        branch_ref.delete_objects([o.path for o in objs])
+        # don't delete the _lakefs_actions directory since
+        # it is used to store lakefs actions for renci uploads that we don't want to delete
+        branch_ref.delete_objects(
+            [o.path for o in objs if "_lakefs_actions" not in o.path]
+        )
