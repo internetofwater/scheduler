@@ -33,23 +33,6 @@ services:
     profiles:
       - localInfra
 
-  # GraphDB service for storage
-  graphdb:
-    container_name: scheduler_graphdb
-    build:
-      context: ./graphdb
-    ports:
-      - "7200:7200"
-    environment:
-      - JAVA_XMX=8g
-      - JAVA_XMS=4g
-    networks:
-      - dagster_network
-    volumes:
-      - graphdb_data:/opt/graphdb/data
-    profiles:
-      - localInfra
-
   # PostgreSQL database for Dagster
   dagster_postgres:
     image: postgres:11

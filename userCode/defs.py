@@ -26,7 +26,6 @@ from userCode.assetGroups import (
     harvest,
     index_generator,
     release_graph_generator,
-    sync,
 )
 from userCode.assetGroups.harvest import (
     docker_client_environment,
@@ -48,16 +47,6 @@ setup_config_job = define_asset_job(
     "setup_config",
     description="setup the config for the pipeline",
     selection=AssetSelection.groups(config.CONFIG_GROUP),
-)
-
-# This job is deprecated; we no longer sync against the live graphdb
-harvest_and_sync_job = define_asset_job(
-    "harvest_and_sync",
-    description="DEPRECATED: harvest a source and sync against the live geoconnex graphdb. This job is deprecated now that we harvest and release nquads that are more portable",
-    selection=AssetSelection.groups(
-        harvest.HARVEST_GROUP,
-        sync.SYNC_GROUP,
-    ),
 )
 
 export_job = define_asset_job(
@@ -125,7 +114,6 @@ defs = Definitions(
             instance,
             harvest,
             export,
-            sync,
             config,
             release_graph_generator,
             index_generator,
@@ -139,14 +127,12 @@ defs = Definitions(
             instance,
             harvest,
             export,
-            sync,
             config,
             release_graph_generator,
             index_generator,
         ]
     ),
     jobs=[
-        harvest_and_sync_job,
         export_job,
         setup_config_job,
         harvest_and_generate_release_graph_job,
