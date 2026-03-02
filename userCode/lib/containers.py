@@ -145,7 +145,6 @@ class SynchronizerContainer:
             f"--s3-access-key {config.s3_access_key} "
             f"--s3-secret-key {config.s3_secret_key} "
             f"--log-level {config.log_level} "
-            f"--endpoint {config.endpoint} "
             f"--log-as-json "
         )
 
