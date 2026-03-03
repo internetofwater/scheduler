@@ -18,7 +18,6 @@ from .env import (
     RUNNING_AS_TEST_OR_DEV,
     strict_env,
 )
-from .types import cli_modes
 
 
 def remove_non_alphanumeric(string: str):
@@ -44,11 +43,11 @@ def run_docker_image(
     source: str,  # which organization we are crawling
     image_name: str,  # the name of the docker image to pull and validate
     args: str,  # the list of arguments to pass to the gleaner/nabu command
-    action_name: cli_modes,  # the name of the action to run inside gleaner/nabu
     exit_3_is_fatal: bool = False,
     volumeMapping: list[str] | None = None,
 ):
     """Run a docker using the same docker socket inside dagster"""
+    action_name = args.split(" ")[0]
     container_name = create_max_length_container_name(source, action_name)
 
     client = docker.DockerClient()

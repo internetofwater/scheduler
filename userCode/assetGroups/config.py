@@ -25,7 +25,7 @@ from userCode.lib.utils import (
 
 """
 All assets in this asset group set up config needed for crawling, 
-syncing, or the dagster instance itself
+generating release graphs, or the dagster instance itself
 """
 
 CONFIG_GROUP = "config"

@@ -22,7 +22,6 @@ from userCode.lib.env import (
     S3_SECRET_KEY,
     S3_USE_SSL,
 )
-from userCode.lib.types import cli_modes
 from userCode.lib.utils import run_docker_image
 
 
@@ -94,7 +93,6 @@ class SitemapHarvestContainer:
             self.source,
             NABU_IMAGE,
             argsAsStr,
-            "sitemap_harvest",
             exit_3_is_fatal=config.exit_3_is_fatal,
             # the docker sock must be mounted for bulk sitemap operations
             # this allows nabu to spin up containers in the sitemap.xml file
@@ -102,9 +100,9 @@ class SitemapHarvestContainer:
         )
 
 
-class SynchronizerConfig(Config):
+class NqConfig(Config):
     """
-    Configuration for running nabu graph sync operations
+    Configuration for running nabu release / pull graph operations
     This is essentially just a serialized version of our env vars
     """
 
@@ -118,22 +116,20 @@ class SynchronizerConfig(Config):
     profiling: bool = NABU_PROFILING
 
 
-class SynchronizerContainer:
-    """A container for running nabu graph sync operations"""
+class NqOperationsContainer:
+    """A container for running nabu release graph generation operations"""
 
     def __init__(
         self,
-        operation_name: cli_modes,
-        partition: str,
+        partition: str | None,
         volume_mapping: list[str] | None = None,
         mainstem_file: None | str = None,
     ):
-        self.source = partition
-        self.operation: cli_modes = operation_name
+        self.partition = partition if partition else "no_partition_specified"
         self.volume_mapping = volume_mapping
         self.mainstem_file = mainstem_file
 
-    def run(self, args: str, config: SynchronizerConfig):
+    def run(self, args: str, config: NqConfig):
         # args that should be applied to all nabu commands
         configArgs = (
             f"--bucket {config.bucket} "
@@ -155,15 +151,14 @@ class SynchronizerContainer:
 
         # only add mainstem info to release nquads; other operations on provenance data
         # or orgs has no geospatial data and thus checking for mainstem would be pointless
-        if self.operation == "release" and self.mainstem_file:
+        if self.mainstem_file:
             # we can hard code the path since it is mounted with a volume
             # and thus will always be the same
             argsAsStr += f" --mainstem-metadata {self.mainstem_file} "
 
         run_docker_image(
-            self.source,
+            self.partition,
             NABU_IMAGE,
             argsAsStr,
-            self.operation,
             volumeMapping=self.volume_mapping,
         )

@@ -37,3 +37,9 @@ def test_s3_read_stream():
         data += chunk
     assert data == longData
     S3().client.remove_object(S3_DEFAULT_BUCKET, "streamKey")
+
+
+def assert_rclone_config_is_accessible():
+    location = RcloneClient.get_config_path()
+    assert location.parent.exists(), f"{location} does not exist"
+    assert os.system(f"{RcloneClient.get_bin()} version") == 0

@@ -17,8 +17,8 @@ from userCode.assetGroups.release_graph_generator import (
 )
 from userCode.lib.classes import S3
 from userCode.lib.containers import (
-    SynchronizerConfig,
-    SynchronizerContainer,
+    NqConfig,
+    NqOperationsContainer,
 )
 from userCode.lib.dagster import dagster_log_with_parsed_level
 from userCode.lib.env import (
@@ -43,7 +43,7 @@ INDEX_GEN_GROUP = "index"
     # and thus we don't want to run it automatically
     group_name=INDEX_GEN_GROUP,
 )
-def pull_release_nq_for_all_sources(config: SynchronizerConfig):
+def pull_release_nq_for_all_sources(config: NqConfig):
     """pull all release graphs on disk and put them in one folder"""
     GEOCONNEX_GRAPH_DIRECTORY.mkdir(exist_ok=True)
 
@@ -56,9 +56,9 @@ def pull_release_nq_for_all_sources(config: SynchronizerConfig):
     get_dagster_logger().info(
         f"Pulling release graphs to {GEOCONNEX_GRAPH_DIRECTORY.absolute()} in host filesystem using volume mapping: {volumeMapping}"
     )
-    SynchronizerContainer(
-        "pull",
-        "all",
+    all_partitions = None
+    NqOperationsContainer(
+        partition=all_partitions,
         volume_mapping=volumeMapping,
     ).run(
         f"pull --prefix graphs/latest/ {fullGraphNqInContainer}",
