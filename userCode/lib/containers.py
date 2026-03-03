@@ -11,7 +11,6 @@ from userCode.lib.env import (
     GLEANER_SITEMAP_INDEX,
     GLEANER_SITEMAP_WORKERS,
     GLEANER_USE_SHACL,
-    NABU_BATCH_SIZE,
     NABU_IMAGE,
     NABU_LOG_LEVEL,
     NABU_PROFILING,
@@ -109,7 +108,6 @@ class SynchronizerConfig(Config):
     This is essentially just a serialized version of our env vars
     """
 
-    upsertBatchSize: int = NABU_BATCH_SIZE
     bucket: str = S3_DEFAULT_BUCKET
     address: str = S3_ADDRESS
     port: str = S3_PORT
@@ -138,7 +136,6 @@ class SynchronizerContainer:
     def run(self, args: str, config: SynchronizerConfig):
         # args that should be applied to all nabu commands
         configArgs = (
-            f"--upsert-batch-size {config.upsertBatchSize} "
             f"--bucket {config.bucket} "
             f"--address {config.address} "
             f"--port {config.port} "
