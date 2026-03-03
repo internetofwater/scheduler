@@ -22,7 +22,6 @@ from userCode.lib.env import (
     S3_PORT,
     S3_SECRET_KEY,
     S3_USE_SSL,
-    TRIPLESTORE_URL,
 )
 from userCode.lib.types import cli_modes
 from userCode.lib.utils import run_docker_image
@@ -117,7 +116,6 @@ class SynchronizerConfig(Config):
     s3_access_key: str = S3_ACCESS_KEY
     s3_secret_key: str = S3_SECRET_KEY
     log_level: str = NABU_LOG_LEVEL
-    endpoint: str = TRIPLESTORE_URL
     useSSL: bool = S3_USE_SSL
     profiling: bool = NABU_PROFILING
 
@@ -147,7 +145,6 @@ class SynchronizerContainer:
             f"--s3-access-key {config.s3_access_key} "
             f"--s3-secret-key {config.s3_secret_key} "
             f"--log-level {config.log_level} "
-            f"--endpoint {config.endpoint} "
             f"--log-as-json "
         )
 
