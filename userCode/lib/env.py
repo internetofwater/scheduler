@@ -57,7 +57,6 @@ GLEANER_USE_SHACL = strict_env_bool("GLEANER_USE_SHACL")
 ### Nabu Options
 NABU_IMAGE = strict_env("NABU_IMAGE")
 NABU_PROFILING = strict_env_bool("NABU_PROFILING")
-NABU_BATCH_SIZE = strict_env_int("NABU_BATCH_SIZE")
 NABU_LOG_LEVEL = strict_env("NABU_LOG_LEVEL")
 
 ### Export Options
