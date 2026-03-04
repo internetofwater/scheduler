@@ -1,7 +1,7 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-from userCode.lib.containers import SitemapHarvestConfig, SynchronizerConfig
+from userCode.lib.containers import NqConfig, SitemapHarvestConfig
 from userCode.lib.env import (
     GLEANER_LOG_LEVEL,
     GLEANER_SITEMAP_WORKERS,
@@ -15,5 +15,5 @@ def test_default_value_of_config():
     assert defaultSitemapConfig.log_level == GLEANER_LOG_LEVEL
     assert defaultSitemapConfig.sitemap_workers == GLEANER_SITEMAP_WORKERS
 
-    defaultSyncConfig = SynchronizerConfig()
-    assert defaultSyncConfig.log_level == NABU_LOG_LEVEL
+    defaultConfig = NqConfig()
+    assert defaultConfig.log_level == NABU_LOG_LEVEL
