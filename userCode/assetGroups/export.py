@@ -6,11 +6,13 @@ import os
 
 from dagster import (
     AssetExecutionContext,
+    AutomationCondition,
     asset,
     get_dagster_logger,
 )
 import requests
 
+from userCode.assetGroups.index_generator import qlever_index
 from userCode.lib.classes import RcloneClient, S3
 from userCode.lib.dagster import all_dependencies_materialized
 from userCode.lib.env import (
@@ -75,7 +77,11 @@ def stream_all_release_graphs_to_renci(
     )
 
 
-@asset(group_name=EXPORT_GROUP)
+@asset(
+    group_name=EXPORT_GROUP,
+    deps=[qlever_index],
+    automation_condition=AutomationCondition.eager(),
+)
 def stream_qlever_index_to_gcs(context: AssetExecutionContext):
     """
     Stream all files in the generated qlever index to GCS
