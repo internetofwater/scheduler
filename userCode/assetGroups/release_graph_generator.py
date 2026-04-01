@@ -12,8 +12,8 @@ from dagster import (
 
 from userCode.assetGroups.harvest import harvest_sitemap
 from userCode.lib.containers import (
-    SynchronizerConfig,
-    SynchronizerContainer,
+    NqConfig,
+    NqOperationsContainer,
 )
 from userCode.lib.dagster import sources_partitions_def
 from userCode.lib.env import MAINSTEM_FILE, RUNNING_AS_TEST_OR_DEV
@@ -35,7 +35,7 @@ MAINSTEM_FILE_OVERRIDE_TAG = "mainstem_file_override"
     group_name=RELEASE_GRAPH_GENERATOR_GROUP,
 )
 def release_graphs_for_all_summoned_jsonld(
-    context: AssetExecutionContext, config: SynchronizerConfig
+    context: AssetExecutionContext, config: NqConfig
 ):
     """Construct an nq file from all the jsonld for a single sitemap"""
 
@@ -87,8 +87,7 @@ def release_graphs_for_all_summoned_jsonld(
                 f"Using mainstem file '{mainstem_file}' for adding extra metadata to release graphs"
             )
 
-    SynchronizerContainer(
-        "release",
+    NqOperationsContainer(
         context.partition_key,
         mainstem_file=mainstem_file,
         volume_mapping=volume_mount,
@@ -100,11 +99,9 @@ def release_graphs_for_all_summoned_jsonld(
     deps=[harvest_sitemap],
     group_name=RELEASE_GRAPH_GENERATOR_GROUP,
 )
-def release_graphs_for_org_metadata(
-    context: AssetExecutionContext, config: SynchronizerConfig
-):
+def release_graphs_for_org_metadata(context: AssetExecutionContext, config: NqConfig):
     """Construct an nq file for the metadata of an organization."""
-    SynchronizerContainer("orgs-release", context.partition_key).run(
+    NqOperationsContainer(context.partition_key).run(
         f"release --compress --prefix orgs/{context.partition_key}",
         config,
     )
