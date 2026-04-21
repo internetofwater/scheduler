@@ -3,7 +3,6 @@
 
 
 import os
-import subprocess
 
 from dagster import (
     AssetExecutionContext,
@@ -11,7 +10,9 @@ from dagster import (
     asset,
     get_dagster_logger,
 )
+import geopandas as gpd
 import requests
+from sqlalchemy import create_engine, text
 
 from userCode.assetGroups.index_generator import geoparquet_from_triples, qlever_index
 from userCode.lib.classes import RcloneClient, S3
@@ -246,45 +247,48 @@ def stream_nquads_to_zenodo(
 
 @asset(
     group_name=EXPORT_GROUP,
-    # automatically run this asset
-    # upon new materialization of geoparquet_from_triples
     automation_condition=AutomationCondition.eager(),
     deps=[geoparquet_from_triples],
 )
 def move_geoparquet_to_postgis():
     """
-    Move the geoparquet file produced from the triples to geoparquet job into the postgis database
-    so that it can be served by pygeoapi
+    Load geoparquet and write it into PostGIS using GeoPandas to_postgis.
     """
+
     # Read env vars
     host = os.environ["DAGSTER_POSTGRES_HOST"]
     user = os.environ["DAGSTER_POSTGRES_USER"]
     password = os.environ["DAGSTER_POSTGRES_PASSWORD"]
     db = os.environ["DAGSTER_POSTGRES_DB"]
-    port = os.getenv("DAGSTER_POSTGRES_PORT", "5432")  # optional fallback
+    port = os.getenv("DAGSTER_POSTGRES_PORT", "5432")
 
-    conn_str = f"PG:host={host} port={port} dbname={db} user={user} password={password}"
+    # SQLAlchemy connection string
+    engine = create_engine(
+        f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
+    )
 
-    cmd = [
-        "ogr2ogr",
-        "-f",
-        "PostgreSQL",
-        conn_str,
-        f"{ASSETS_DIRECTORY}/geoconnex_features.parquet",
-        "-nln",
-        "geoconnex_features",
-        "-nlt",
-        "PROMOTE_TO_MULTI",
-        "-lco",
-        "GEOMETRY_NAME=geom",
-        "-lco",
-        "PRECISION=NO",
-        "-overwrite",
-    ]
+    get_dagster_logger().info("Moving geoparquet data to PostGIS")
+    # Read geoparquet
+    gdf = gpd.read_parquet(f"{ASSETS_DIRECTORY}/geoconnex_features.parquet")
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Write to PostGIS
+    gdf.to_postgis(
+        name="geoconnex_features",
+        con=engine,
+        if_exists="replace",
+        # do not add the pandas index as a separate column
+        index=False,
+        schema=None,
+        # write 100k rows at a time so
+        # we don't run out of memory
+        chunksize=100_000,
+    )
 
-    if result.returncode != 0:
-        raise RuntimeError(f"ogr2ogr failed:\n{result.stderr}")
+    # new count in postgis
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT count(*) FROM geoconnex_features;"))
+        count = result.scalar()
 
-    return result.stdout
+    get_dagster_logger().info(
+        f"Parquet data moved into postgis. Table 'geoconnex_features' now has {count} rows."
+    )
