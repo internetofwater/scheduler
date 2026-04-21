@@ -3,6 +3,7 @@
 
 
 import os
+import subprocess
 
 from dagster import (
     AssetExecutionContext,
@@ -12,10 +13,11 @@ from dagster import (
 )
 import requests
 
-from userCode.assetGroups.index_generator import qlever_index
+from userCode.assetGroups.index_generator import geoparquet_from_triples, qlever_index
 from userCode.lib.classes import RcloneClient, S3
 from userCode.lib.dagster import all_dependencies_materialized
 from userCode.lib.env import (
+    ASSETS_DIRECTORY,
     GEOCONNEX_GRAPH_DIRECTORY,
     GEOCONNEX_INDEX_DIRECTORY,
     RUNNING_AS_TEST_OR_DEV,
@@ -240,3 +242,49 @@ def stream_nquads_to_zenodo(
     # response.raise_for_status()
     # get_dagster_logger().info("Deposit published successfully.")
     # return deposit_id
+
+
+@asset(
+    group_name=EXPORT_GROUP,
+    # automatically run this asset
+    # upon new materialization of geoparquet_from_triples
+    automation_condition=AutomationCondition.eager(),
+    deps=[geoparquet_from_triples],
+)
+def move_geoparquet_to_postgis():
+    """
+    Move the geoparquet file produced from the triples to geoparquet job into the postgis database
+    so that it can be served by pygeoapi
+    """
+    # Read env vars
+    host = os.environ["DAGSTER_POSTGRES_HOST"]
+    user = os.environ["DAGSTER_POSTGRES_USER"]
+    password = os.environ["DAGSTER_POSTGRES_PASSWORD"]
+    db = os.environ["DAGSTER_POSTGRES_DB"]
+    port = os.getenv("DAGSTER_POSTGRES_PORT", "5432")  # optional fallback
+
+    conn_str = f"PG:host={host} port={port} dbname={db} user={user} password={password}"
+
+    cmd = [
+        "ogr2ogr",
+        "-f",
+        "PostgreSQL",
+        conn_str,
+        f"{ASSETS_DIRECTORY}/geoconnex_features.parquet",
+        "-nln",
+        "geoconnex_features",
+        "-nlt",
+        "PROMOTE_TO_MULTI",
+        "-lco",
+        "GEOMETRY_NAME=geom",
+        "-lco",
+        "PRECISION=NO",
+        "-overwrite",
+    ]
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(f"ogr2ogr failed:\n{result.stderr}")
+
+    return result.stdout
