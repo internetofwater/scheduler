@@ -1,8 +1,11 @@
-node_modules/
-.tmp_dagster_home*/
+**/node_modules/
+**.tmp_dagster_home*/
 assets/**
 .git/
 **/.pytest_cache/   
 **/.ruff_cache/
 **/__pycache__/
-**/nq.gz
+**/*.nq.gz
+**/*.parquet
+**/*.nq
+**/testdata

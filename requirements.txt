@@ -697,6 +697,10 @@ fsspec==2026.2.0 \
     #   geoparquet-io
     #   s3fs
     #   universal-pathlib
+geoalchemy2==0.19.0 \
+    --hash=sha256:878a5859e23ae632fe20ea35412cda40f50c94fa69c9242587574941e4d4ec32 \
+    --hash=sha256:c88be59cdb90af9d74278bdd33a5f58acb23859f0f1380726593eed0f343f4a8
+    # via scheduler
 geoarrow-c==0.3.1 \
     --hash=sha256:0700091e9bbb0ffdee37e5ac59ef2a38aab5683e33df14f99a7bfec487dd12f1 \
     --hash=sha256:081ec4d7eeaefa1a381e43e7f676ca3ba4c718ef97c26c834627cac77821f4c1 \
@@ -765,6 +769,7 @@ geoarrow-types==0.3.0 \
 geopandas==1.1.1 \
     --hash=sha256:1745713f64d095c43e72e08e753dbd271678254b24f2e01db8cdb8debe1d293d \
     --hash=sha256:589e61aaf39b19828843df16cb90234e72897e2579be236f10eee0d052ad98e8
+    # via scheduler
 geoparquet-io==0.9.0 \
     --hash=sha256:3ee3c3fd8ec8cbefe334930ea1680ceca697b5aff12b2fb1b6662e7a181c0f47 \
     --hash=sha256:836895cb953fa4fd8caf3cce1b94437eeec6884c402461c79a495a56427a0129
@@ -1356,6 +1361,7 @@ packaging==24.2 \
     #   dagster-cloud-cli
     #   dagster-dg-core
     #   dagster-shared
+    #   geoalchemy2
     #   geopandas
     #   pyogrio
     #   pytest
@@ -2235,6 +2241,7 @@ sqlalchemy==2.0.38 \
     # via
     #   alembic
     #   dagster
+    #   geoalchemy2
 starlette==0.45.3 \
     --hash=sha256:2cbcba2a75806f8a41c722141486f37c28e30a0921c5f6fe4346cb0dcee1302f \
     --hash=sha256:dfb6d332576f136ec740296c7e8bb8c8a7125044e7c6da30744718880cdd059d
