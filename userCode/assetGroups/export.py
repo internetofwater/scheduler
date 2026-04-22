@@ -7,12 +7,13 @@ import os
 from dagster import (
     AssetExecutionContext,
     AutomationCondition,
+    Config,
     asset,
     get_dagster_logger,
 )
 import geopandas as gpd
 import requests
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from userCode.assetGroups.index_generator import geoparquet_from_triples, qlever_index
 from userCode.lib.classes import RcloneClient, S3
@@ -26,6 +27,7 @@ from userCode.lib.env import (
     ZENODO_SANDBOX_ACCESS_TOKEN,
 )
 from userCode.lib.lakefs import LakeFSClient
+from userCode.lib.utils import new_sqlalchemy_engine_from_env
 
 """
 This file defines all geoconenx exports that move data
@@ -245,31 +247,31 @@ def stream_nquads_to_zenodo(
     # return deposit_id
 
 
+class ParquetConfig(Config):
+    # the default location of the geoparquet is in the assets directory
+    # but this can be override for testing purposes
+    geoparquet_path: str = f"{ASSETS_DIRECTORY}/geoconnex_features.parquet"
+
+
 @asset(
     group_name=EXPORT_GROUP,
     automation_condition=AutomationCondition.eager(),
     deps=[geoparquet_from_triples],
 )
-def move_geoparquet_to_postgis():
+def move_geoparquet_to_postgis(config: ParquetConfig):
     """
     Load geoparquet and write it into PostGIS using GeoPandas to_postgis.
     """
 
-    # Read env vars
-    host = os.environ["DAGSTER_POSTGRES_HOST"]
-    user = os.environ["DAGSTER_POSTGRES_USER"]
-    password = os.environ["DAGSTER_POSTGRES_PASSWORD"]
-    db = os.environ["DAGSTER_POSTGRES_DB"]
-    port = os.getenv("DAGSTER_POSTGRES_PORT", "5432")
+    engine = new_sqlalchemy_engine_from_env()
 
-    # SQLAlchemy connection string
-    engine = create_engine(
-        f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
+    get_dagster_logger().info(
+        f"Moving geoparquet data from file {config.geoparquet_path} to PostGIS"
     )
-
-    get_dagster_logger().info("Moving geoparquet data to PostGIS")
     # Read geoparquet
-    gdf = gpd.read_parquet(f"{ASSETS_DIRECTORY}/geoconnex_features.parquet")
+    gdf = gpd.read_parquet(config.geoparquet_path)
+
+    gdf.set_crs(epsg=4326, inplace=True, allow_override=True)
 
     # Write to PostGIS
     gdf.to_postgis(
@@ -285,10 +287,18 @@ def move_geoparquet_to_postgis():
     )
 
     # new count in postgis
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         result = conn.execute(text("SELECT count(*) FROM geoconnex_features;"))
         count = result.scalar()
 
+        get_dagster_logger().info("Creating indexes on geoconnex_features table")
+        conn.execute(
+            text("""
+            CREATE INDEX IF NOT EXISTS idx_geoconnex_features_id
+            ON geoconnex_features (id);
+        """)
+        )
+
     get_dagster_logger().info(
-        f"Parquet data moved into postgis. Table 'geoconnex_features' now has {count} rows."
+        f"Finishing moving Parquet data into postgis. Table 'geoconnex_features' now has {count} rows."
     )

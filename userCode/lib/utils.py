@@ -10,6 +10,8 @@ from dagster import (
 import docker
 import jinja2
 from jinja2 import Environment, FileSystemLoader
+import sqlalchemy
+from sqlalchemy import create_engine
 
 from .dagster import (
     dagster_log_with_parsed_level,
@@ -117,3 +119,17 @@ def template_rclone(input_template_file_path: str) -> str:
 
     # Render the template with the context
     return template.render(**vars_in_rclone_config)
+
+
+def new_sqlalchemy_engine_from_env() -> sqlalchemy.engine.Engine:
+    host = os.environ["DAGSTER_POSTGRES_HOST"]
+    user = os.environ["DAGSTER_POSTGRES_USER"]
+    password = os.environ["DAGSTER_POSTGRES_PASSWORD"]
+    db = os.environ["DAGSTER_POSTGRES_DB"]
+    port = os.getenv("DAGSTER_POSTGRES_PORT", "5432")
+
+    # SQLAlchemy connection string
+    engine = create_engine(
+        f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
+    )
+    return engine
