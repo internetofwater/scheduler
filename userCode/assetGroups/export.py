@@ -7,6 +7,7 @@ import os
 from dagster import (
     AssetExecutionContext,
     AutomationCondition,
+    Config,
     asset,
     get_dagster_logger,
 )
@@ -246,23 +247,29 @@ def stream_nquads_to_zenodo(
     # return deposit_id
 
 
+class ParquetConfig(Config):
+    # the default location of the geoparquet is in the assets directory
+    # but this can be override for testing purposes
+    geoparquet_path: str = f"{ASSETS_DIRECTORY}/geoconnex_features.parquet"
+
+
 @asset(
     group_name=EXPORT_GROUP,
     automation_condition=AutomationCondition.eager(),
     deps=[geoparquet_from_triples],
 )
-def move_geoparquet_to_postgis(
-    geoparquet_file: str = f"{ASSETS_DIRECTORY}/geoconnex_features.parquet",
-):
+def move_geoparquet_to_postgis(config: ParquetConfig):
     """
     Load geoparquet and write it into PostGIS using GeoPandas to_postgis.
     """
 
     engine = new_sqlalchemy_engine_from_env()
 
-    get_dagster_logger().info("Moving geoparquet data to PostGIS")
+    get_dagster_logger().info(
+        f"Moving geoparquet data from file {config.geoparquet_path} to PostGIS"
+    )
     # Read geoparquet
-    gdf = gpd.read_parquet(geoparquet_file)
+    gdf = gpd.read_parquet(config.geoparquet_path)
 
     gdf.set_crs(epsg=4326, inplace=True, allow_override=True)
 

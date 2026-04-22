@@ -5,7 +5,7 @@ from pathlib import Path
 
 from sqlalchemy import text
 
-from userCode.assetGroups.export import move_geoparquet_to_postgis
+from userCode.assetGroups.export import ParquetConfig, move_geoparquet_to_postgis
 from userCode.lib.utils import new_sqlalchemy_engine_from_env
 
 
@@ -17,7 +17,7 @@ def test_move_geoparquet_to_postgis():
         conn.execute(text("DROP TABLE IF EXISTS geoconnex_features"))
 
     test_file = Path(__file__).parent / "testdata" / "geoconnex_features_subset.parquet"
-    move_geoparquet_to_postgis(geoparquet_file=str(test_file))
+    move_geoparquet_to_postgis(ParquetConfig(geoparquet_path=str(test_file)))
 
     with engine.connect() as conn:
         # row count check
