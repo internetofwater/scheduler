@@ -2779,16 +2779,20 @@ wheels = [
 
 [[package]]
 name = "qlever"
-version = "0.5.23"
+version = "0.5.46"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "argcomplete" },
     { name = "psutil" },
     { name = "pyyaml" },
+    { name = "rdflib" },
+    { name = "requests-sse" },
     { name = "termcolor" },
+    { name = "tqdm" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/4e/8e/4c2688b7a54592acf5e7be2cc0e334fe73cf503ce78b8f41f8e7a1856b23/qlever-0.5.46.tar.gz", hash = "sha256:3ff7917da0f4f3c36b15552cf82aaeadb317d142743380e38e31d3e2c32f7233", size = 89428, upload-time = "2026-04-16T10:09:07.642Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/d9/d340a263e070f5db90f3513adef43ff83f9be25483df844a6d6f931d85d7/qlever-0.5.23-py3-none-any.whl", hash = "sha256:cf0b0d60e4ee71dd9133d3518acd6d89eadb3c9fc1a18c672605b7c109e6c012", size = 82621, upload-time = "2025-05-04T00:19:35.237Z" },
+    { url = "https://files.pythonhosted.org/packages/30/75/87c65e0c02bea531aa4d46fe6207c442552c17065698ac023d0ee0902c0d/qlever-0.5.46-py3-none-any.whl", hash = "sha256:3bd78afbde2ecc552c5a83cf7d39e92580c91b98c69c670198c935cc9b3450a3", size = 120368, upload-time = "2026-04-16T10:09:06.018Z" },
 ]
 
 [[package]]
@@ -2843,6 +2847,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/63/70/2bf7780ad2d390a8d301ad0b550f1581eadbd9a20f896afe06353c2a2913/requests-2.32.3.tar.gz", hash = "sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760", size = 131218, upload-time = "2024-05-29T15:37:49.536Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f9/9b/335f9764261e915ed497fcdeb11df5dfd6f7bf257d4a6a2a686d80da4d54/requests-2.32.3-py3-none-any.whl", hash = "sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6", size = 64928, upload-time = "2024-05-29T15:37:47.027Z" },
+]
+
+[[package]]
+name = "requests-sse"
+version = "0.5.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/13/94/f0f29584c3ca24c29a72e19a28136f73ed08adddc93fb8a0c998577c9085/requests_sse-0.5.3.tar.gz", hash = "sha256:107c63afb2a2292b422ab2504849f3adb54b4c884700646ebe9f6e4178ba375c", size = 9057, upload-time = "2026-03-11T15:35:49.303Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5a/87/3704da8cc1cb91cc0ccee8fb03d8ed11217afcd028352f3b1242fee2f4f1/requests_sse-0.5.3-py3-none-any.whl", hash = "sha256:dc3e053e22fdcf002ca1fbd1794967d42b82b24539f5b7fe0e807301dd4ef4ec", size = 10198, upload-time = "2026-03-11T15:35:47.872Z" },
 ]
 
 [[package]]

@@ -94,7 +94,17 @@ def stream_qlever_index_to_gcs(context: AssetExecutionContext):
     if RUNNING_AS_TEST_OR_DEV():
         get_dagster_logger().warning("Skipping export as we are running in test mode")
         return
+
     s3 = S3()
+    existing_objects = s3.client.list_objects(
+        prefix="geoconnex_index/", bucket_name=s3.bucket, recursive=True
+    )
+    get_dagster_logger().info("Deleting existing old index files in geoconnex_index/")
+    for obj in existing_objects:
+        get_dagster_logger().info(f"Deleting {obj}")
+        assert obj.object_name, f"obj name should not be empty but got '{obj}'"
+        s3.client.remove_object(object_name=obj.object_name, bucket_name=s3.bucket)
+    get_dagster_logger().info("Finished deleting old index files")
     for file in GEOCONNEX_INDEX_DIRECTORY.iterdir():
         if not file.is_file():
             raise Exception(f"{file} is not a file and thus cannot be uploaded")
