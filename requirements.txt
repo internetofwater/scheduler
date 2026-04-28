@@ -1928,8 +1928,9 @@ pyyaml==6.0.2 \
     #   lakefs
     #   qlever
     #   uvicorn
-qlever==0.5.23 \
-    --hash=sha256:cf0b0d60e4ee71dd9133d3518acd6d89eadb3c9fc1a18c672605b7c109e6c012
+qlever==0.5.46 \
+    --hash=sha256:3bd78afbde2ecc552c5a83cf7d39e92580c91b98c69c670198c935cc9b3450a3 \
+    --hash=sha256:3ff7917da0f4f3c36b15552cf82aaeadb317d142743380e38e31d3e2c32f7233
     # via scheduler
 questionary==2.1.0 \
     --hash=sha256:44174d237b68bc828e4878c763a9ad6790ee61990e0ae72927694ead57bab8ec \
@@ -1938,6 +1939,7 @@ questionary==2.1.0 \
 rdflib==7.5.0 \
     --hash=sha256:663083443908b1830e567350d72e74d9948b310f827966358d76eebdc92bf592 \
     --hash=sha256:b011dfc40d0fc8a44252e906dcd8fc806a7859bc231be190c37e9568a31ac572
+    # via qlever
 referencing==0.36.2 \
     --hash=sha256:df2e89862cd09deabbdba16944cc3f10feb6b3e6f18e902f7cc25609a34775aa \
     --hash=sha256:e8699adbbf8b5c7de96d8ffa0eb5c158b3beafce084968e2ea8bb08c6794dcd0
@@ -1954,8 +1956,13 @@ requests==2.32.3 \
     #   docker
     #   github3-py
     #   gql
+    #   requests-sse
     #   requests-toolbelt
     #   scheduler
+requests-sse==0.5.3 \
+    --hash=sha256:107c63afb2a2292b422ab2504849f3adb54b4c884700646ebe9f6e4178ba375c \
+    --hash=sha256:dc3e053e22fdcf002ca1fbd1794967d42b82b24539f5b7fe0e807301dd4ef4ec
+    # via qlever
 requests-toolbelt==1.0.0 \
     --hash=sha256:7681a0a3d047012b5bdc0ee37d7f8f07ebe76ab08caeccfc3921ce23c88d5bc6 \
     --hash=sha256:cccfdd665f0a24fcf4726e690f65639d272bb0637b9b92dfd91a5568ccf6bd06
@@ -2313,7 +2320,9 @@ toposort==1.10 \
 tqdm==4.67.1 \
     --hash=sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2 \
     --hash=sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2
-    # via dagster
+    # via
+    #   dagster
+    #   qlever
 typer==0.15.1 \
     --hash=sha256:7994fb7b8155b64d3402518560648446072864beefd44aa2dc36972a5972e847 \
     --hash=sha256:a0588c0a7fa68a1978a069818657778f86abe6ff5ea6abf472f940a08bfe4f0a
