@@ -299,6 +299,12 @@ def move_geoparquet_to_postgis(config: ParquetConfig):
         """)
         )
 
+        conn.execute(
+            text("""
+            CREATE INDEX IF NOT EXISTS idx_geoconnex_sitemap
+            ON geoconnex_features (geoconnex_sitemap);
+            """)
+        )
     get_dagster_logger().info(
         f"Finishing moving Parquet data into postgis. Table 'geoconnex_features' now has {count} rows."
     )
