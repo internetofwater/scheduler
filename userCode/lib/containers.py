@@ -8,7 +8,6 @@ from userCode.lib.env import (
     GLEANER_CONCURRENT_SITEMAPS,
     GLEANER_LOG_LEVEL,
     GLEANER_SHACL_VALIDATOR_GRPC_ENDPOINT,
-    GLEANER_SITEMAP_INDEX,
     GLEANER_SITEMAP_WORKERS,
     GLEANER_USE_SHACL,
     NABU_IMAGE,
@@ -21,6 +20,7 @@ from userCode.lib.env import (
     S3_PORT,
     S3_SECRET_KEY,
     S3_USE_SSL,
+    SITEMAP_INDEX,
 )
 from userCode.lib.utils import run_docker_image
 
@@ -61,7 +61,7 @@ class SitemapHarvestContainer:
     def run(self, config: SitemapHarvestConfig):
         argsAsStr = (
             f"harvest "
-            f"--sitemap-index {GLEANER_SITEMAP_INDEX} "
+            f"--sitemap-index {SITEMAP_INDEX} "
             f"--source {self.source} "
             f"--address {config.address} "
             f"--port {config.port} "

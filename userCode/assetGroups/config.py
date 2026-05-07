@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from xml.etree import ElementTree as ET
 
-from bs4 import BeautifulSoup, ResultSet
 from dagster import (
     AssetExecutionContext,
     BackfillPolicy,
@@ -15,9 +15,9 @@ import requests
 
 from userCode.lib.dagster import filter_partitions
 from userCode.lib.env import (
-    GLEANER_SITEMAP_INDEX,
     MAINSTEM_FILE,
     NABU_IMAGE,
+    SITEMAP_INDEX,
 )
 from userCode.lib.utils import (
     template_rclone,
@@ -94,35 +94,46 @@ def rclone_config() -> str:
     return templated_conf
 
 
+GEOCONNEX_NS = "https://geoconnex.us"
+SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
+
+NS = {
+    "sm": SITEMAP_NS,
+    "geoconnex": GEOCONNEX_NS,
+}
+
+
 @asset(backfill_policy=BackfillPolicy.single_run(), group_name=CONFIG_GROUP)
 def sitemap_partitions(context: AssetExecutionContext):
-    """Generate a dynamic partition for each sitemap in the sitemap index"""
+    """Generate a dynamic partition for each geoconnex:sitemap_id in the sitemap index."""
 
-    r = requests.get(GLEANER_SITEMAP_INDEX, timeout=20)
+    r = requests.get(SITEMAP_INDEX, timeout=20)
     r.raise_for_status()
-    xml = r.text
 
-    sitemapTags: ResultSet = BeautifulSoup(xml, features="xml").find_all("sitemap")
-    Lines: list[str] = [
-        tag.text for tag in (sitemap.find_next("loc") for sitemap in sitemapTags) if tag
-    ]
+    root = ET.fromstring(r.text)
 
     names: set[str] = set()
 
-    assert len(Lines) > 0, f"No sitemaps found in index {GLEANER_SITEMAP_INDEX}"
+    sitemap_ids = root.findall(
+        "sm:sitemap/geoconnex:sitemap_id",
+        namespaces=NS,
+    )
 
-    for line in Lines:
-        basename = GLEANER_SITEMAP_INDEX.removesuffix(".xml")
-        name = (
-            line.removeprefix(basename)
-            .removesuffix(".xml")
-            .removeprefix("/")
-            .removesuffix("/")
-            .replace("/", "_")
-        )
+    assert sitemap_ids, f"No geoconnex:sitemap_id values found in index {SITEMAP_INDEX}"
+
+    for elem in sitemap_ids:
+        if elem.text is None:
+            raise ValueError(f"Empty geoconnex:sitemap_id found in {SITEMAP_INDEX}")
+
+        name = elem.text.strip()
+
+        if not name:
+            raise ValueError(f"Empty geoconnex:sitemap_id found in {SITEMAP_INDEX}")
+
         if name in names:
             get_dagster_logger().warning(
-                f"Found duplicate name '{name}' in line '{line}' in sitemap {GLEANER_SITEMAP_INDEX}. Skipping adding it again"
+                f"Found duplicate sitemap_id '{name}' in "
+                f"{SITEMAP_INDEX}. Skipping duplicate."
             )
             continue
 
@@ -131,9 +142,10 @@ def sitemap_partitions(context: AssetExecutionContext):
 
     filter_partitions(context.instance, "sources_partitions_def", names)
 
-    # Each source is a partition that can be crawled independently
+    # Each sitemap_id is a partition that can be crawled independently
     context.instance.add_dynamic_partitions(
-        partitions_def_name="sources_partitions_def", partition_keys=list(names)
+        partitions_def_name="sources_partitions_def",
+        partition_keys=sorted(names),
     )
 
 

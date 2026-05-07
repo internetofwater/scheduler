@@ -61,13 +61,13 @@ def test_e2e_harvest_and_release_nquads():
                 ADD_MAINSTEM_INFO_TAG: str(True),
                 MAINSTEM_FILE_OVERRIDE_TAG: str(test_flatgeobuf),
             },
-            partition_key="ref_dams_dams__0",
+            partition_key="ref:dams",
         )
         .success
-    ), "Job execution failed for partition 'ref_dams_dams__0'"
+    ), "Job execution failed for partition 'ref:dams'"
 
     obj = S3().client.get_object(
-        S3_DEFAULT_BUCKET, "graphs/latest/ref_dams_dams__0_release.nq.gz"
+        S3_DEFAULT_BUCKET, "graphs/latest/ref:dams_release.nq.gz"
     )
     with gzip.GzipFile(fileobj=obj) as gz:
         data = gz.read()
@@ -85,10 +85,10 @@ def test_e2e_harvest_and_release_nquads():
     pull_release_nq_for_all_sources()
     assert GEOCONNEX_GRAPH_DIRECTORY.exists(), "Pulled nq folder does not exist"
 
-    pulled_file = GEOCONNEX_GRAPH_DIRECTORY.joinpath("ref_dams_dams__0_release.nq.gz")
+    pulled_file = GEOCONNEX_GRAPH_DIRECTORY.joinpath("ref:dams_release.nq.gz")
     last_modified = pulled_file.stat().st_mtime
     pulled_file_bytesum = GEOCONNEX_GRAPH_DIRECTORY.joinpath(
-        "ref_dams_dams__0_release.nq.gz.bytesum"
+        "ref:dams_release.nq.gz.bytesum"
     )
     assert pulled_file.exists()
     assert pulled_file_bytesum.exists()
@@ -172,18 +172,16 @@ def test_dynamic_partitions():
     # the new ones are
     for key in mocked_partition_keys:
         assert key not in newPartitions
-    assert "ref_mainstems_mainstems__0" in newPartitions
-    assert "ref_dams_dams__0" in newPartitions
+    assert "ref:mainstems" in newPartitions
+    assert "ref:dams" in newPartitions
 
     # Check what happens when we delete a specific key in the dynamic partition
-    instance.delete_dynamic_partition(
-        "sources_partitions_def", "ref_mainstems_mainstems__0"
-    )
+    instance.delete_dynamic_partition("sources_partitions_def", "ref:mainstems")
 
     # Make sure that partitions are deleted
     partitionsAfterDelete = instance.get_dynamic_partitions("sources_partitions_def")
-    assert "ref_mainstems_mainstems__0" not in partitionsAfterDelete
-    assert "ref_dams_dams__0" in partitionsAfterDelete
+    assert "ref:mainstems" not in partitionsAfterDelete
+    assert "ref:dams" in partitionsAfterDelete
     assert len(partitionsAfterDelete) == len(newPartitions) - 1
     for key in mocked_partition_keys:
         assert key not in partitionsAfterDelete

@@ -1,0 +1,675 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!--
+ Copyright 2026 Lincoln Institute of Land Policy
+ SPDX-License-Identifier: Apache-2.0
+-->
+
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:geoconnex="https://geoconnex.us">
+<sitemap>
+  <loc>https://geoconnex.us/sitemap/ca_gage_assessment/ca_gages_pids.xml</loc>
+  <lastmod>2026-05-04T21:16:10.335839</lastmod>
+  <geoconnex:sitemap_id>ca_gage_assessment:ca_gages_pids</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>2</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>kyle.onda@duke.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>California Streamgage Network Assessment Catalog</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://github.com/internetofwater/CA-Gages</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/nhdplusv2/nhdplusv2_huc12.xml</loc>
+  <lastmod>2026-05-04T21:16:10.529683</lastmod>
+  <geoconnex:sitemap_id>nhdplusv2:nhdplusv2_huc12</geoconnex:sitemap_id>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/nhdplusv2/nhdplushr_huc12.xml</loc>
+  <lastmod>2026-05-04T21:16:10.500683</lastmod>
+  <geoconnex:sitemap_id>nhdplusv2:nhdplushr_huc12</geoconnex:sitemap_id>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/utah/water_systems.xml</loc>
+  <lastmod>2026-05-04T21:16:10.729873</lastmod>
+  <geoconnex:sitemap_id>utah:water_systems</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>4</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>aabdallah@utah.gov</geoconnex:contact_email>
+  <geoconnex:dataset_description>Utah Water Systems across Utah DWRi, DWRe and DDW</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://waterrights.utah.gov/</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/usbr/rise.xml</loc>
+  <lastmod>2026-05-04T21:16:10.678092</lastmod>
+  <geoconnex:sitemap_id>usbr:rise</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>4</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Locations in the USBR RISE API</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://data.usbr.gov/rise-api</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/wwdh/noaa_rfc.xml</loc>
+  <lastmod>2026-05-04T21:16:10.731018</lastmod>
+  <geoconnex:sitemap_id>wwdh:noaa_rfc</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>cloftus@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of the NOAA River Forecast Center APIs as it is present within the USBR / IoW Western Water Datahub here: https://api.wwdh.internetofwater.app/</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://api.wwdh.internetofwater.app/</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/wwdh/usbr_rise/rise.xml</loc>
+  <lastmod>2026-05-04T21:16:10.731449</lastmod>
+  <geoconnex:sitemap_id>wwdh:usbr_rise:rise</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>cloftus@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of the USBR RISE API as it is present within the USBR / IoW Western Water Datahub</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://api.wwdh.internetofwater.app/</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/wwdh/awdb_forecasts.xml</loc>
+  <lastmod>2026-05-04T21:16:10.730454</lastmod>
+  <geoconnex:sitemap_id>wwdh:awdb_forecasts</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>cloftus@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of the AWDB (Air and Water Database) API forecast data as it is present within the USBR / IoW Western Water Datahub here: https://api.wwdh.internetofwater.app/</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://api.wwdh.internetofwater.app/</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/wwdh/snotel.xml</loc>
+  <lastmod>2026-05-04T21:16:10.731148</lastmod>
+  <geoconnex:sitemap_id>wwdh:snotel</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>cloftus@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of the USACE SNOTEL API as it is present within the USBR / IoW Western Water Datahub here: https://api.wwdh.internetofwater.app/</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://api.wwdh.internetofwater.app/</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/wwdh/usace/usace_access_to_water.xml</loc>
+  <lastmod>2026-05-04T21:16:10.731310</lastmod>
+  <geoconnex:sitemap_id>wwdh:usace:usace_access_to_water</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>cloftus@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of the USACE Access2Water API as it is present within the USBR / IoW Western Water Datahub here: https://api.wwdh.internetofwater.app/</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://api.wwdh.internetofwater.app/</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/usgs/fabric/wbd2025_huc12.xml</loc>
+  <lastmod>2026-05-04T21:16:10.717688</lastmod>
+  <geoconnex:sitemap_id>usgs:fabric:wbd2025_huc12</geoconnex:sitemap_id>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+  <geoconnex:dataset_description>2020 WBD Snapshot HUC12 Polygons</geoconnex:dataset_description>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/usgs/fabric/wbd2020_huc12.xml</loc>
+  <lastmod>2026-05-04T21:16:10.710688</lastmod>
+  <geoconnex:sitemap_id>usgs:fabric:wbd2020_huc12</geoconnex:sitemap_id>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+  <geoconnex:dataset_description>2020 WBD Snapshot HUC12 Polygons</geoconnex:dataset_description>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/dams.xml</loc>
+  <lastmod>2026-05-04T21:16:10.585685</lastmod>
+  <geoconnex:sitemap_id>ref:dams</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>United States Community Contributed Dams from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/dams</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/counties.xml</loc>
+  <lastmod>2026-05-04T21:16:10.573684</lastmod>
+  <geoconnex:sitemap_id>ref:counties</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Counties from United States Census Bureau Cartographic Boundaries served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/counties</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/hu10.xml</loc>
+  <lastmod>2026-05-04T21:16:10.620605</lastmod>
+  <geoconnex:sitemap_id>ref:hu10</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Ten-digit Hydrologic Regions from USGS NHDPlus High Resolution served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/hu10</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/hu08.xml</loc>
+  <lastmod>2026-05-04T21:16:10.620196</lastmod>
+  <geoconnex:sitemap_id>ref:hu08</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Eight-digit Hydrologic Regions from USGS NHDPlus High Resolution served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/hu08</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/sec_hydrg_reg.xml</loc>
+  <lastmod>2026-05-04T21:16:10.676942</lastmod>
+  <geoconnex:sitemap_id>ref:sec_hydrg_reg</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Secondary Hydrogeologic Regions of the Conterminous United States from 2018 USGS data release served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/sec_hydrg_reg</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/princi_aq.xml</loc>
+  <lastmod>2026-05-04T21:16:10.674363</lastmod>
+  <geoconnex:sitemap_id>ref:princi_aq</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Principle Aquifers of the United States from the 2003 USGS data release served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/princi_aq</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/gages.xml</loc>
+  <lastmod>2026-05-04T21:16:10.616686</lastmod>
+  <geoconnex:sitemap_id>ref:gages</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>United States Community Contributed Reference Stream Gages from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/gages</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/places.xml</loc>
+  <lastmod>2026-05-04T21:16:10.672687</lastmod>
+  <geoconnex:sitemap_id>ref:places</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>United States legally incorporated and Census designated places served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/places</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/ua10.xml</loc>
+  <lastmod>2026-05-04T21:16:10.677216</lastmod>
+  <geoconnex:sitemap_id>ref:ua10</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Urbanized Areas (2010) as defined by the U.S. Census Bureau based on the 2010 Decennial Census served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/ua10</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/cbsa.xml</loc>
+  <lastmod>2026-05-04T21:16:10.562972</lastmod>
+  <geoconnex:sitemap_id>ref:cbsa</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Core Based Statistical Areas as defined by the Office of Management and Budget served by the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/cbsa</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/nat_aq.xml</loc>
+  <lastmod>2026-05-04T21:16:10.666987</lastmod>
+  <geoconnex:sitemap_id>ref:nat_aq</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>National Aquifers of the United States from USGS National Water Information System National Aquifer code list served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/nat_aq</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/pws.xml</loc>
+  <lastmod>2026-05-04T21:16:10.675687</lastmod>
+  <geoconnex:sitemap_id>ref:pws</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>EPA Safe Drinking Water Public Water Systems data served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/pws</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/aiannh.xml</loc>
+  <lastmod>2026-05-04T21:16:10.561684</lastmod>
+  <geoconnex:sitemap_id>ref:aiannh</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>False</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>American Indian/Alaska Native Areas/Hawaiian Home Lands as defined by Bureau of Indian Affairs and Delineated by the U.S. Census Boundary and Annexation Survey served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/hu12.xml</loc>
+  <lastmod>2026-05-04T21:16:10.663687</lastmod>
+  <geoconnex:sitemap_id>ref:hu12</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Twelve-digit Hydrologic Regions from USGS NHDPlus High Resolution served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/hu12</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/hu04.xml</loc>
+  <lastmod>2026-05-04T21:16:10.619925</lastmod>
+  <geoconnex:sitemap_id>ref:hu04</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Four-digit Hydrologic Regions from USGS NHDPlus High Resolution served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/hu04</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/hu06.xml</loc>
+  <lastmod>2026-05-04T21:16:10.620041</lastmod>
+  <geoconnex:sitemap_id>ref:hu06</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Six-digit Hydrologic Regions from USGS NHDPlus High Resolution served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/hu06</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/states.xml</loc>
+  <lastmod>2026-05-04T21:16:10.677064</lastmod>
+  <geoconnex:sitemap_id>ref:states</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>U.S. States as described by the Profile web pages from the U.S. Census Center for Enterprise Dissemination Services and Consumer Innovation (CEDSCI) served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/states</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/mainstems.xml</loc>
+  <lastmod>2026-05-04T21:16:10.665606</lastmod>
+  <geoconnex:sitemap_id>ref:mainstems</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Mainstem rivers in the United States served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/mainstems</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/ref/hu02.xml</loc>
+  <lastmod>2026-05-04T21:16:10.619795</lastmod>
+  <geoconnex:sitemap_id>ref:hu02</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Two-digit Hydrologic Regions from USGS NHDPlus High Resolution served from the Geoconnex reference feature server</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://reference.geoconnex.us/collections/hu02</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/demo.xml</loc>
+  <lastmod>2026-05-04T21:16:10.353095</lastmod>
+  <geoconnex:sitemap_id>iow:demo</geoconnex:sitemap_id>
+  <geoconnex:contact_email>konda@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Demonstration pids for tutorial purposes</geoconnex:dataset_description>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/links.xml</loc>
+  <lastmod>2026-05-04T21:16:10.353624</lastmod>
+  <geoconnex:sitemap_id>iow:links</geoconnex:sitemap_id>
+  <geoconnex:contact_email>konda@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>Various IoW related links</geoconnex:dataset_description>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/state_gages/ndwr.xml</loc>
+  <lastmod>2026-05-04T21:16:10.354680</lastmod>
+  <geoconnex:sitemap_id>iow:state_gages:ndwr</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>4</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>ewiggans@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>State gages for Nevada</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://features.internetofwater.dev/collections/nv/gages</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/state_gages/nednr.xml</loc>
+  <lastmod>2026-05-04T21:16:10.354820</lastmod>
+  <geoconnex:sitemap_id>iow:state_gages:nednr</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>4</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>ewiggans@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>State gages for Nebraska</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://features.internetofwater.dev/collections/ne/gages</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/state_gages/wyseo.xml</loc>
+  <lastmod>2026-05-04T21:16:10.355213</lastmod>
+  <geoconnex:sitemap_id>iow:state_gages:wyseo</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>4</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>ewiggans@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>State gages for Wyoming</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://features.internetofwater.dev/collections/wy/gages</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/state_gages/cdss.xml</loc>
+  <lastmod>2026-05-04T21:16:10.353900</lastmod>
+  <geoconnex:sitemap_id>iow:state_gages:cdss</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>4</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>ewiggans@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>State gages for Colorado</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://features.internetofwater.dev/collections/co/gages</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/state_gages/mtdnrc.xml</loc>
+  <lastmod>2026-05-04T21:16:10.354579</lastmod>
+  <geoconnex:sitemap_id>iow:state_gages:mtdnrc</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>4</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>ewiggans@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>State gages for Montana</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://features.internetofwater.dev/collections/mt/gages</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/usgs/gfv11_pois/gfv11_pois__1.xml</loc>
+  <lastmod>2026-05-04T21:16:10.728689</lastmod>
+  <geoconnex:sitemap_id>usgs:gfv11_pois:gfv11_pois__1</geoconnex:sitemap_id>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+  <geoconnex:dataset_description>USGS Geospatial Fabric V1.1 Points of Interest</geoconnex:dataset_description>
+  <geoconnex:contact_email>dblodgett@usgs.gov</geoconnex:contact_email>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/usgs/gfv11_pois/gfv11_pois__0.xml</loc>
+  <lastmod>2026-05-04T21:16:10.727689</lastmod>
+  <geoconnex:sitemap_id>usgs:gfv11_pois:gfv11_pois__0</geoconnex:sitemap_id>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+  <geoconnex:dataset_description>USGS Geospatial Fabric V1.1 Points of Interest</geoconnex:dataset_description>
+  <geoconnex:contact_email>dblodgett@usgs.gov</geoconnex:contact_email>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/epa/hmw/hmw__0.xml</loc>
+  <lastmod>2026-05-04T21:16:10.349679</lastmod>
+  <geoconnex:sitemap_id>epa:hmw:hmw__0</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>2</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>How's My Waterway - community (NHDPlusHuc12) based identifiers</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:requires_javascript_to_crawl>True</geoconnex:requires_javascript_to_crawl>
+  <geoconnex:dataset_documentation_link>https://mywaterway.epa.gov</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/epa/hmw/hmw__1.xml</loc>
+  <lastmod>2026-05-04T21:16:10.350679</lastmod>
+  <geoconnex:sitemap_id>epa:hmw:hmw__1</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>2</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>How's My Waterway - community (NHDPlusHuc12) based identifiers</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:requires_javascript_to_crawl>True</geoconnex:requires_javascript_to_crawl>
+  <geoconnex:dataset_documentation_link>https://mywaterway.epa.gov</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/nmwdi/ose/nmwdi_ose__4.xml</loc>
+  <lastmod>2026-05-04T21:16:10.556684</lastmod>
+  <geoconnex:sitemap_id>nmwdi:ose:nmwdi_ose__4</geoconnex:sitemap_id>
+  <geoconnex:contact_email>jake.ross@nmt.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The New Mexico Water Data OSE API</geoconnex:dataset_description>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/nmwdi/ose/nmwdi_ose__0.xml</loc>
+  <lastmod>2026-05-04T21:16:10.540684</lastmod>
+  <geoconnex:sitemap_id>nmwdi:ose:nmwdi_ose__0</geoconnex:sitemap_id>
+  <geoconnex:contact_email>jake.ross@nmt.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The New Mexico Water Data OSE API</geoconnex:dataset_description>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/nmwdi/ose/nmwdi_ose__1.xml</loc>
+  <lastmod>2026-05-04T21:16:10.541684</lastmod>
+  <geoconnex:sitemap_id>nmwdi:ose:nmwdi_ose__1</geoconnex:sitemap_id>
+  <geoconnex:contact_email>jake.ross@nmt.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The New Mexico Water Data OSE API</geoconnex:dataset_description>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/nmwdi/ose/nmwdi_ose__3.xml</loc>
+  <lastmod>2026-05-04T21:16:10.554684</lastmod>
+  <geoconnex:sitemap_id>nmwdi:ose:nmwdi_ose__3</geoconnex:sitemap_id>
+  <geoconnex:contact_email>jake.ross@nmt.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The New Mexico Water Data OSE API</geoconnex:dataset_description>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/nmwdi/ose/nmwdi_ose__2.xml</loc>
+  <lastmod>2026-05-04T21:16:10.553684</lastmod>
+  <geoconnex:sitemap_id>nmwdi:ose:nmwdi_ose__2</geoconnex:sitemap_id>
+  <geoconnex:contact_email>jake.ross@nmt.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The New Mexico Water Data OSE API</geoconnex:dataset_description>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/nmwdi/st.xml</loc>
+  <lastmod>2026-05-04T21:16:10.558812</lastmod>
+  <geoconnex:sitemap_id>nmwdi:st</geoconnex:sitemap_id>
+  <geoconnex:contact_email>jake.ross@nmt.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The New Mexico Water Data ST API</geoconnex:dataset_description>
+  <geoconnex:skip_crawling>True</geoconnex:skip_crawling>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/nhdplusv2/huc12pp/huc12pp__0.xml</loc>
+  <lastmod>2026-05-04T21:16:10.477682</lastmod>
+  <geoconnex:sitemap_id>nhdplusv2:huc12pp:huc12pp__0</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>4</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>HUC12 layer from NHDPlusV2</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>False</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://api.water.usgs.gov/fabric/pygeoapi/collections/nhdplusv2-huc12</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/nhdplusv2/huc12pp/huc12pp__1.xml</loc>
+  <lastmod>2026-05-04T21:16:10.483682</lastmod>
+  <geoconnex:sitemap_id>nhdplusv2:huc12pp:huc12pp__1</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>4</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>internetofwater@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>HUC12 layer from NHDPlusV2</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>False</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://api.water.usgs.gov/fabric/pygeoapi/collections/nhdplusv2-huc12</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/bulk/sciencebase.xml</loc>
+  <lastmod>2026-05-04T21:16:10.334628</lastmod>
+  <geoconnex:sitemap_id>bulk:sciencebase</geoconnex:sitemap_id>
+  <geoconnex:contact_email>cloftus@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>USGS Sciencebase Bulk Download</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:add_associated_mainstems>False</geoconnex:add_associated_mainstems>
+  <geoconnex:source_code_link>https://github.com/internetofwater/sciencebase_bulk_rdf</geoconnex:source_code_link>
+  <geoconnex:dataset_documentation_link>https://www.sciencebase.gov/catalog/</geoconnex:dataset_documentation_link>
+  <geoconnex:bulk_container_image>ghcr.io/internetofwater/sciencebase_bulk_rdf</geoconnex:bulk_container_image>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/bulk/gnis.xml</loc>
+  <lastmod>2026-05-04T21:16:10.334476</lastmod>
+  <geoconnex:sitemap_id>bulk:gnis</geoconnex:sitemap_id>
+  <geoconnex:contact_email>cloftus@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>USGS GNIS Bulk Download</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:add_associated_mainstems>False</geoconnex:add_associated_mainstems>
+  <geoconnex:source_code_link>https://github.com/internetofwater/gnis_bulk_rdf</geoconnex:source_code_link>
+  <geoconnex:dataset_documentation_link>https://www.usgs.gov/tools/geographic-names-information-system-gnis</geoconnex:dataset_documentation_link>
+  <geoconnex:bulk_container_image>internetofwater/gnis_bulk_rdf:latest</geoconnex:bulk_container_image>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/bulk/usgs_monitoring_locations.xml</loc>
+  <lastmod>2026-05-04T21:16:10.334762</lastmod>
+  <geoconnex:sitemap_id>bulk:usgs_monitoring_locations</geoconnex:sitemap_id>
+  <geoconnex:contact_email>cloftus@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>USGS Monitoring Locations Bulk Download</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:source_code_link>https://github.com/internetofwater/usgs_monitoring_locations_bulk_exports</geoconnex:source_code_link>
+  <geoconnex:dataset_documentation_link>https://api.waterdata.usgs.gov/ogcapi/v0/collections/monitoring-locations</geoconnex:dataset_documentation_link>
+  <geoconnex:bulk_container_image>ghcr.io/internetofwater/usgs_monitoring_locations_bulk_rdf:latest</geoconnex:bulk_container_image>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__4.xml</loc>
+  <lastmod>2026-05-04T21:16:10.449681</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__4</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__17.xml</loc>
+  <lastmod>2026-05-04T21:16:10.430681</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__17</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__12.xml</loc>
+  <lastmod>2026-05-04T21:16:10.416680</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__12</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__7.xml</loc>
+  <lastmod>2026-05-04T21:16:10.461682</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__7</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__6.xml</loc>
+  <lastmod>2026-05-04T21:16:10.456681</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__6</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__3.xml</loc>
+  <lastmod>2026-05-04T21:16:10.435681</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__3</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__14.xml</loc>
+  <lastmod>2026-05-04T21:16:10.424681</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__14</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__11.xml</loc>
+  <lastmod>2026-05-04T21:16:10.398680</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__11</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__16.xml</loc>
+  <lastmod>2026-05-04T21:16:10.427681</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__16</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__13.xml</loc>
+  <lastmod>2026-05-04T21:16:10.418680</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__13</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__2.xml</loc>
+  <lastmod>2026-05-04T21:16:10.434681</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__2</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__9.xml</loc>
+  <lastmod>2026-05-04T21:16:10.464682</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__9</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__5.xml</loc>
+  <lastmod>2026-05-04T21:16:10.450681</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__5</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__0.xml</loc>
+  <lastmod>2026-05-04T21:16:10.378680</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__0</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__1.xml</loc>
+  <lastmod>2026-05-04T21:16:10.379679</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__1</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__8.xml</loc>
+  <lastmod>2026-05-04T21:16:10.462682</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__8</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__10.xml</loc>
+  <lastmod>2026-05-04T21:16:10.397680</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__10</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/iow/wqp/stations__15.xml</loc>
+  <lastmod>2026-05-04T21:16:10.426681</lastmod>
+  <geoconnex:sitemap_id>iow:wqp:stations__15</geoconnex:sitemap_id>
+  <geoconnex:max_request_concurrency>5</geoconnex:max_request_concurrency>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+  <geoconnex:contact_email>bwebb@lincolninst.edu</geoconnex:contact_email>
+  <geoconnex:dataset_description>The proxied version of Water Quality Portal into a standardized OGC API Features endpoint</geoconnex:dataset_description>
+  <geoconnex:dataset_has_html_landing_pages>True</geoconnex:dataset_has_html_landing_pages>
+  <geoconnex:dataset_documentation_link>https://sta.geoconnex.dev/collections/WQP/Things</geoconnex:dataset_documentation_link>
+</sitemap></sitemapindex>

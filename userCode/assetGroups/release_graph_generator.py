@@ -92,16 +92,3 @@ def release_graphs_for_all_summoned_jsonld(
         mainstem_file=mainstem_file,
         volume_mapping=volume_mount,
     ).run(f"release --compress --prefix summoned/{context.partition_key}", config)
-
-
-@asset(
-    partitions_def=sources_partitions_def,
-    deps=[harvest_sitemap],
-    group_name=RELEASE_GRAPH_GENERATOR_GROUP,
-)
-def release_graphs_for_org_metadata(context: AssetExecutionContext, config: NqConfig):
-    """Construct an nq file for the metadata of an organization."""
-    NqOperationsContainer(context.partition_key).run(
-        f"release --compress --prefix orgs/{context.partition_key}",
-        config,
-    )

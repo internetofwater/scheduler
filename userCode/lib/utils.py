@@ -50,7 +50,11 @@ def run_docker_image(
 ):
     """Run a docker using the same docker socket inside dagster"""
     action_name = args.split(" ")[0]
-    container_name = create_max_length_container_name(source, action_name)
+    # geoconnex sitemap_id values have colons but docker container names cannot
+    # so we replace colons with hyphens
+    container_name = create_max_length_container_name(source, action_name).replace(
+        ":", "-"
+    )
 
     client = docker.DockerClient()
 
