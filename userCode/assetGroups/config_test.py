@@ -1,12 +1,15 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-from dagster import materialize_to_memory
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+from dagster import DagsterInstance, materialize, materialize_to_memory
 import lakefs
 import pytest
 import requests
 
-from userCode.assetGroups.config import rclone_config
+from userCode.assetGroups.config import rclone_config, sitemap_partitions
 from userCode.assetGroups.export import stream_nquads_to_zenodo
 from userCode.lib.classes import (
     RcloneClient,
@@ -128,3 +131,36 @@ def test_branch_ops(lakefs_client: LakeFSClient):
     assert branch
     branch.delete()
     assert not lakefs_client.get_branch("dummy_empty_test_branch")
+
+
+def test_sitemap_partitions_extracts_sitemap_ids():
+    mock_response = Mock()
+
+    with open(
+        Path(__file__).parent / "testdata" / "sitemap.xml",
+        encoding="utf-8",
+    ) as f:
+        NUMBER_OF_SITEMAPS = 0
+        for line in f.readlines():
+            # each line includes both the opening and closing tag so we can count by +1 each time
+            if "geoconnex:sitemap_id" in line:
+                NUMBER_OF_SITEMAPS += 1
+        f.seek(0)
+        mock_response.text = f.read()
+
+    instance = DagsterInstance.ephemeral()
+
+    with patch("requests.get", return_value=mock_response) as mock_get:
+        result = materialize(
+            assets=[sitemap_partitions],
+            instance=instance,
+        )
+
+        assert result.success
+
+        mock_get.assert_called_once()
+
+        partitions = instance.get_dynamic_partitions("sources_partitions_def")
+        assert len(partitions) == NUMBER_OF_SITEMAPS
+        assert "iow:wqp:stations__15" in partitions
+        assert "iow:state_gages:ndwr" in partitions
