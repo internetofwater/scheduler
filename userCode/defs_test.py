@@ -24,7 +24,6 @@ from userCode.assetGroups.index_generator import (
     pull_release_nq_for_all_sources,
 )
 from userCode.assetGroups.release_graph_generator import (
-    ADD_MAINSTEM_INFO_TAG,
     MAINSTEM_FILE_OVERRIDE_TAG,
 )
 import userCode.defs as defs
@@ -58,7 +57,6 @@ def test_e2e_harvest_and_release_nquads():
             instance=instance,
             tags={
                 EXIT_3_IS_FATAL: str(True),
-                ADD_MAINSTEM_INFO_TAG: str(True),
                 MAINSTEM_FILE_OVERRIDE_TAG: str(test_flatgeobuf),
             },
             partition_key="ref:dams",
