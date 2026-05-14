@@ -207,7 +207,7 @@ def oci_artifact():
             relative_path = file.relative_to(GEOCONNEX_GRAPH_DIRECTORY)
             files_to_upload.append(f"{relative_path}:application/n-quads")
 
-    command = f"oras push {registry}/internetofwater/geoconnex-graph:{tags} {' '.join(files_to_upload)} --username internetofwater --password-stdin"
+    command = f"oras push {registry}/internetofwater/geoconnex-graph:{tags} {' '.join(files_to_upload)} --username internetofwater --password-stdin --annotation 'org.opencontainers.image.description=All RDF data in NQuad format which makes up the Geoconnex Graph as of the date in the image tag' --annotation 'org.opencontainers.image.source=https://github.com/internetofwater/geoconnex.us'"
 
     logger = get_dagster_logger()
     logger.info(f"Running '{command}'")
