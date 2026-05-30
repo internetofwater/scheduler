@@ -58,6 +58,7 @@ services:
   # Dagster Webserver
   dagster_webserver:
     container_name: dagster_webserver
+    image: ${DAGSTER_SERVER_IMAGE:-geoconnex_dagster_server:local}
     build:
       context: ..
       dockerfile: ./Docker/dagster/Dockerfile_dagster
@@ -87,6 +88,7 @@ services:
   # Dagster Daemon
   dagster_daemon:
     container_name: dagster_daemon
+    image: ${DAGSTER_SERVER_IMAGE:-geoconnex_dagster_server:local}
     build:
       context: ..
       dockerfile: ./Docker/dagster/Dockerfile_dagster
@@ -95,7 +97,7 @@ services:
       - dagster-daemon
       - run
     volumes:
-      # we mount the docker sock to allow us to spawn nabu / gleaner containers
+      # we mount the docker sock to allow us to spawn nabu containers
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/io_manager_storage:/tmp/io_manager_storage
     depends_on:
@@ -111,6 +113,7 @@ services:
   # Dagster User Code
   dagster_user_code:
     container_name: dagster_user_code
+    image: ${DAGSTER_USER_CODE_IMAGE:-geoconnex_dagster_user_code:local}
     build:
       context: ..
       dockerfile: ./Docker/dagster/Dockerfile_user_code
@@ -118,7 +121,7 @@ services:
     networks:
       - dagster_network
     environment:
-      - DAGSTER_CURRENT_IMAGE=dagster_user_code_image
+      - DAGSTER_CURRENT_IMAGE=${DAGSTER_USER_CODE_IMAGE:-geoconnex_dagster_user_code:local}
       - NABU_IMAGE=${NABU_IMAGE:-internetofwater/nabu:latest}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -146,19 +149,6 @@ services:
     restart: unless-stopped
     networks:
       - dagster_network
-
-  # # Headless browser (currently commented out since not needed)
-  # scheduler_headless:
-  #   image: chromedp/headless-shell:latest
-  #   container_name: scheduler_headless
-  #   ports:
-  #     - "9222:9222"
-  #   networks:
-  #     - dagster_network
-  #   environment:
-  #     - SERVICE_PORTS=9222
-  #   profiles:
-  #     - production
 
 volumes:
   scheduler_minio_data:
