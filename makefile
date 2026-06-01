@@ -50,6 +50,8 @@ prodBuild: init-env
 
 # Run dagster with dockerized Python code but don't run any storage locally
 cloudProd: init-env
+	DAGSTER_USER_CODE_IMAGE=ghcr.io/internetofwater/geoconnex_dagster_user_code:latest \
+	DAGSTER_SERVER_IMAGE=ghcr.io/internetofwater/geoconnex_dagster_server:latest \
 	$(PRODUCTION_USING_CLOUD_INFRA) up -d $(ARGS)
 
 # Stop all docker services
@@ -60,7 +62,6 @@ down:
 pull:
 	$(ALL_SERVICES) pull
 	docker pull internetofwater/nabu:latest
-	docker pull internetofwater/gleaner:latest
 
 # Copy .env.example to .env only if .env does not exist
 init-env:
