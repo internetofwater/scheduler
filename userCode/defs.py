@@ -51,9 +51,7 @@ setup_config_job = define_asset_job(
 export_job = define_asset_job(
     "export_artifacts",
     description="export artifacts like index dumps and release graphs to partners and other storage locations",
-    selection=AssetSelection.groups(export.EXPORT_GROUP)
-    # don't automatically run the merge into the main branch of lakefs
-    - AssetSelection.assets(export.merge_lakefs_branch_into_main),
+    selection=AssetSelection.groups(export.EXPORT_GROUP),
 )
 
 harvest_and_generate_release_graph_job = define_asset_job(

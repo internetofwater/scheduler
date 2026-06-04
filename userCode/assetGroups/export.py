@@ -72,20 +72,6 @@ def skip_export(context: AssetExecutionContext) -> bool:
     return False
 
 
-@asset(group_name=EXPORT_GROUP)
-def merge_lakefs_branch_into_main(context: AssetExecutionContext):
-    """
-    Manually merge the develop branch into the main branch
-    the renci lakefs. This is done as a separate step to avoid
-    auto merging unfinished or incorrect assets until they have been
-    checked
-    """
-    if RUNNING_AS_TEST_OR_DEV():
-        get_dagster_logger().warning("Skipping export as we are running in test mode")
-        return
-    LakeFSClient("geoconnex").merge_branch_into_main(branch="develop")
-
-
 class ParquetConfig(Config):
     # the default location of the geoparquet is in the assets directory
     # but this can be override for testing purposes
@@ -123,6 +109,9 @@ def pull_release_nq_for_all_sources(config: NqConfig):
 
 @asset(deps=[pull_release_nq_for_all_sources], group_name=EXPORT_GROUP)
 def geoparquet_from_triples():
+    """
+    Generate a geoparquet file that represents all locations in the Geoconnex graph
+    """
     client = docker.DockerClient()
 
     geoparquet_converter = "internetofwater/triples_to_geoparquet:latest"
@@ -203,6 +192,9 @@ def geoparquet_from_triples():
     group_name=EXPORT_GROUP,
 )
 def qlever_index():
+    """
+    Generate the qlever index
+    """
     logger = get_dagster_logger()
 
     os.chdir(ASSETS_DIRECTORY)
@@ -250,6 +242,9 @@ def qlever_index():
     group_name=EXPORT_GROUP,
 )
 def oci_artifact():
+    """
+    Upload the Geoconnex graph as an OCI artifact to Github Container Registry
+    """
     os.chdir(GEOCONNEX_GRAPH_DIRECTORY)
     date_str = datetime.now().strftime("%Y_%m_%d")
     tags = f"{date_str},latest"
@@ -543,3 +538,17 @@ def stream_nquads_to_zenodo(
     # response.raise_for_status()
     # get_dagster_logger().info("Deposit published successfully.")
     # return deposit_id
+
+
+@asset(group_name=EXPORT_GROUP, deps=[stream_all_release_graphs_to_renci])
+def merge_lakefs_branch_into_main(context: AssetExecutionContext):
+    """
+    Manually merge the develop branch into the main branch
+    the renci lakefs. This is done as a separate step to avoid
+    auto merging unfinished or incorrect assets until they have been
+    checked
+    """
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning("Skipping export as we are running in test mode")
+        return
+    LakeFSClient("geoconnex").merge_branch_into_main(branch="develop")

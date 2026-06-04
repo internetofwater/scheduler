@@ -15,13 +15,13 @@ from dagster import (
 )
 from rdflib import Dataset, URIRef
 
+from userCode.assetGroups.export import (
+    GEOCONNEX_GRAPH_DIRECTORY,
+    pull_release_nq_for_all_sources,
+)
 from userCode.assetGroups.harvest import (
     EXIT_3_IS_FATAL,
     sources_partitions_def,
-)
-from userCode.assetGroups.index_generator import (
-    GEOCONNEX_GRAPH_DIRECTORY,
-    pull_release_nq_for_all_sources,
 )
 from userCode.assetGroups.release_graph_generator import (
     MAINSTEM_FILE_OVERRIDE_TAG,
