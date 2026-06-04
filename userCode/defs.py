@@ -24,7 +24,6 @@ from userCode.assetGroups import (
     config,
     export,
     harvest,
-    index_generator,
     release_graph_generator,
 )
 from userCode.assetGroups.harvest import (
@@ -64,12 +63,6 @@ harvest_and_generate_release_graph_job = define_asset_job(
         harvest.HARVEST_GROUP,
         release_graph_generator.RELEASE_GRAPH_GENERATOR_GROUP,
     ),
-)
-
-index_generator_job = define_asset_job(
-    "index_generator",
-    description="generate an index for qlever",
-    selection=AssetSelection.groups(index_generator.INDEX_GEN_GROUP),
 )
 
 
@@ -116,7 +109,6 @@ defs = Definitions(
             export,
             config,
             release_graph_generator,
-            index_generator,
         ]
     ),
     schedules=[
@@ -129,14 +121,12 @@ defs = Definitions(
             export,
             config,
             release_graph_generator,
-            index_generator,
         ]
     ),
     jobs=[
         export_job,
         setup_config_job,
         harvest_and_generate_release_graph_job,
-        index_generator_job,
     ],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(

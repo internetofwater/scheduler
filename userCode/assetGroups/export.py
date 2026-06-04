@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from datetime import datetime
 import os
+import subprocess
 
 from dagster import (
     AssetExecutionContext,
@@ -11,17 +13,29 @@ from dagster import (
     asset,
     get_dagster_logger,
 )
+import docker
 import geopandas as gpd
+import geoparquet_io as gpio
 import requests
 from sqlalchemy import text
 
-from userCode.assetGroups.index_generator import geoparquet_from_triples, qlever_index
+from userCode.assetGroups.release_graph_generator import (
+    release_graphs_for_all_summoned_jsonld,
+)
 from userCode.lib.classes import RcloneClient, S3
-from userCode.lib.dagster import all_dependencies_materialized
+from userCode.lib.containers import (
+    NqConfig,
+    NqOperationsContainer,
+)
+from userCode.lib.dagster import (
+    all_dependencies_materialized,
+    dagster_log_with_parsed_level,
+)
 from userCode.lib.env import (
     ASSETS_DIRECTORY,
     GEOCONNEX_GRAPH_DIRECTORY,
     GEOCONNEX_INDEX_DIRECTORY,
+    GHCR_TOKEN,
     RUNNING_AS_TEST_OR_DEV,
     ZENODO_ACCESS_TOKEN,
     ZENODO_SANDBOX_ACCESS_TOKEN,
@@ -58,28 +72,234 @@ def skip_export(context: AssetExecutionContext) -> bool:
     return False
 
 
-@asset(
-    group_name=EXPORT_GROUP,
-)
-def stream_all_release_graphs_to_renci(
-    context: AssetExecutionContext,
-    rclone_config: str,
-):
+@asset(group_name=EXPORT_GROUP)
+def merge_lakefs_branch_into_main(context: AssetExecutionContext):
     """
-    Stream all release graphs to RENCI
+    Manually merge the develop branch into the main branch
+    the renci lakefs. This is done as a separate step to avoid
+    auto merging unfinished or incorrect assets until they have been
+    checked
     """
     if RUNNING_AS_TEST_OR_DEV():
         get_dagster_logger().warning("Skipping export as we are running in test mode")
         return
-    lakefs_client = LakeFSClient("geoconnex")
+    LakeFSClient("geoconnex").merge_branch_into_main(branch="develop")
+
+
+class ParquetConfig(Config):
+    # the default location of the geoparquet is in the assets directory
+    # but this can be override for testing purposes
+    geoparquet_path: str = f"{ASSETS_DIRECTORY}/geoconnex_features.parquet"
+
+
+@asset(
+    deps=[release_graphs_for_all_summoned_jsonld],
+    # this is put in a separate group since it is potentially expensive
+    # and thus we don't want to run it automatically
+    group_name=EXPORT_GROUP,
+)
+def pull_release_nq_for_all_sources(config: NqConfig):
+    """pull all release graphs on disk and put them in one folder"""
+    GEOCONNEX_GRAPH_DIRECTORY.mkdir(exist_ok=True)
+
+    assert GEOCONNEX_GRAPH_DIRECTORY.is_dir(), (
+        "You must use a directory for geoconnex_graph, not a file"
+    )
+
+    fullGraphNqInContainer = "/app/geoconnex_graph/"
+    volumeMapping = [f"{GEOCONNEX_GRAPH_DIRECTORY}:{fullGraphNqInContainer}"]
     get_dagster_logger().info(
-        f"Uploading release graphs from {RELEASE_GRAPH_LOCATION_IN_S3} to lakefs at {DEVELOPMENT_BRANCH_IN_LAKEFS}"
+        f"Pulling release graphs to {GEOCONNEX_GRAPH_DIRECTORY.absolute()} in host filesystem using volume mapping: {volumeMapping}"
     )
-    RcloneClient(rclone_config).copy_directory_to_lakefs(
-        destination_branch=DEVELOPMENT_BRANCH_IN_LAKEFS,
-        source_prefix=RELEASE_GRAPH_LOCATION_IN_S3,
-        lakefs_client=lakefs_client,
+    all_partitions = None
+    NqOperationsContainer(
+        partition=all_partitions,
+        volume_mapping=volumeMapping,
+    ).run(
+        f"pull --prefix graphs/latest/ {fullGraphNqInContainer}",
+        config,
     )
+
+
+@asset(deps=[pull_release_nq_for_all_sources], group_name=EXPORT_GROUP)
+def geoparquet_from_triples():
+    client = docker.DockerClient()
+
+    geoparquet_converter = "internetofwater/triples_to_geoparquet:latest"
+    get_dagster_logger().info(f"Pulling {geoparquet_converter}")
+    client.images.pull(geoparquet_converter)
+    get_dagster_logger().info(
+        f"Running triples_to_geoparquet on {GEOCONNEX_GRAPH_DIRECTORY.absolute()}"
+    )
+
+    container = client.containers.run(
+        image=geoparquet_converter,
+        name="triples_to_geoparquet",
+        detach=True,
+        command="--triples /app/assets/geoconnex_graph --output /app/assets/geoconnex_features.parquet",
+        volumes=[
+            f"{ASSETS_DIRECTORY.absolute()}:/app/assets/",
+        ],
+        auto_remove=True,
+    )
+
+    for line in container.logs(stdout=True, stderr=True, stream=True, follow=True):
+        decoded = line.decode("utf-8")
+        dagster_log_with_parsed_level(decoded)
+
+    exit_status: int = container.wait()["StatusCode"]
+    get_dagster_logger().info(f"Container Wait Exit status:  {exit_status}")
+
+    if exit_status != 0:
+        raise Exception(f"triples_to_geoparquet failed with exit status {exit_status}")
+
+    geoparquet_file = ASSETS_DIRECTORY / "geoconnex_features.parquet"
+
+    (
+        gpio.read(geoparquet_file)
+        .add_bbox()
+        .sort_hilbert()
+        .add_bbox_metadata()
+        .write(geoparquet_file, overwrite=True, row_group_size_mb=4)
+    )
+
+    result = gpio.read(geoparquet_file).check()
+    if result.passed():
+        get_dagster_logger().info(
+            "Geoparquet passed all checks and appears to be valid"
+        )
+    else:
+        get_dagster_logger().warning("Geoparquet has issues:")
+        for res in result.failures():
+            get_dagster_logger().warning(res)
+
+    assert geoparquet_file.is_file(), (
+        f"{geoparquet_file} is not a file and thus cannot be uploaded"
+    )
+
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning("Skipping export as we are running in test mode")
+        return
+
+    s3 = S3(bucket="metadata-geoconnex-us")
+
+    get_dagster_logger().info(
+        f"Uploading {geoparquet_file.name} of size {geoparquet_file.stat().st_size} to bucket '{s3.bucket}' in the object store"
+    )
+    with geoparquet_file.open("rb") as f:
+        s3.load_stream(
+            stream=f,
+            remote_path=f"exports/{geoparquet_file.name}",
+            content_length=geoparquet_file.stat().st_size,
+            content_type="application/vnd.apache.parquet",
+            headers={},
+        )
+
+
+@asset(
+    deps=[pull_release_nq_for_all_sources],
+    # this is put in a separate group since it is potentially expensive
+    # and thus we don't want to run it automatically
+    group_name=EXPORT_GROUP,
+)
+def qlever_index():
+    logger = get_dagster_logger()
+
+    os.chdir(ASSETS_DIRECTORY)
+
+    # overwrite existing index if it exists and use up to 11GB of memory for building the
+    # index; otherwise qlever will only use the default of 1GB
+    qlever_cmd = ["qlever", "index", "--overwrite-existing", "--stxxl-memory", "11GB"]
+
+    process = subprocess.Popen(
+        qlever_cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,  # merge streams
+        text=True,
+        bufsize=1,
+    )
+    assert process.stdout, (
+        "no stdout present for process; this is a sign something didn't launch properly"
+    )
+    for line in process.stdout:
+        line = line.rstrip()
+        if not line:
+            continue
+        if "WARN" in line:
+            logger.warning(line)
+        else:
+            logger.info(line)
+    returncode = process.wait()
+    if returncode != 0:
+        raise RuntimeError("qlever index generation failed")
+
+    get_dagster_logger().info("qlever index generation complete")
+
+    GEOCONNEX_INDEX_DIRECTORY.mkdir(exist_ok=True)
+
+    # move all geoconnex.* files to geoconnex_index directory for cleanliness
+    for path in ASSETS_DIRECTORY.iterdir():
+        if path.is_file() and path.name.startswith("geoconnex."):
+            path.rename(GEOCONNEX_INDEX_DIRECTORY / path.name)
+
+
+@asset(
+    deps=[pull_release_nq_for_all_sources],
+    # this is put in a separate group since it is potentially expensive
+    # and thus we don't want to run it automatically
+    group_name=EXPORT_GROUP,
+)
+def oci_artifact():
+    os.chdir(GEOCONNEX_GRAPH_DIRECTORY)
+    date_str = datetime.now().strftime("%Y_%m_%d")
+    tags = f"{date_str},latest"
+
+    registry = "localhost:5000" if RUNNING_AS_TEST_OR_DEV() else "ghcr.io"
+
+    files_to_upload = []
+    for file in GEOCONNEX_GRAPH_DIRECTORY.iterdir():
+        if file.name.endswith(".nq.gz") or file.name.endswith(".nq"):
+            relative_path = file.relative_to(GEOCONNEX_GRAPH_DIRECTORY)
+            files_to_upload.append(f"{relative_path}:application/n-quads")
+
+    command = f"oras push {registry}/internetofwater/geoconnex-graph:{tags} {' '.join(files_to_upload)} --username internetofwater --password-stdin --annotation 'org.opencontainers.image.description=All RDF data in NQuad format which makes up the Geoconnex Graph as of the date in the image tag' --annotation 'org.opencontainers.image.source=https://github.com/internetofwater/geoconnex.us'"
+
+    logger = get_dagster_logger()
+    logger.info(f"Running '{command}'")
+
+    # Use shell=True so the command string is interpreted correctly
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        stdin=subprocess.PIPE,
+        shell=True,
+    )
+
+    assert process.stdout, "No stdout present; process didn't launch properly"
+    assert process.stdin, "No stdin present; process didn't launch properly"
+
+    process.stdin.write(GHCR_TOKEN)
+    process.stdin.close()
+
+    for line in process.stdout:
+        line = line.rstrip()
+        if not line:
+            continue
+        if "WARN" in line:
+            logger.warning(line)
+        else:
+            logger.info(line)
+
+    returncode = process.wait()
+    if returncode != 0:
+        raise RuntimeError("ORAS push failed")
+    get_dagster_logger().info("Pushing qlever index to registry")
+
+    # restore the dir
+    os.chdir(os.path.dirname(__file__))
 
 
 @asset(
@@ -122,21 +342,89 @@ def stream_qlever_index_to_gcs(context: AssetExecutionContext):
             )
 
 
-@asset(group_name=EXPORT_GROUP)
-def merge_lakefs_branch_into_main(context: AssetExecutionContext):
+@asset(
+    group_name=EXPORT_GROUP,
+    automation_condition=AutomationCondition.eager(),
+    deps=[geoparquet_from_triples],
+)
+def move_geoparquet_to_postgis(config: ParquetConfig):
     """
-    Manually merge the develop branch into the main branch
-    the renci lakefs. This is done as a separate step to avoid
-    auto merging unfinished or incorrect assets until they have been
-    checked
+    Load geoparquet and write it into PostGIS using GeoPandas to_postgis.
+    """
+
+    engine = new_sqlalchemy_engine_from_env()
+
+    get_dagster_logger().info(
+        f"Moving geoparquet data from file {config.geoparquet_path} to PostGIS"
+    )
+    # Read geoparquet
+    gdf = gpd.read_parquet(config.geoparquet_path)
+
+    gdf.set_crs(epsg=4326, inplace=True, allow_override=True)
+
+    # Write to PostGIS
+    gdf.to_postgis(
+        name="geoconnex_features",
+        con=engine,
+        if_exists="replace",
+        # do not add the pandas index as a separate column
+        index=False,
+        schema=None,
+        # write 100k rows at a time so
+        # we don't run out of memory
+        chunksize=100_000,
+    )
+
+    # new count in postgis
+    with engine.begin() as conn:
+        result = conn.execute(text("SELECT count(*) FROM geoconnex_features;"))
+        count = result.scalar()
+
+        get_dagster_logger().info("Creating indexes on geoconnex_features table")
+        conn.execute(
+            text("""
+            CREATE INDEX IF NOT EXISTS idx_geoconnex_features_id
+            ON geoconnex_features (id);
+        """)
+        )
+
+        conn.execute(
+            text("""
+            CREATE INDEX IF NOT EXISTS idx_geoconnex_sitemap
+            ON geoconnex_features (geoconnex_sitemap);
+            """)
+        )
+    get_dagster_logger().info(
+        f"Finishing moving Parquet data into postgis. Table 'geoconnex_features' now has {count} rows."
+    )
+
+
+@asset(
+    group_name=EXPORT_GROUP,
+    deps=[pull_release_nq_for_all_sources],
+)
+def stream_all_release_graphs_to_renci(
+    context: AssetExecutionContext,
+    rclone_config: str,
+):
+    """
+    Stream all release graphs to RENCI
     """
     if RUNNING_AS_TEST_OR_DEV():
         get_dagster_logger().warning("Skipping export as we are running in test mode")
         return
-    LakeFSClient("geoconnex").merge_branch_into_main(branch="develop")
+    lakefs_client = LakeFSClient("geoconnex")
+    get_dagster_logger().info(
+        f"Uploading release graphs from {RELEASE_GRAPH_LOCATION_IN_S3} to lakefs at {DEVELOPMENT_BRANCH_IN_LAKEFS}"
+    )
+    RcloneClient(rclone_config).copy_directory_to_lakefs(
+        destination_branch=DEVELOPMENT_BRANCH_IN_LAKEFS,
+        source_prefix=RELEASE_GRAPH_LOCATION_IN_S3,
+        lakefs_client=lakefs_client,
+    )
 
 
-@asset(group_name=EXPORT_GROUP)
+@asset(group_name=EXPORT_GROUP, deps=[pull_release_nq_for_all_sources])
 def stream_nquads_to_zenodo(
     context: AssetExecutionContext,
 ):
@@ -255,66 +543,3 @@ def stream_nquads_to_zenodo(
     # response.raise_for_status()
     # get_dagster_logger().info("Deposit published successfully.")
     # return deposit_id
-
-
-class ParquetConfig(Config):
-    # the default location of the geoparquet is in the assets directory
-    # but this can be override for testing purposes
-    geoparquet_path: str = f"{ASSETS_DIRECTORY}/geoconnex_features.parquet"
-
-
-@asset(
-    group_name=EXPORT_GROUP,
-    automation_condition=AutomationCondition.eager(),
-    deps=[geoparquet_from_triples],
-)
-def move_geoparquet_to_postgis(config: ParquetConfig):
-    """
-    Load geoparquet and write it into PostGIS using GeoPandas to_postgis.
-    """
-
-    engine = new_sqlalchemy_engine_from_env()
-
-    get_dagster_logger().info(
-        f"Moving geoparquet data from file {config.geoparquet_path} to PostGIS"
-    )
-    # Read geoparquet
-    gdf = gpd.read_parquet(config.geoparquet_path)
-
-    gdf.set_crs(epsg=4326, inplace=True, allow_override=True)
-
-    # Write to PostGIS
-    gdf.to_postgis(
-        name="geoconnex_features",
-        con=engine,
-        if_exists="replace",
-        # do not add the pandas index as a separate column
-        index=False,
-        schema=None,
-        # write 100k rows at a time so
-        # we don't run out of memory
-        chunksize=100_000,
-    )
-
-    # new count in postgis
-    with engine.begin() as conn:
-        result = conn.execute(text("SELECT count(*) FROM geoconnex_features;"))
-        count = result.scalar()
-
-        get_dagster_logger().info("Creating indexes on geoconnex_features table")
-        conn.execute(
-            text("""
-            CREATE INDEX IF NOT EXISTS idx_geoconnex_features_id
-            ON geoconnex_features (id);
-        """)
-        )
-
-        conn.execute(
-            text("""
-            CREATE INDEX IF NOT EXISTS idx_geoconnex_sitemap
-            ON geoconnex_features (geoconnex_sitemap);
-            """)
-        )
-    get_dagster_logger().info(
-        f"Finishing moving Parquet data into postgis. Table 'geoconnex_features' now has {count} rows."
-    )
