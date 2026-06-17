@@ -1184,11 +1184,12 @@ wheels = [
 
 [[package]]
 name = "geoparquet-io"
-version = "0.9.0"
+version = "1.0.0b2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "click" },
+    { name = "click-plugins" },
     { name = "duckdb" },
     { name = "fsspec" },
     { name = "geoarrow-pyarrow" },
@@ -1204,9 +1205,9 @@ dependencies = [
     { name = "rich" },
     { name = "s3fs" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f2/6a/4b1ad4427ac01eab8ce5d6defe01a1c4142014c3de76cc609d2df2df5ba6/geoparquet_io-0.9.0.tar.gz", hash = "sha256:3ee3c3fd8ec8cbefe334930ea1680ceca697b5aff12b2fb1b6662e7a181c0f47", size = 1066089, upload-time = "2026-01-17T22:07:25.391Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/10/31a6bddc04a59a166c51cd8f8c84d149512da9a164692e11239c203db1af/geoparquet_io-1.0.0b2.tar.gz", hash = "sha256:fcf6804477bb3ab42477e002c7d83200bffc868028dc26531026431b2320ca65", size = 1177369, upload-time = "2026-03-06T13:24:01.155Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bf/49/78408b457d71e6c7434a04c13b3917cd41a2cf8bb17be3db072804b61a8d/geoparquet_io-0.9.0-py3-none-any.whl", hash = "sha256:836895cb953fa4fd8caf3cce1b94437eeec6884c402461c79a495a56427a0129", size = 304798, upload-time = "2026-01-17T22:07:23.25Z" },
+    { url = "https://files.pythonhosted.org/packages/34/2e/b6582d06a6d4b2d781c4c6cf52f2c612c0a4326f444a997c5dff29ee5ab2/geoparquet_io-1.0.0b2-py3-none-any.whl", hash = "sha256:772375ed1e6f402286f940d75be5b626a0afb4c310eddfd708e6a0528818d1f5", size = 376900, upload-time = "2026-03-06T13:23:58.972Z" },
 ]
 
 [[package]]
@@ -3000,7 +3001,7 @@ requires-dist = [
     { name = "docker", specifier = ">=7.1.0" },
     { name = "geoalchemy2", specifier = ">=0.19.0" },
     { name = "geopandas", specifier = ">=1.1.1" },
-    { name = "geoparquet-io", specifier = ">=0.9.0" },
+    { name = "geoparquet-io", specifier = "==1.0.0b2" },
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "lakefs", specifier = ">=0.8.0" },
     { name = "minio", specifier = ">=7.2.15" },

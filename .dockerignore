@@ -1,6 +1,6 @@
 **/node_modules/
 **.tmp_dagster_home*/
-assets/**
+**/assets/**
 .git/
 **/.pytest_cache/   
 **/.ruff_cache/
@@ -9,3 +9,4 @@ assets/**
 **/*.parquet
 **/*.nq
 **/testdata
+**/geoconnex_index/**
