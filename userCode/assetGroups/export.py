@@ -376,6 +376,7 @@ def move_geoparquet_to_postgis(config: ParquetConfig):
         count = result.scalar()
 
         get_dagster_logger().info("Creating indexes on geoconnex_features table")
+        get_dagster_logger().info("Creating indexes on id property")
         conn.execute(
             text("""
             CREATE INDEX IF NOT EXISTS idx_geoconnex_features_id
@@ -383,12 +384,21 @@ def move_geoparquet_to_postgis(config: ParquetConfig):
         """)
         )
 
+        get_dagster_logger().info("Creating indexes on geoconnex_sitemap property")
         conn.execute(
             text("""
             CREATE INDEX IF NOT EXISTS idx_geoconnex_sitemap
             ON geoconnex_features (geoconnex_sitemap);
             """)
         )
+
+        get_dagster_logger().info("Creating indexes on mainstem_uri property")
+        conn.execute(
+            text(
+                """CREATE INDEX IF NOT EXISTS idx_mainstem_uri ON mainstem_uri (mainstem_uri);"""
+            )
+        )
+
     get_dagster_logger().info(
         f"Finishing moving Parquet data into postgis. Table 'geoconnex_features' now has {count} rows."
     )
