@@ -395,7 +395,7 @@ def move_geoparquet_to_postgis(config: ParquetConfig):
         get_dagster_logger().info("Creating indexes on mainstem_uri property")
         conn.execute(
             text(
-                """CREATE INDEX IF NOT EXISTS idx_mainstem_uri ON mainstem_uri (mainstem_uri);"""
+                """CREATE INDEX IF NOT EXISTS idx_mainstem_uri ON geoconnex_features (mainstem_uri);"""
             )
         )
 
