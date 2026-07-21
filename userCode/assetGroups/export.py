@@ -61,6 +61,50 @@ RELEASE_GRAPH_LOCATION_IN_S3 = "graphs/latest/"
 
 DEVELOPMENT_BRANCH_IN_LAKEFS = "develop"
 
+QLEVER_CONTAINER_NAME = "qlever.server.geoconnex"
+QLEVER_DOCKER_NETWORK = "dagster_network"
+QLEVER_DOCKER_ALIAS = "qlever"
+
+
+def connect_qlever_to_dagster_network(timeout_seconds: int = 30) -> None:
+    """Attach the QLever container to Dagster's Compose network as `qlever`."""
+    client = docker.DockerClient()
+    deadline = time.time() + timeout_seconds
+    container = None
+    last_error: Exception | None = None
+
+    while time.time() < deadline:
+        try:
+            container = client.containers.get(QLEVER_CONTAINER_NAME)
+            break
+        except docker.errors.NotFound as error:
+            last_error = error
+            time.sleep(1)
+
+    if container is None:
+        raise RuntimeError(
+            f"QLever container {QLEVER_CONTAINER_NAME!r} was not created: {last_error}"
+        )
+
+    network = client.networks.get(QLEVER_DOCKER_NETWORK)
+    container.reload()
+    network_config = (
+        container.attrs.get("NetworkSettings", {})
+        .get("Networks", {})
+        .get(QLEVER_DOCKER_NETWORK)
+    )
+    aliases = network_config.get("Aliases", []) if network_config else []
+    if QLEVER_DOCKER_ALIAS in aliases:
+        return
+
+    if network_config:
+        network.disconnect(container)
+
+    network.connect(container, aliases=[QLEVER_DOCKER_ALIAS])
+    get_dagster_logger().info(
+        f"Connected {QLEVER_CONTAINER_NAME} to {QLEVER_DOCKER_NETWORK} as {QLEVER_DOCKER_ALIAS}"
+    )
+
 
 def skip_export(context: AssetExecutionContext) -> bool:
     """Skip export if all dependencies are not materialized or we are running in test mode"""
@@ -278,7 +322,14 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
     )
 
     try:
-        endpoint = "http://localhost:8888"
+        if not RUNNING_AS_TEST_OR_DEV():
+            connect_qlever_to_dagster_network()
+
+        endpoint = (
+            "http://localhost:8888"
+            if RUNNING_AS_TEST_OR_DEV()
+            else "http://qlever:8888"
+        )
         last_error: Exception | None = None
         for _ in range(30):
             try:
