@@ -19,6 +19,7 @@ from dagster import (
     get_dagster_logger,
 )
 import docker
+from docker.errors import NotFound
 import geopandas as gpd
 import geoparquet_io as gpio
 import requests
@@ -77,7 +78,7 @@ def connect_qlever_to_dagster_network(timeout_seconds: int = 30) -> None:
         try:
             container = client.containers.get(QLEVER_CONTAINER_NAME)
             break
-        except docker.errors.NotFound as error:
+        except NotFound as error:
             last_error = error
             time.sleep(1)
 
