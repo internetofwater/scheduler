@@ -4,13 +4,17 @@
 
 from datetime import datetime
 import os
+from pathlib import Path
 import subprocess
 
 from dagster import (
+    AssetCheckResult,
+    AssetCheckSeverity,
     AssetExecutionContext,
     AutomationCondition,
     Config,
     asset,
+    asset_check,
     get_dagster_logger,
 )
 import docker
@@ -233,6 +237,67 @@ def qlever_index():
     for path in ASSETS_DIRECTORY.iterdir():
         if path.is_file() and path.name.startswith("geoconnex."):
             path.rename(GEOCONNEX_INDEX_DIRECTORY / path.name)
+
+
+@asset_check(asset=qlever_index, blocking=True)
+def geoconnex_sparql_query_check() -> AssetCheckResult:
+    """
+    Ensure that all queries pass the Geoconnex SPARQL query check,
+    preventing any regressions with new data
+    """
+    queries = list((Path(__file__).parent / "queries").iterdir())
+    os.chdir(ASSETS_DIRECTORY)
+
+    start_qlever_cmd = ["qlever", "start"]
+
+    process = subprocess.Popen(
+        start_qlever_cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,  # merge streams
+        text=True,
+        bufsize=1,
+    )
+
+    for file in queries:
+        get_dagster_logger().info(f"Checking {file.name}")
+        result = requests.get(
+            "localhost:8888" if RUNNING_AS_TEST_OR_DEV() else "localhost:8888",
+            headers={
+                "Accept": "application/sparql-results+json",
+                "Content-type": "application/sparql-query",
+            },
+            data=file.read_text(),
+        )
+        if result.status_code > 300:
+            return AssetCheckResult(
+                passed=False,
+                description=f"Query {file.name} failed with status code {result.status_code} and body {result.text}",
+                severity=AssetCheckSeverity.ERROR,
+            )
+        as_json = result.json()
+        assert "boolean" in as_json, f"ASK Query {file.name} did not return a boolean"
+
+        if not as_json["boolean"]:
+            return AssetCheckResult(
+                passed=False,
+                description=f"Geoconnex SPARQL query {file.name} failed",
+                severity=AssetCheckSeverity.ERROR,
+            )
+
+    # clean up qlever process
+    process.kill()
+    process.wait()
+    stdout = process.stdout
+    stderr = process.stderr
+    if stdout:
+        stdout.close()
+    if stderr:
+        stderr.close()
+
+    return AssetCheckResult(
+        passed=True,
+        description="Geoconnex SPARQL query check passed",
+    )
 
 
 @asset(

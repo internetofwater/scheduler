@@ -1,0 +1,10 @@
+# Test query; update this with a real geoconnex test query once
+# the frontend / backend teams align on necessary data for the explorer
+ASK {
+  {
+    SELECT ?s
+    WHERE {
+      ?s ?p ?o .    }
+    LIMIT 1
+  }
+}

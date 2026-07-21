@@ -89,9 +89,6 @@ services:
   dagster_daemon:
     container_name: dagster_daemon
     image: ${DAGSTER_SERVER_IMAGE:-geoconnex_dagster_server:local}
-    build:
-      context: ..
-      dockerfile: ./Docker/dagster/Dockerfile_dagster
     restart: on-failure
     entrypoint:
       - dagster-daemon
