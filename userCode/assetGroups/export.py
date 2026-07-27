@@ -4,16 +4,22 @@
 
 from datetime import datetime
 import os
+from pathlib import Path
 import subprocess
+import time
 
 from dagster import (
+    AssetCheckResult,
+    AssetCheckSeverity,
     AssetExecutionContext,
     AutomationCondition,
     Config,
     asset,
+    asset_check,
     get_dagster_logger,
 )
 import docker
+from docker.errors import NotFound
 import geopandas as gpd
 import geoparquet_io as gpio
 import requests
@@ -55,6 +61,50 @@ EXPORT_GROUP = "exports"
 RELEASE_GRAPH_LOCATION_IN_S3 = "graphs/latest/"
 
 DEVELOPMENT_BRANCH_IN_LAKEFS = "develop"
+
+QLEVER_CONTAINER_NAME = "qlever.server.geoconnex"
+QLEVER_DOCKER_NETWORK = "dagster_network"
+QLEVER_DOCKER_ALIAS = "qlever"
+
+
+def connect_qlever_to_dagster_network(timeout_seconds: int = 30) -> None:
+    """Attach the QLever container to Dagster's Compose network as `qlever`."""
+    client = docker.DockerClient()
+    deadline = time.time() + timeout_seconds
+    container = None
+    last_error: Exception | None = None
+
+    while time.time() < deadline:
+        try:
+            container = client.containers.get(QLEVER_CONTAINER_NAME)
+            break
+        except NotFound as error:
+            last_error = error
+            time.sleep(1)
+
+    if container is None:
+        raise RuntimeError(
+            f"QLever container {QLEVER_CONTAINER_NAME!r} was not created: {last_error}"
+        )
+
+    network = client.networks.get(QLEVER_DOCKER_NETWORK)
+    container.reload()
+    network_config = (
+        container.attrs.get("NetworkSettings", {})
+        .get("Networks", {})
+        .get(QLEVER_DOCKER_NETWORK)
+    )
+    aliases = network_config.get("Aliases", []) if network_config else []
+    if QLEVER_DOCKER_ALIAS in aliases:
+        return
+
+    if network_config:
+        network.disconnect(container)
+
+    network.connect(container, aliases=[QLEVER_DOCKER_ALIAS])
+    get_dagster_logger().info(
+        f"Connected {QLEVER_CONTAINER_NAME} to {QLEVER_DOCKER_NETWORK} as {QLEVER_DOCKER_ALIAS}"
+    )
 
 
 def skip_export(context: AssetExecutionContext) -> bool:
@@ -197,42 +247,149 @@ def qlever_index():
     """
     logger = get_dagster_logger()
 
+    original_cwd = Path.cwd()
     os.chdir(ASSETS_DIRECTORY)
 
-    # overwrite existing index if it exists and use up to 11GB of memory for building the
-    # index; otherwise qlever will only use the default of 1GB
-    qlever_cmd = ["qlever", "index", "--overwrite-existing", "--stxxl-memory", "11GB"]
+    try:
+        # overwrite existing index if it exists and use up to 11GB of memory for building the
+        # index; otherwise qlever will only use the default of 1GB
+        qlever_cmd = [
+            "qlever",
+            "index",
+            "--overwrite-existing",
+            "--stxxl-memory",
+            "11GB",
+        ]
+
+        process = subprocess.Popen(
+            qlever_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # merge streams
+            text=True,
+            bufsize=1,
+        )
+        assert process.stdout, (
+            "no stdout present for process; this is a sign something didn't launch properly"
+        )
+        for line in process.stdout:
+            line = line.rstrip()
+            if not line:
+                continue
+            if "WARN" in line:
+                logger.warning(line)
+            else:
+                logger.info(line)
+        returncode = process.wait()
+        if returncode != 0:
+            raise RuntimeError("qlever index generation failed")
+
+        get_dagster_logger().info("qlever index generation complete")
+
+        GEOCONNEX_INDEX_DIRECTORY.mkdir(exist_ok=True)
+
+        # move all geoconnex.* files to geoconnex_index directory for cleanliness
+        for path in ASSETS_DIRECTORY.iterdir():
+            if path.is_file() and path.name.startswith("geoconnex."):
+                path.rename(GEOCONNEX_INDEX_DIRECTORY / path.name)
+    finally:
+        os.chdir(original_cwd)
+
+
+@asset_check(asset=qlever_index, blocking=True)
+def geoconnex_sparql_query_check() -> AssetCheckResult:
+    """
+    Ensure that all queries pass the Geoconnex SPARQL query check,
+    preventing any regressions with new data
+    """
+    queries = list((Path(__file__).parent / "queries").iterdir())
+    original_cwd = Path.cwd()
+
+    start_qlever_cmd = [
+        "qlever",
+        "--qleverfile",
+        str(ASSETS_DIRECTORY / "Qleverfile"),
+        "start",
+        "--run-in-foreground",
+        "--kill-existing-with-same-port",
+    ]
 
     process = subprocess.Popen(
-        qlever_cmd,
+        start_qlever_cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,  # merge streams
         text=True,
         bufsize=1,
+        cwd=GEOCONNEX_INDEX_DIRECTORY,
     )
-    assert process.stdout, (
-        "no stdout present for process; this is a sign something didn't launch properly"
-    )
-    for line in process.stdout:
-        line = line.rstrip()
-        if not line:
-            continue
-        if "WARN" in line:
-            logger.warning(line)
-        else:
-            logger.info(line)
-    returncode = process.wait()
-    if returncode != 0:
-        raise RuntimeError("qlever index generation failed")
 
-    get_dagster_logger().info("qlever index generation complete")
+    try:
+        if not RUNNING_AS_TEST_OR_DEV():
+            connect_qlever_to_dagster_network()
 
-    GEOCONNEX_INDEX_DIRECTORY.mkdir(exist_ok=True)
+        endpoint = (
+            "http://localhost:8888"
+            if RUNNING_AS_TEST_OR_DEV()
+            else "http://qlever:8888"
+        )
+        last_error: Exception | None = None
+        for _ in range(30):
+            try:
+                requests.get(endpoint, timeout=1)
+                last_error = None
+                break
+            except requests.RequestException as error:
+                last_error = error
+                time.sleep(1)
+        if last_error:
+            return AssetCheckResult(
+                passed=False,
+                description=f"QLever server did not become ready: {last_error}",
+                severity=AssetCheckSeverity.ERROR,
+            )
 
-    # move all geoconnex.* files to geoconnex_index directory for cleanliness
-    for path in ASSETS_DIRECTORY.iterdir():
-        if path.is_file() and path.name.startswith("geoconnex."):
-            path.rename(GEOCONNEX_INDEX_DIRECTORY / path.name)
+        for file in queries:
+            get_dagster_logger().info(f"Checking {file.name}")
+            result = requests.post(
+                endpoint,
+                headers={
+                    "Accept": "application/sparql-results+json",
+                },
+                data={"query": file.read_text()},
+                timeout=30,
+            )
+            if result.status_code > 300:
+                return AssetCheckResult(
+                    passed=False,
+                    description=f"Query {file.name} failed with status code {result.status_code} and body {result.text}",
+                    severity=AssetCheckSeverity.ERROR,
+                )
+            as_json = result.json()
+            assert "boolean" in as_json, (
+                f"ASK Query {file.name} did not return a boolean"
+            )
+
+            if not as_json["boolean"]:
+                return AssetCheckResult(
+                    passed=False,
+                    description=f"Geoconnex SPARQL query '{file.name}' failed",
+                    severity=AssetCheckSeverity.ERROR,
+                )
+
+        return AssetCheckResult(
+            passed=True,
+            description="Geoconnex SPARQL query check passed",
+        )
+    finally:
+        # clean up qlever process
+        process.kill()
+        process.wait()
+        stdout = process.stdout
+        stderr = process.stderr
+        if stdout:
+            stdout.close()
+        if stderr:
+            stderr.close()
+        os.chdir(original_cwd)
 
 
 @asset(

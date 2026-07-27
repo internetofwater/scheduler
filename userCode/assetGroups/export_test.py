@@ -1,12 +1,98 @@
 # Copyright 2026 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+import configparser
 from pathlib import Path
+import subprocess
+from typing import cast
 
+from dagster import AssetCheckResult
 from sqlalchemy import text
 
+import userCode.assetGroups.export as export
 from userCode.assetGroups.export import ParquetConfig, move_geoparquet_to_postgis
 from userCode.lib.utils import new_sqlalchemy_engine_from_env
+
+
+def _qlever_image_from_real_qleverfile() -> str:
+    real_qleverfile = Path(__file__).parents[2] / "assets" / "Qleverfile"
+    parser = configparser.ConfigParser()
+    read_files = parser.read(real_qleverfile)
+    assert read_files == [str(real_qleverfile)], (
+        f"Expected to read QLever config from {real_qleverfile}"
+    )
+
+    image = parser.get("runtime", "IMAGE", fallback=None)
+    assert image, f"Expected {real_qleverfile} to define runtime IMAGE"
+    return image
+
+
+def test_qlever_index_and_geoconnex_sparql_query_check(tmp_path, monkeypatch):
+    assets_directory = tmp_path / "assets"
+    geoconnex_index_directory = assets_directory / "geoconnex_index"
+    assets_directory.mkdir()
+
+    test_ttl = assets_directory / "test.ttl"
+    test_ttl.write_text(
+        """
+        @prefix ex: <http://example.com/> .
+
+        ex:subject ex:predicate ex:object .
+        """.strip()
+    )
+    qleverfile = assets_directory / "Qleverfile"
+    qlever_image = _qlever_image_from_real_qleverfile()
+    qleverfile.write_text(
+        f"""
+        [data]
+        NAME = geoconnex
+        DESCRIPTION = test graph
+        FORMAT = ttl
+
+        [index]
+        INPUT_FILES = ./test.ttl
+        CAT_INPUT_FILES = cat ./test.ttl
+        SETTINGS_JSON = {{ "num-triples-per-batch": 1000 }}
+        PARSER_BUFFER_SIZE = 10MB
+
+        [server]
+        PORT = 8888
+        ACCESS_TOKEN = ChangeMe
+
+        [runtime]
+        SYSTEM = docker
+        IMAGE  = {qlever_image}
+        """.strip()
+    )
+
+    monkeypatch.setattr(export, "ASSETS_DIRECTORY", assets_directory)
+    monkeypatch.setattr(export, "GEOCONNEX_INDEX_DIRECTORY", geoconnex_index_directory)
+
+    try:
+        export.qlever_index()
+
+        index_files = list(geoconnex_index_directory.glob("geoconnex.*"))
+        assert index_files, "Expected qlever_index to build geoconnex index files"
+
+        test_ttl.unlink()
+        assert not test_ttl.exists()
+
+        # have to cast this since dagster doesn't type properly
+        check_result = cast(
+            AssetCheckResult,
+            export.geoconnex_sparql_query_check(),
+        )
+        assert check_result.passed, check_result.description
+    finally:
+        subprocess.run(
+            ["qlever", "--qleverfile", str(qleverfile), "stop"],
+            cwd=geoconnex_index_directory
+            if geoconnex_index_directory.exists()
+            else assets_directory,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
 
 
 def test_move_geoparquet_to_postgis():
