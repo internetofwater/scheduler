@@ -3,6 +3,7 @@
 
 import configparser
 from pathlib import Path
+import shutil
 import subprocess
 from typing import cast
 
@@ -170,3 +171,16 @@ def test_move_geoparquet_to_postgis():
 
         for column in expected_columns:
             assert column in columns, f"Expected column {column} to be present"
+
+
+def test_pmtiles_from_geoparquet(tmp_path, monkeypatch):
+    test_file = Path(__file__).parent / "testdata" / "geoconnex_features_subset.parquet"
+    shutil.copy(test_file, tmp_path / "geoconnex_features.parquet")
+    monkeypatch.setattr(export, "ASSETS_DIRECTORY", tmp_path)
+
+    export.pmtiles_from_geoparquet()
+
+    # the test data only contains the 'iow:wqp:stations__5' sitemap
+    pmtiles_file = tmp_path / "pmtiles" / "iow_wqp_stations_5.pmtiles"
+    assert pmtiles_file.is_file()
+    assert pmtiles_file.stat().st_size > 0

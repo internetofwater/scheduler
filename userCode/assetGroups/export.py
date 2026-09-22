@@ -5,6 +5,7 @@
 from datetime import datetime
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import time
 
@@ -22,6 +23,7 @@ import docker
 from docker.errors import NotFound
 import geopandas as gpd
 import geoparquet_io as gpio
+from geoparquet_io.core.partition.by_string import partition_by_string
 import requests
 from sqlalchemy import text
 
@@ -198,8 +200,8 @@ def geoparquet_from_triples():
         gpio.read(geoparquet_file)
         .add_bbox()
         .sort_hilbert()
-        .add_bbox_metadata()
-        .write(geoparquet_file, overwrite=True, row_group_size_mb=4)
+        # writing as 1.1 automatically adds the bbox covering metadata
+        .write(geoparquet_file, overwrite=True, geoparquet_version="1.1")
     )
 
     result = gpio.read(geoparquet_file).check()
@@ -233,6 +235,65 @@ def geoparquet_from_triples():
             content_type="application/vnd.apache.parquet",
             headers={},
         )
+
+
+@asset(deps=[geoparquet_from_triples], group_name=EXPORT_GROUP)
+def pmtiles_from_geoparquet():
+    """
+    Generate one pmtiles file per sitemap that represents all locations in the Geoconnex graph
+    """
+    geoparquet_file = ASSETS_DIRECTORY / "geoconnex_features.parquet"
+    partitions_dir = ASSETS_DIRECTORY / "geoconnex_features_by_sitemap"
+    pmtiles_dir = ASSETS_DIRECTORY / "pmtiles"
+
+    # clear out old outputs so that removed sitemaps are not uploaded
+    shutil.rmtree(partitions_dir, ignore_errors=True)
+    shutil.rmtree(pmtiles_dir, ignore_errors=True)
+    pmtiles_dir.mkdir(parents=True)
+
+    # split into one geoparquet file per sitemap; gpio sanitizes the
+    # sitemap values into safe filenames (i.e. 'iow:wqp:stations__5' -> 'iow_wqp_stations_5')
+    # analysis is skipped since some sitemaps are small and would otherwise
+    # cause gpio to refuse to partition
+    partition_by_string(
+        str(geoparquet_file),
+        str(partitions_dir),
+        column="geoconnex_sitemap",
+        skip_analysis=True,
+        overwrite=True,
+    )
+
+    for partition in sorted(partitions_dir.glob("*.parquet")):
+        pmtiles_file = pmtiles_dir / f"{partition.stem}.pmtiles"
+        get_dagster_logger().info(f"Generating {pmtiles_file.name}")
+        # requires tippecanoe to be installed and on the PATH
+        gpio.ops.create_pmtiles(
+            str(partition),
+            str(pmtiles_file),
+            force=True,
+        )
+
+    pmtiles_files = sorted(pmtiles_dir.glob("*.pmtiles"))
+    assert pmtiles_files, f"No pmtiles files were generated in {pmtiles_dir}"
+
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning("Skipping export as we are running in test mode")
+        return
+
+    s3 = S3(bucket="metadata-geoconnex-us")
+
+    for pmtiles_file in pmtiles_files:
+        get_dagster_logger().info(
+            f"Uploading {pmtiles_file.name} of size {pmtiles_file.stat().st_size} to bucket '{s3.bucket}' in the object store"
+        )
+        with pmtiles_file.open("rb") as f:
+            s3.load_stream(
+                stream=f,
+                remote_path=f"exports/pmtiles/{pmtiles_file.name}",
+                content_length=pmtiles_file.stat().st_size,
+                content_type="application/vnd.pmtiles",
+                headers={},
+            )
 
 
 @asset(
