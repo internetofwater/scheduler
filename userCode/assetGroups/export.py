@@ -617,6 +617,20 @@ def move_geoparquet_to_postgis(config: ParquetConfig):
             )
         )
 
+        get_dagster_logger().info(
+            "Creating trigram index on feature_name property for fuzzy text search"
+        )
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+        conn.execute(
+            text("""
+            CREATE INDEX IF NOT EXISTS idx_geoconnex_features_feature_name_trgm
+            ON geoconnex_features USING GIN (feature_name gin_trgm_ops);
+
+            CREATE INDEX IF NOT EXISTS idx_geoconnex_features_feature_name
+            ON geoconnex_features (feature_name);
+            """)
+        )
+
     get_dagster_logger().info(
         f"Finishing moving Parquet data into postgis. Table 'geoconnex_features' now has {count} rows."
     )
