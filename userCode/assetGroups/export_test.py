@@ -151,6 +151,20 @@ def test_move_geoparquet_to_postgis():
         ).fetchone()
         assert geom_index is not None, "Expected a GiST index on geometry column"
 
+        # trigram index for fuzzy searches on feature_name
+        feature_name_index = conn.execute(
+            text("""
+            SELECT indexname
+            FROM pg_indexes
+            WHERE tablename = 'geoconnex_features'
+              AND indexdef ILIKE '%feature_name gin_trgm_ops%'
+              AND indexdef ILIKE '%gin%'
+        """)
+        ).fetchone()
+        assert feature_name_index is not None, (
+            "Expected a GIN trigram index on feature_name column"
+        )
+
         cols_result = conn.execute(
             text("""
                 SELECT column_name
