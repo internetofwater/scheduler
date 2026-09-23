@@ -67,6 +67,12 @@ FROM python:3.12-slim-bookworm
 # It is important to use the image that matches the builder, as the path to the
 # Python executable must be the same.
 
+# tippecanoe is required by gpio for generating pmtiles; it is only in bookworm-backports
+RUN echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/backports.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends -t bookworm-backports tippecanoe \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy the application from the builder
 COPY --from=builder /app /app
 # Copy the Docker CLI from the builder
