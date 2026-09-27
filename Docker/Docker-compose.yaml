@@ -20,8 +20,9 @@ services:
   minio:
     container_name: scheduler_minio
     # Docker Hub stopped serving the MinIO images in September 2026.
-    # quay.io is the registry MinIO publishes to.
-    image: quay.io/minio/minio
+    # Have to use an alternative image; eventually this is likely to be
+    # switched out to another object store all together
+    image: cgr.dev/chainguard/minio:latest
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"
