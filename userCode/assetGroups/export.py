@@ -24,6 +24,8 @@ from docker.errors import NotFound
 import geopandas as gpd
 import geoparquet_io as gpio
 from geoparquet_io.core.partition.by_string import partition_by_string
+from geoparquet_io.core.partition.common import sanitize_filename
+import pyarrow.parquet as pq
 import requests
 from sqlalchemy import text
 
@@ -263,18 +265,40 @@ def pmtiles_from_geoparquet():
         overwrite=True,
     )
 
+    # the sanitization is lossy so map each partition back to its original
+    # sitemap id; the pmtiles object must be named with the exact sitemap id
+    # so it can be looked up in s3
+    sitemap_ids = (
+        pq.read_table(geoparquet_file, columns=["geoconnex_sitemap"])
+        .column("geoconnex_sitemap")
+        .unique()
+        .to_pylist()
+    )
+    sanitized_to_sitemap_id = {
+        sanitize_filename(str(sitemap_id)): str(sitemap_id)
+        for sitemap_id in sitemap_ids
+        if sitemap_id is not None
+    }
+
+    pmtiles_to_sitemap_id: dict[Path, str] = {}
     for partition in sorted(partitions_dir.glob("*.parquet")):
+        assert partition.stem in sanitized_to_sitemap_id, (
+            f"Partition {partition.name} does not correspond to any sitemap id"
+        )
+        sitemap_id = sanitized_to_sitemap_id[partition.stem]
+        # keep the sanitized name locally since sitemap ids may contain characters
+        # that are not safe for filenames
         pmtiles_file = pmtiles_dir / f"{partition.stem}.pmtiles"
-        get_dagster_logger().info(f"Generating {pmtiles_file.name}")
+        get_dagster_logger().info(f"Generating pmtiles for sitemap '{sitemap_id}'")
         # requires tippecanoe to be installed and on the PATH
         gpio.ops.create_pmtiles(
             str(partition),
             str(pmtiles_file),
             force=True,
         )
+        pmtiles_to_sitemap_id[pmtiles_file] = sitemap_id
 
-    pmtiles_files = sorted(pmtiles_dir.glob("*.pmtiles"))
-    assert pmtiles_files, f"No pmtiles files were generated in {pmtiles_dir}"
+    assert pmtiles_to_sitemap_id, f"No pmtiles files were generated in {pmtiles_dir}"
 
     if RUNNING_AS_TEST_OR_DEV():
         get_dagster_logger().warning("Skipping export as we are running in test mode")
@@ -282,14 +306,17 @@ def pmtiles_from_geoparquet():
 
     s3 = S3(bucket="metadata-geoconnex-us")
 
-    for pmtiles_file in pmtiles_files:
+    for pmtiles_file, sitemap_id in pmtiles_to_sitemap_id.items():
+        # the s3 client url encodes the object key, so the raw sitemap id
+        # can be used both here and when fetching the object
+        remote_path = f"exports/pmtiles/{sitemap_id}.pmtiles"
         get_dagster_logger().info(
-            f"Uploading {pmtiles_file.name} of size {pmtiles_file.stat().st_size} to bucket '{s3.bucket}' in the object store"
+            f"Uploading {remote_path} of size {pmtiles_file.stat().st_size} to bucket '{s3.bucket}' in the object store"
         )
         with pmtiles_file.open("rb") as f:
             s3.load_stream(
                 stream=f,
-                remote_path=f"exports/pmtiles/{pmtiles_file.name}",
+                remote_path=remote_path,
                 content_length=pmtiles_file.stat().st_size,
                 content_type="application/vnd.pmtiles",
                 headers={},
