@@ -36,7 +36,18 @@ Spin up user code and essential services but not storage _(You will need to spec
 make cloudProd
 ```
 
-_All cloud deployment and infrastructure as code work is contained within the [harvest.geoconnex.us](https://github.com/internetofwater/harvest.geoconnex.us) repo_
+## Cloud deployment
+
+All GCP infrastructure as code lives in [`opentofu/`](./opentofu) (previously the [harvest.geoconnex.us](https://github.com/internetofwater/harvest.geoconnex.us) repo). It provisions the network, storage buckets, Cloud SQL database, pygeoapi, graphdb, qlever, and the VM that clones this repo and runs `make cloudProd`.
+
+You must use [OpenTofu](https://opentofu.org/) rather than Terraform since the `gcs` backend is configured with variables.
+
+```sh
+cd opentofu
+# fill in a tfvars file based on empty.tfvars and supply your GCP credentials file
+make pull_state
+make apply
+```
 
 ## Configuration
 

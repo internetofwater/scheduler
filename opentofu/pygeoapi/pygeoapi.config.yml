@@ -1,0 +1,99 @@
+server:
+  bind:
+    host: localhost #change to your hostname if running your own instance
+    port: 5005
+  url: ${PYGEOAPI_URL:-http://localhost:5005} #change to host URL  if running your own instance
+  mimetype: application/json; charset=UTF-8
+  encoding: utf-8
+  gzip: true
+  language: en-US
+  cors: true
+  pretty_print: true
+  # admin: true
+  limits:
+    default_items: 500
+    max_items: 10000
+  map:
+    url: https://tile.openstreetmap.org/{z}/{x}/{y}.png
+    attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>'
+
+  # manager:
+  #   name: PostgreSQL
+  #   output_dir: ${PYGEOAPI_JOB_RESULT_DIR:-/tmp}
+  #   connection:
+  #     host: ${TF_VAR_POSTGRES_HOST:-localhost}
+  #     port: 5432
+  #     database: ${TF_VAR_POSTGRES_DB}
+  #     user: ${TF_VAR_POSTGRES_USER:-postgres}
+  #     password: ${TF_VAR_POSTGRES_PASSWORD:-password}
+
+logging:
+  level: ${PYGEOAPI_LOGLEVEL:-WARNING}
+  # logfile: /tmp/pygeoapi.log
+
+metadata:
+  identification:
+    title: Geoconnex
+    description: An OGC API Features endpoint for Geoconnex Features
+    keywords:
+      - geoconnex
+    keywords_type: theme
+    terms_of_service: https://opensource.org/license/MIT
+    url: https://github.com/cgs-earth/ArizonaWaterObservatory
+  license:
+    name: MIT License
+    url: https://opensource.org/license/MIT
+  provider:
+    name: Internet of Water
+    url: https://github.com/internetofwater
+  contact:
+    address: 113 Brattle St
+    city: Cambridge
+    stateorprovince: Massachussetts
+    postalcode: 02138
+    country: USA
+    email: internetofwater@lincolninst.edu
+    url: https://cgsearth.org
+    role: pointOfContact
+    name: Colton Loftus
+
+resources:
+  GeoconnexFeatures:
+    type: collection
+    title: Geoconnex Features
+    description: All geospatial features in the Geoconnex graph database, provided as OGC API Features
+    provider-name:
+      - Internet of Water
+    links:
+      - type: application/html
+        rel: canonical
+        title: Geoconnex registry
+        href: https://github.com/internetofwater/geoconnex.us
+      - type: application/html
+        rel: documentation
+        title: Geoconnex documentation
+        href: https://docs.geoconnex.us/
+    keywords:
+      en:
+        - geoconnex
+    extents:
+      spatial:
+        bbox: [-179.231086, 18.865460, -66.885444, 71.538800]
+        crs: http://www.opengis.net/def/crs/OGC/1.3/CRS84
+      temporal:
+        begin: 1902-03-31T00:00:00Z
+        end: 2025-09-09T06:00:00Z
+        trs: http://www.opengis.net/def/uom/ISO-8601/0/Gregorian
+    providers:
+      - type: feature
+        name: PostgreSQL
+        data:
+          host: ${POSTGRES_HOST:-localhost}
+          dbname: ${POSTGRES_DB:-edr}
+          user: ${POSTGRES_USER:-postgres}
+          password: ${POSTGRES_PASSWORD:-password}
+          search_path: [public]
+        table: geoconnex_features
+        id_field: id
+        geom_field: geometry
+        count: false
