@@ -130,6 +130,9 @@ class ParquetConfig(Config):
     # the default location of the geoparquet is in the assets directory
     # but this can be override for testing purposes
     geoparquet_path: str = f"{ASSETS_DIRECTORY}/geoconnex_features.parquet"
+    # number of rows written to PostGIS per batch; lower this
+    # if the export runs out of memory
+    postgis_chunksize: int = 10_000
 
 
 @asset(
@@ -610,9 +613,8 @@ def move_geoparquet_to_postgis(config: ParquetConfig):
         # do not add the pandas index as a separate column
         index=False,
         schema=None,
-        # write 100k rows at a time so
-        # we don't run out of memory
-        chunksize=100_000,
+        # write in chunks so we don't run out of memory
+        chunksize=config.postgis_chunksize,
     )
 
     # new count in postgis
