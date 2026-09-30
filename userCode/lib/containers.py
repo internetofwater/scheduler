@@ -77,7 +77,7 @@ class SitemapHarvestContainer:
             argsAsStr += " --ssl "
 
         if config.useShacl:
-            argsAsStr += " --local-shacl "
+            argsAsStr += " --shacl-local "
 
         if config.exit_on_shacl_failure:
             argsAsStr += " --exit-on-shacl-failure "
