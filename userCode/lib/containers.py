@@ -7,7 +7,6 @@ from dagster import Config
 from userCode.lib.env import (
     GLEANER_CONCURRENT_SITEMAPS,
     GLEANER_LOG_LEVEL,
-    GLEANER_SHACL_VALIDATOR_GRPC_ENDPOINT,
     GLEANER_SITEMAP_WORKERS,
     GLEANER_USE_SHACL,
     NABU_IMAGE,
@@ -41,7 +40,6 @@ class SitemapHarvestConfig(Config):
     log_level: str = GLEANER_LOG_LEVEL
     concurrent_sitemaps: int = GLEANER_CONCURRENT_SITEMAPS
     sitemap_workers: int = GLEANER_SITEMAP_WORKERS
-    shacl_validation_grpc_endpoint: str = GLEANER_SHACL_VALIDATOR_GRPC_ENDPOINT
     useShacl: bool = GLEANER_USE_SHACL
     useSSL: bool = S3_USE_SSL
     # make a shacl validation error fail the pipeline
@@ -79,9 +77,7 @@ class SitemapHarvestContainer:
             argsAsStr += " --ssl "
 
         if config.useShacl:
-            argsAsStr += (
-                " --shacl-grpc-endpoint " + config.shacl_validation_grpc_endpoint
-            )
+            argsAsStr += " --local-shacl "
 
         if config.exit_on_shacl_failure:
             argsAsStr += " --exit-on-shacl-failure "
