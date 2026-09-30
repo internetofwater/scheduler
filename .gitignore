@@ -17,7 +17,7 @@ test_*config.yaml
 rclone.conf
 
 tmp*/
-storage/
+/storage/
 
 rclone-current*.zip
 rclone.zip
@@ -53,3 +53,23 @@ reference_catchments_and_flowlines.fgb
 assets/geoconnex_index
 
 assets/*.parquet
+
+# OpenTofu / Terraform
+opentofu/**/.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+# tfvars likely contain secrets; only the empty template is tracked
+*.tfvars
+*.tfvars.json
+!opentofu/empty.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+# GCP service account credentials
+opentofu/**/*geoconnex*.json

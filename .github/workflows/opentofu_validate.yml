@@ -1,0 +1,30 @@
+# Copyright 2025 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: MIT
+
+name: OpenTofu Validate
+
+on:
+  push:
+    paths:
+      - "opentofu/**"
+      - ".github/workflows/opentofu_validate.yml"
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: opentofu
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenTofu
+        uses: opentofu/setup-opentofu@v1
+
+      # Skip the gcs backend since CI has no credentials for the state bucket
+      - name: Initialize without backend
+        run: tofu init -backend=false -input=false
+
+      - name: Validate configuration
+        run: tofu validate
