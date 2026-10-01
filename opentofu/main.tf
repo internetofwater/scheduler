@@ -122,3 +122,9 @@ module "instances" {
   database_name = module.database.database_name
   database_password = var.database_password
 }
+
+module "shacl_validator" {
+  source = "./shacl_validator"
+  project = var.project
+  region  = var.region
+}
