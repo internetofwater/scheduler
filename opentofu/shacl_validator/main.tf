@@ -15,6 +15,10 @@ resource "google_cloud_run_v2_service" "shacl_service" {
   ingress = "INGRESS_TRAFFIC_ALL"
 
   template {
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 1
+    }
     containers {
       image = "docker.io/internetofwater/nabu:latest"
       ports {
@@ -30,17 +34,7 @@ resource "google_cloud_run_v2_service" "shacl_service" {
         # Determines whether CPU is only allocated during requests
         cpu_idle = true
       }
-      env {
-        name  = "CATCHMENTS_FILE"
-        value = ""
-      }
     }
-  }
-  # allow scale to 0 since we presume there will be times with no validation traffic
-  scaling {
-    max_instance_count = 1
-    min_instance_count = 0
-    scaling_mode       = "AUTOMATIC"
   }
 
   traffic {
