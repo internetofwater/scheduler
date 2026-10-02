@@ -77,8 +77,8 @@ resource "google_cloud_run_v2_service" "pygeoapi" {
 
       resources {
         limits = {
-          cpu    = "2"
-          memory = "2Gi"
+          cpu    = "1"
+          memory = "1Gi"
         }
         cpu_idle = false
       }
