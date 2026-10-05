@@ -24,7 +24,6 @@ from userCode.assetGroups import (
     config,
     export,
     harvest,
-    release_graph_generator,
 )
 from userCode.assetGroups.harvest import (
     docker_client_environment,
@@ -50,23 +49,20 @@ setup_config_job = define_asset_job(
 
 export_job = define_asset_job(
     "export_artifacts",
-    description="export artifacts like index dumps and release graphs to partners and other storage locations",
+    description="export artifacts like index dumps, nquads, and geoparquet to partners and other storage locations",
     selection=AssetSelection.groups(export.EXPORT_GROUP),
 )
 
-harvest_and_generate_release_graph_job = define_asset_job(
-    "harvest_and_release_as_nq",
-    description="harvest a source and generate a release graph nq file in s3",
-    selection=AssetSelection.groups(
-        harvest.HARVEST_GROUP,
-        release_graph_generator.RELEASE_GRAPH_GENERATOR_GROUP,
-    ),
+harvest_job = define_asset_job(
+    "harvest_and_generate_parquet",
+    description="harvest a source and generate a parquet file of its jsonld in s3",
+    selection=AssetSelection.groups(harvest.HARVEST_GROUP),
 )
 
 
 @schedule(
     cron_schedule="@monthly",
-    job=harvest_and_generate_release_graph_job,
+    job=harvest_job,
     default_status=DefaultScheduleStatus.STOPPED,
 )
 def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
@@ -91,7 +87,7 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
     for partition_key in partition_keys:
         context.log.info(f"Creating run for {partition_key}")
         yield RunRequest(
-            job_name="harvest_source",
+            job_name=harvest_job.name,
             run_key=partition_key,
             partition_key=partition_key,
             tags={"run_type": "harvest_weekly"},
@@ -106,7 +102,6 @@ defs = Definitions(
             harvest,
             export,
             config,
-            release_graph_generator,
         ]
     ),
     schedules=[
@@ -118,13 +113,12 @@ defs = Definitions(
             harvest,
             export,
             config,
-            release_graph_generator,
         ]
     ),
     jobs=[
         export_job,
         setup_config_job,
-        harvest_and_generate_release_graph_job,
+        harvest_job,
     ],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(

@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from pathlib import Path
+
 from dagster import Config
 
 from userCode.lib.env import (
@@ -21,7 +23,7 @@ from userCode.lib.env import (
     S3_USE_SSL,
     SITEMAP_INDEX,
 )
-from userCode.lib.utils import run_docker_image
+from userCode.lib.utils import run_docker_image, run_docker_image_to_gzip_file
 
 
 class SitemapHarvestConfig(Config):
@@ -46,15 +48,22 @@ class SitemapHarvestConfig(Config):
     exit_on_shacl_failure: bool = False
     # whether or not to raise an exception upon encountering a 3 exit code
     exit_3_is_fatal: bool = False
-    # Remove any jsonld that we didn't find during the crawl
-    cleanup_outdated_jsonld: bool = True
 
 
 class SitemapHarvestContainer:
     """A container for running web crawl operations"""
 
-    def __init__(self, source: str) -> None:
+    def __init__(
+        self,
+        source: str,
+        mainstem_file: str,
+        volume_mapping: list[str] | None = None,
+    ) -> None:
         self.source = source
+        # the mainstem file is used by nabu to add the associated mainstem
+        # to the jsonld of sitemaps which request it in the sitemap index
+        self.mainstem_file = mainstem_file
+        self.volume_mapping = volume_mapping or []
 
     def run(self, config: SitemapHarvestConfig):
         argsAsStr = (
@@ -70,6 +79,7 @@ class SitemapHarvestContainer:
             f"--log-level {config.log_level} "
             f"--concurrent-sitemaps {config.concurrent_sitemaps} "
             f"--sitemap-workers {config.sitemap_workers} "
+            f"--mainstem-metadata {self.mainstem_file} "
             f"--log-as-json "
         )
 
@@ -82,9 +92,6 @@ class SitemapHarvestContainer:
         if config.exit_on_shacl_failure:
             argsAsStr += " --exit-on-shacl-failure "
 
-        if config.cleanup_outdated_jsonld:
-            argsAsStr += " --cleanup-outdated-jsonld "
-
         run_docker_image(
             self.source,
             NABU_IMAGE,
@@ -92,13 +99,14 @@ class SitemapHarvestContainer:
             exit_3_is_fatal=config.exit_3_is_fatal,
             # the docker sock must be mounted for bulk sitemap operations
             # this allows nabu to spin up containers in the sitemap.xml file
-            volumeMapping=["/var/run/docker.sock:/var/run/docker.sock"],
+            volumeMapping=["/var/run/docker.sock:/var/run/docker.sock"]
+            + self.volume_mapping,
         )
 
 
-class NqConfig(Config):
+class NquadsConfig(Config):
     """
-    Configuration for running nabu release / pull graph operations
+    Configuration for running nabu nquads operations
     This is essentially just a serialized version of our env vars
     """
 
@@ -112,22 +120,20 @@ class NqConfig(Config):
     profiling: bool = NABU_PROFILING
 
 
-class NqOperationsContainer:
-    """A container for running nabu release graph generation operations"""
+class NquadsContainer:
+    """
+    A container for converting a harvested parquet file in s3 to nquads.
+    Nquads are not stored in s3 and are instead generated from the parquet on the fly
+    """
 
-    def __init__(
-        self,
-        partition: str | None,
-        volume_mapping: list[str] | None = None,
-        mainstem_file: None | str = None,
-    ):
-        self.partition = partition if partition else "no_partition_specified"
-        self.volume_mapping = volume_mapping
-        self.mainstem_file = mainstem_file
+    def __init__(self, sitemap_id: str):
+        self.sitemap_id = sitemap_id
 
-    def run(self, args: str, config: NqConfig):
-        # args that should be applied to all nabu commands
-        configArgs = (
+    def run(self, output_file: Path, config: NquadsConfig):
+        """Write the gzipped nquads of the sitemap to output_file"""
+        argsAsStr = (
+            f"nquads "
+            f"--prefix summoned/{self.sitemap_id}.parquet "
             f"--bucket {config.bucket} "
             f"--address {config.address} "
             f"--port {config.port} "
@@ -137,24 +143,15 @@ class NqOperationsContainer:
             f"--log-as-json "
         )
 
-        argsAsStr = args + " " + configArgs
-
         if config.useSSL:
             argsAsStr += " --ssl"
 
         if config.profiling:
             argsAsStr += " --trace"
 
-        # only add mainstem info to release nquads; other operations on provenance data
-        # or orgs has no geospatial data and thus checking for mainstem would be pointless
-        if self.mainstem_file:
-            # we can hard code the path since it is mounted with a volume
-            # and thus will always be the same
-            argsAsStr += f" --mainstem-metadata {self.mainstem_file} "
-
-        run_docker_image(
-            self.partition,
+        run_docker_image_to_gzip_file(
+            self.sitemap_id,
             NABU_IMAGE,
             argsAsStr,
-            volumeMapping=self.volume_mapping,
+            output_file,
         )

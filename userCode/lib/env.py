@@ -73,6 +73,7 @@ DAGSTER_YAML_CONFIG: str = (repositoryRoot / "dagster.yaml").as_posix()
 
 ASSETS_DIRECTORY = repositoryRoot / "assets"
 GEOCONNEX_GRAPH_DIRECTORY = ASSETS_DIRECTORY / "geoconnex_graph"
+HARVESTED_PARQUET_DIRECTORY = ASSETS_DIRECTORY / "harvested_parquet"
 GEOCONNEX_INDEX_DIRECTORY = ASSETS_DIRECTORY / "geoconnex_index"
 
 assert Path(DAGSTER_YAML_CONFIG).exists(), (

@@ -1,13 +1,16 @@
 # Copyright 2025 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+import gzip
 import os
+from pathlib import Path
 import re
 
 from dagster import (
     get_dagster_logger,
 )
 import docker
+from docker.types import LogConfig
 import jinja2
 from jinja2 import Environment, FileSystemLoader
 import sqlalchemy
@@ -95,6 +98,82 @@ def run_docker_image(
             raise Exception(
                 f"{container_name} failed with non-zero exit code '{exit_status}'. See logs in S3"
             )
+
+
+def run_docker_image_to_gzip_file(
+    source: str,  # which organization the data is from
+    image_name: str,  # the name of the docker image to run
+    args: str,  # the list of arguments to pass to the nabu command
+    output_file: Path,  # where to write the gzipped stdout of the container
+):
+    """
+    Run a docker image and gzip its stdout to a file. Nabu logs to stderr
+    so the logs are still streamed to dagster. The output is streamed through the
+    attach api instead of a volume mount since volumes can't be mounted from
+    the dagster container into a container launched with the docker socket
+    """
+    action_name = args.split(" ")[0]
+    container_name = create_max_length_container_name(source, action_name).replace(
+        ":", "-"
+    )
+
+    client = docker.DockerClient()
+
+    container = client.containers.create(
+        image_name,
+        name=container_name,
+        command=args,
+        network="dagster_network",
+        # the output can be many GBs so disable the log driver to prevent
+        # docker from storing an extra copy of it on disk
+        log_config=LogConfig(type=LogConfig.types.NONE),
+        detach=True,
+    )
+
+    get_dagster_logger().info(
+        f"Spinning up {container_name=} with {image_name=}, and {args=} writing output to {output_file}"
+    )
+
+    # write to a temporary file first so a failed run never leaves a partial file
+    # at the destination
+    tmp_file = output_file.with_name(f"{output_file.name}.tmp")
+    try:
+        assert container.id, "container should have an id after being created"
+        # attach before starting so no output is missed
+        stream = client.api.attach(
+            container.id, stdout=True, stderr=True, stream=True, demux=True
+        )
+        container.start()
+
+        unfinished_log_line = b""
+        with gzip.open(tmp_file, "wb") as f:
+            for stdout_chunk, stderr_chunk in stream:
+                if stdout_chunk:
+                    f.write(stdout_chunk)
+                if stderr_chunk:
+                    *log_lines, unfinished_log_line = (
+                        unfinished_log_line + stderr_chunk
+                    ).split(b"\n")
+                    for line in log_lines:
+                        dagster_log_with_parsed_level(line.decode("utf-8"))
+        if unfinished_log_line:
+            dagster_log_with_parsed_level(unfinished_log_line.decode("utf-8"))
+
+        exit_status: int = container.wait()["StatusCode"]
+        get_dagster_logger().info(f"Container Wait Exit status:  {exit_status}")
+    except BaseException:
+        tmp_file.unlink(missing_ok=True)
+        raise
+    finally:
+        container.remove(force=True)
+
+    if exit_status != 0:
+        tmp_file.unlink(missing_ok=True)
+        raise Exception(
+            f"{container_name} failed with non-zero exit code '{exit_status}'"
+        )
+
+    tmp_file.rename(output_file)
 
 
 def template_rclone(input_template_file_path: str) -> str:

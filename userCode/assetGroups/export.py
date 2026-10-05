@@ -23,29 +23,27 @@ import docker
 from docker.errors import NotFound
 import geopandas as gpd
 import geoparquet_io as gpio
-from geoparquet_io.core.partition.by_string import partition_by_string
 from geoparquet_io.core.partition.common import sanitize_filename
+import pandas as pd
 import pyarrow.parquet as pq
 import requests
 from sqlalchemy import text
 
-from userCode.assetGroups.release_graph_generator import (
-    release_graphs_for_all_summoned_jsonld,
-)
+from userCode.assetGroups.harvest import harvest_sitemap
 from userCode.lib.classes import RcloneClient, S3
 from userCode.lib.containers import (
-    NqConfig,
-    NqOperationsContainer,
+    NquadsConfig,
+    NquadsContainer,
 )
 from userCode.lib.dagster import (
     all_dependencies_materialized,
-    dagster_log_with_parsed_level,
 )
 from userCode.lib.env import (
     ASSETS_DIRECTORY,
     GEOCONNEX_GRAPH_DIRECTORY,
     GEOCONNEX_INDEX_DIRECTORY,
     GHCR_TOKEN,
+    HARVESTED_PARQUET_DIRECTORY,
     RUNNING_AS_TEST_OR_DEV,
     ZENODO_ACCESS_TOKEN,
     ZENODO_SANDBOX_ACCESS_TOKEN,
@@ -62,7 +60,18 @@ outside of the triplestore.
 EXPORT_GROUP = "exports"
 
 
-RELEASE_GRAPH_LOCATION_IN_S3 = "graphs/latest/"
+# the prefix in s3 where nabu stores one parquet file per sitemap
+HARVESTED_PARQUET_PREFIX_IN_S3 = "summoned/"
+
+# the subset of columns in the harvested parquet that are exported as geoparquet;
+# the jsonld is left out since it is large and is already exported as nquads
+GEOPARQUET_COLUMNS = [
+    "@id",
+    "feature_name",
+    "feature_description",
+    "mainstem_uri",
+    "geometry",
+]
 
 DEVELOPMENT_BRANCH_IN_LAKEFS = "develop"
 
@@ -135,71 +144,102 @@ class ParquetConfig(Config):
     postgis_chunksize: int = 10_000
 
 
+def harvested_sitemap_ids() -> list[str]:
+    """Get the id of every sitemap which has a harvested parquet file in s3"""
+    s3 = S3()
+    sitemap_ids = []
+    for obj in s3.client.list_objects(
+        s3.bucket, prefix=HARVESTED_PARQUET_PREFIX_IN_S3, recursive=True
+    ):
+        assert obj.object_name, "object_name should not be empty"
+        if obj.object_name.endswith(".parquet"):
+            sitemap_ids.append(Path(obj.object_name).stem)
+    assert sitemap_ids, (
+        f"No harvested parquet files were found under {HARVESTED_PARQUET_PREFIX_IN_S3}"
+    )
+    return sorted(sitemap_ids)
+
+
 @asset(
-    deps=[release_graphs_for_all_summoned_jsonld],
+    deps=[harvest_sitemap],
     # this is put in a separate group since it is potentially expensive
     # and thus we don't want to run it automatically
     group_name=EXPORT_GROUP,
 )
-def pull_release_nq_for_all_sources(config: NqConfig):
-    """pull all release graphs on disk and put them in one folder"""
-    GEOCONNEX_GRAPH_DIRECTORY.mkdir(exist_ok=True)
-
-    assert GEOCONNEX_GRAPH_DIRECTORY.is_dir(), (
-        "You must use a directory for geoconnex_graph, not a file"
-    )
-
-    fullGraphNqInContainer = "/app/geoconnex_graph/"
-    volumeMapping = [f"{GEOCONNEX_GRAPH_DIRECTORY}:{fullGraphNqInContainer}"]
-    get_dagster_logger().info(
-        f"Pulling release graphs to {GEOCONNEX_GRAPH_DIRECTORY.absolute()} in host filesystem using volume mapping: {volumeMapping}"
-    )
-    all_partitions = None
-    NqOperationsContainer(
-        partition=all_partitions,
-        volume_mapping=volumeMapping,
-    ).run(
-        f"pull --prefix graphs/latest/ {fullGraphNqInContainer}",
-        config,
-    )
-
-
-@asset(deps=[pull_release_nq_for_all_sources], group_name=EXPORT_GROUP)
-def geoparquet_from_triples():
+def nquads_for_all_sources(config: NquadsConfig):
     """
-    Generate a geoparquet file that represents all locations in the Geoconnex graph
+    Generate gzipped nquads for every harvested parquet file and put them in one folder.
+    Nquads are not stored in s3 so they are generated on the fly with nabu; they are kept
+    on disk so the graph index can be regenerated without converting the parquet again
     """
-    client = docker.DockerClient()
+    # start fresh so that nquads for sitemaps which were removed are not kept
+    shutil.rmtree(GEOCONNEX_GRAPH_DIRECTORY, ignore_errors=True)
+    GEOCONNEX_GRAPH_DIRECTORY.mkdir(parents=True)
 
-    geoparquet_converter = "internetofwater/triples_to_geoparquet:latest"
-    get_dagster_logger().info(f"Pulling {geoparquet_converter}")
-    client.images.pull(geoparquet_converter)
-    get_dagster_logger().info(
-        f"Running triples_to_geoparquet on {GEOCONNEX_GRAPH_DIRECTORY.absolute()}"
-    )
+    for sitemap_id in harvested_sitemap_ids():
+        output_file = GEOCONNEX_GRAPH_DIRECTORY / f"{sitemap_id}.nq.gz"
+        get_dagster_logger().info(
+            f"Generating nquads for '{sitemap_id}' at {output_file.absolute()}"
+        )
+        NquadsContainer(sitemap_id).run(output_file, config)
 
-    container = client.containers.run(
-        image=geoparquet_converter,
-        name="triples_to_geoparquet",
-        detach=True,
-        command="--triples /app/assets/geoconnex_graph --output /app/assets/geoconnex_features.parquet",
-        volumes=[
-            f"{ASSETS_DIRECTORY.absolute()}:/app/assets/",
-        ],
-        auto_remove=True,
-    )
 
-    for line in container.logs(stdout=True, stderr=True, stream=True, follow=True):
-        decoded = line.decode("utf-8")
-        dagster_log_with_parsed_level(decoded)
+def features_from_harvested_parquet(
+    harvested_parquet: Path, sitemap_id: str
+) -> gpd.GeoDataFrame:
+    """Read the features with a geometry from a parquet file harvested by nabu"""
+    gdf = gpd.read_parquet(harvested_parquet, columns=GEOPARQUET_COLUMNS)
+    gdf.rename(columns={"@id": "id"}, inplace=True)
+    gdf.insert(1, "geoconnex_sitemap", sitemap_id)
+    return gpd.GeoDataFrame(gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty])
 
-    exit_status: int = container.wait()["StatusCode"]
-    get_dagster_logger().info(f"Container Wait Exit status:  {exit_status}")
 
-    if exit_status != 0:
-        raise Exception(f"triples_to_geoparquet failed with exit status {exit_status}")
-
+@asset(deps=[harvest_sitemap], group_name=EXPORT_GROUP)
+def geoparquet_from_harvested_parquet():
+    """
+    Generate a geoparquet file for each sitemap and one for all locations
+    in the Geoconnex graph from the parquet files harvested by nabu
+    """
     geoparquet_file = ASSETS_DIRECTORY / "geoconnex_features.parquet"
+    partitions_dir = ASSETS_DIRECTORY / "geoconnex_features_by_sitemap"
+
+    # clear out old outputs so that removed sitemaps are not exported
+    shutil.rmtree(HARVESTED_PARQUET_DIRECTORY, ignore_errors=True)
+    shutil.rmtree(partitions_dir, ignore_errors=True)
+    HARVESTED_PARQUET_DIRECTORY.mkdir(parents=True)
+    partitions_dir.mkdir(parents=True)
+
+    s3 = S3()
+    for sitemap_id in harvested_sitemap_ids():
+        harvested_parquet = HARVESTED_PARQUET_DIRECTORY / f"{sitemap_id}.parquet"
+        get_dagster_logger().info(
+            f"Downloading harvested parquet for '{sitemap_id}' to {harvested_parquet}"
+        )
+        s3.client.fget_object(
+            s3.bucket,
+            f"{HARVESTED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet",
+            str(harvested_parquet),
+        )
+
+        gdf = features_from_harvested_parquet(harvested_parquet, sitemap_id)
+        if gdf.empty:
+            get_dagster_logger().warning(
+                f"Sitemap '{sitemap_id}' has no features with a geometry; skipping"
+            )
+            continue
+        # sitemap ids may contain characters that are not safe for filenames
+        gdf.to_parquet(partitions_dir / f"{sanitize_filename(sitemap_id)}.parquet")
+
+    partitions = sorted(partitions_dir.glob("*.parquet"))
+    assert partitions, f"No geoparquet files were generated in {partitions_dir}"
+
+    all_features = gpd.GeoDataFrame(
+        pd.concat(
+            [gpd.read_parquet(partition) for partition in partitions],
+            ignore_index=True,
+        )
+    )
+    all_features.to_parquet(geoparquet_file)
 
     (
         gpio.read(geoparquet_file)
@@ -242,53 +282,33 @@ def geoparquet_from_triples():
         )
 
 
-@asset(deps=[geoparquet_from_triples], group_name=EXPORT_GROUP)
+@asset(deps=[geoparquet_from_harvested_parquet], group_name=EXPORT_GROUP)
 def pmtiles_from_geoparquet():
     """
     Generate one pmtiles file per sitemap that represents all locations in the Geoconnex graph
     """
-    geoparquet_file = ASSETS_DIRECTORY / "geoconnex_features.parquet"
     partitions_dir = ASSETS_DIRECTORY / "geoconnex_features_by_sitemap"
     pmtiles_dir = ASSETS_DIRECTORY / "pmtiles"
 
     # clear out old outputs so that removed sitemaps are not uploaded
-    shutil.rmtree(partitions_dir, ignore_errors=True)
     shutil.rmtree(pmtiles_dir, ignore_errors=True)
     pmtiles_dir.mkdir(parents=True)
 
-    # split into one geoparquet file per sitemap; gpio sanitizes the
-    # sitemap values into safe filenames (i.e. 'iow:wqp:stations__5' -> 'iow_wqp_stations_5')
-    # analysis is skipped since some sitemaps are small and would otherwise
-    # cause gpio to refuse to partition
-    partition_by_string(
-        str(geoparquet_file),
-        str(partitions_dir),
-        column="geoconnex_sitemap",
-        skip_analysis=True,
-        overwrite=True,
-    )
-
-    # the sanitization is lossy so map each partition back to its original
-    # sitemap id; the pmtiles object must be named with the exact sitemap id
-    # so it can be looked up in s3
-    sitemap_ids = (
-        pq.read_table(geoparquet_file, columns=["geoconnex_sitemap"])
-        .column("geoconnex_sitemap")
-        .unique()
-        .to_pylist()
-    )
-    sanitized_to_sitemap_id = {
-        sanitize_filename(str(sitemap_id)): str(sitemap_id)
-        for sitemap_id in sitemap_ids
-        if sitemap_id is not None
-    }
-
     pmtiles_to_sitemap_id: dict[Path, str] = {}
     for partition in sorted(partitions_dir.glob("*.parquet")):
-        assert partition.stem in sanitized_to_sitemap_id, (
-            f"Partition {partition.name} does not correspond to any sitemap id"
+        # the filename is sanitized so get the exact sitemap id from the data;
+        # the pmtiles object must be named with the exact sitemap id
+        # so it can be looked up in s3
+        sitemap_ids = (
+            pq.read_table(partition, columns=["geoconnex_sitemap"])
+            .column("geoconnex_sitemap")
+            .unique()
+            .to_pylist()
         )
-        sitemap_id = sanitized_to_sitemap_id[partition.stem]
+        assert len(sitemap_ids) == 1, (
+            f"Expected {partition.name} to contain exactly one sitemap but got {sitemap_ids}"
+        )
+        sitemap_id = str(sitemap_ids[0])
         # keep the sanitized name locally since sitemap ids may contain characters
         # that are not safe for filenames
         pmtiles_file = pmtiles_dir / f"{partition.stem}.pmtiles"
@@ -327,7 +347,7 @@ def pmtiles_from_geoparquet():
 
 
 @asset(
-    deps=[pull_release_nq_for_all_sources],
+    deps=[nquads_for_all_sources],
     # this is put in a separate group since it is potentially expensive
     # and thus we don't want to run it automatically
     group_name=EXPORT_GROUP,
@@ -484,7 +504,7 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
 
 
 @asset(
-    deps=[pull_release_nq_for_all_sources],
+    deps=[nquads_for_all_sources],
     # this is put in a separate group since it is potentially expensive
     # and thus we don't want to run it automatically
     group_name=EXPORT_GROUP,
@@ -588,7 +608,7 @@ def stream_qlever_index_to_gcs(context: AssetExecutionContext):
 @asset(
     group_name=EXPORT_GROUP,
     automation_condition=AutomationCondition.eager(),
-    deps=[geoparquet_from_triples],
+    deps=[geoparquet_from_harvested_parquet],
 )
 def move_geoparquet_to_postgis(config: ParquetConfig):
     """
@@ -667,30 +687,30 @@ def move_geoparquet_to_postgis(config: ParquetConfig):
 
 @asset(
     group_name=EXPORT_GROUP,
-    deps=[pull_release_nq_for_all_sources],
+    deps=[nquads_for_all_sources],
 )
-def stream_all_release_graphs_to_renci(
+def stream_all_nquads_to_renci(
     context: AssetExecutionContext,
     rclone_config: str,
 ):
     """
-    Stream all release graphs to RENCI
+    Stream the nquads for all sitemaps to RENCI
     """
     if RUNNING_AS_TEST_OR_DEV():
         get_dagster_logger().warning("Skipping export as we are running in test mode")
         return
     lakefs_client = LakeFSClient("geoconnex")
     get_dagster_logger().info(
-        f"Uploading release graphs from {RELEASE_GRAPH_LOCATION_IN_S3} to lakefs at {DEVELOPMENT_BRANCH_IN_LAKEFS}"
+        f"Uploading nquads from {GEOCONNEX_GRAPH_DIRECTORY} to lakefs at {DEVELOPMENT_BRANCH_IN_LAKEFS}"
     )
     RcloneClient(rclone_config).copy_directory_to_lakefs(
         destination_branch=DEVELOPMENT_BRANCH_IN_LAKEFS,
-        source_prefix=RELEASE_GRAPH_LOCATION_IN_S3,
+        source_directory=GEOCONNEX_GRAPH_DIRECTORY,
         lakefs_client=lakefs_client,
     )
 
 
-@asset(group_name=EXPORT_GROUP, deps=[pull_release_nq_for_all_sources])
+@asset(group_name=EXPORT_GROUP, deps=[nquads_for_all_sources])
 def stream_nquads_to_zenodo(
     context: AssetExecutionContext,
 ):
@@ -737,10 +757,10 @@ def stream_nquads_to_zenodo(
 
     if not GEOCONNEX_GRAPH_DIRECTORY.exists():
         raise Exception(
-            f"{GEOCONNEX_GRAPH_DIRECTORY} does not exist and thus the release graphs cannot be uploaded"
+            f"{GEOCONNEX_GRAPH_DIRECTORY} does not exist and thus the nquads cannot be uploaded"
         )
 
-    # Read file stream from local release graph
+    # Read file stream from the local nquads
     # we are not decoding the content to upsert it as gzip to zenodo
     for i, graph in enumerate(GEOCONNEX_GRAPH_DIRECTORY.iterdir()):
         if not graph.is_file():
@@ -811,7 +831,7 @@ def stream_nquads_to_zenodo(
     # return deposit_id
 
 
-@asset(group_name=EXPORT_GROUP, deps=[stream_all_release_graphs_to_renci])
+@asset(group_name=EXPORT_GROUP, deps=[stream_all_nquads_to_renci])
 def merge_lakefs_branch_into_main(context: AssetExecutionContext):
     """
     Manually merge the develop branch into the main branch

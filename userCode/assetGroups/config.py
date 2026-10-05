@@ -25,7 +25,7 @@ from userCode.lib.utils import (
 
 """
 All assets in this asset group set up config needed for crawling, 
-generating release graphs, or the dagster instance itself
+harvesting, or the dagster instance itself
 """
 
 CONFIG_GROUP = "config"
@@ -36,7 +36,7 @@ def mainstem_catchment_metadata():
     """
     Download the geoconnex mainstem catchment fgb metadata file locally
     using streaming. This file can be used for adding mainstems to the
-    harvested nquads later in the pipeline
+    harvested features during the harvest
     """
     if os.environ.get("GITHUB_ACTIONS") or os.environ.get("PYTEST_CURRENT_TEST"):
         get_dagster_logger().info(
