@@ -40,8 +40,12 @@ S3_PORT = strict_env("S3_PORT")
 S3_SECRET_KEY = strict_env("S3_SECRET_KEY")
 S3_ACCESS_KEY = strict_env("S3_ACCESS_KEY")
 S3_DEFAULT_BUCKET = strict_env("S3_DEFAULT_BUCKET")
-S3_METADATA_BUCKET = strict_env("S3_METADATA_BUCKET")
 S3_USE_SSL = strict_env_bool("S3_USE_SSL")
+# all data is stored in the default bucket under these prefixes
+# harvested parquet with one file per sitemap
+HARVESTED_PARQUET_PREFIX_IN_S3 = "summoned/"
+# public exports like pmtiles
+EXPORTS_PREFIX_IN_S3 = "exports/"
 
 ### Harvest Options
 HEADLESS_ENDPOINT = strict_env("HEADLESS_ENDPOINT")

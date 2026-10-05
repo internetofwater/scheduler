@@ -27,13 +27,16 @@ from userCode.assetGroups.harvest import (
 )
 import userCode.defs as defs
 from userCode.lib.classes import S3
-from userCode.lib.env import HARVESTED_PARQUET_DIRECTORY
+from userCode.lib.env import (
+    HARVESTED_PARQUET_DIRECTORY,
+    HARVESTED_PARQUET_PREFIX_IN_S3,
+)
 
 
 def test_e2e_harvest_and_generate_nquads():
     """Run the e2e test for harvesting to parquet and generating the nquads and geoparquet with mainstem info"""
     # clear any previous harvests to ensure a clean slate
-    S3().remove_prefix("summoned/")
+    S3().remove_prefix(HARVESTED_PARQUET_PREFIX_IN_S3)
 
     instance = DagsterInstance.ephemeral()
 
@@ -63,9 +66,9 @@ def test_e2e_harvest_and_generate_nquads():
         .success
     ), "Job execution failed for partition 'ref:dams'"
 
-    assert S3().object_has_content("summoned/ref:dams.parquet"), (
-        "Harvest should have generated a parquet file in s3"
-    )
+    assert S3().object_has_content(
+        f"{HARVESTED_PARQUET_PREFIX_IN_S3}ref:dams.parquet"
+    ), "Harvest should have generated a parquet file in s3"
 
     nquads_for_all_sources()
     nquads_file = GEOCONNEX_GRAPH_DIRECTORY.joinpath("ref:dams.nq.gz")
