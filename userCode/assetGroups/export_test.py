@@ -7,6 +7,7 @@ import subprocess
 from typing import cast
 
 from dagster import AssetCheckResult
+import geopandas as gpd
 from sqlalchemy import text
 
 import userCode.assetGroups.export as export
@@ -95,15 +96,23 @@ def test_qlever_index_and_geoconnex_sparql_query_check(tmp_path, monkeypatch):
         )
 
 
-def test_move_geoparquet_to_postgis():
+def test_move_geoparquet_to_postgis(tmp_path):
     engine = new_sqlalchemy_engine_from_env()
 
     # drop tables if they exist so we ensure we start fresh
     with engine.connect() as conn:
         conn.execute(text("DROP TABLE IF EXISTS geoconnex_features"))
 
+    # convert the subset into one parquet file per sitemap with the
+    # same columns as the parquet files harvested by nabu
     test_file = Path(__file__).parent / "testdata" / "geoconnex_features_subset.parquet"
-    move_geoparquet_to_postgis(ParquetConfig(geoparquet_path=str(test_file)))
+    subset = gpd.read_parquet(test_file).rename(columns={"id": "@id"})
+    for sitemap_id, features in subset.groupby("geoconnex_sitemap"):
+        features.drop(columns=["geoconnex_sitemap", "bbox"]).to_parquet(
+            tmp_path / f"{sitemap_id}.parquet"
+        )
+
+    move_geoparquet_to_postgis(ParquetConfig(harvested_parquet_directory=str(tmp_path)))
 
     with engine.connect() as conn:
         # row count check

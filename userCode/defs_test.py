@@ -12,13 +12,13 @@ from dagster import (
     load_assets_from_modules,
     materialize,
 )
-import geopandas as gpd
 from rdflib import Dataset, URIRef
 
 from userCode.assetGroups.export import (
     GEOCONNEX_GRAPH_DIRECTORY,
-    geoparquet_from_harvested_parquet,
+    features_from_harvested_parquet,
     nquads_for_all_sources,
+    pull_harvested_parquet,
 )
 from userCode.assetGroups.harvest import (
     EXIT_3_IS_FATAL,
@@ -27,7 +27,7 @@ from userCode.assetGroups.harvest import (
 )
 import userCode.defs as defs
 from userCode.lib.classes import S3
-from userCode.lib.env import ASSETS_DIRECTORY
+from userCode.lib.env import HARVESTED_PARQUET_DIRECTORY
 
 
 def test_e2e_harvest_and_generate_nquads():
@@ -113,8 +113,10 @@ def test_e2e_harvest_and_generate_nquads():
         pid, mainstem = row["pid"], row["mainstem"]  # type: ignore rdflib does not have type hints properly
         assert mainstems[pid] == mainstem  # type: ignore rdflib does not have type hints properly
 
-    geoparquet_from_harvested_parquet()
-    gdf = gpd.read_parquet(ASSETS_DIRECTORY / "geoconnex_features.parquet")
+    pull_harvested_parquet()
+    gdf = features_from_harvested_parquet(
+        HARVESTED_PARQUET_DIRECTORY / "ref:dams.parquet", "ref:dams"
+    )
     assert len(gdf) > 0
     assert set(gdf["geoconnex_sitemap"]) == {"ref:dams"}
     features = gdf.set_index("id")

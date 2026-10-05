@@ -54,7 +54,6 @@ assets/geoconnex_index
 
 assets/*.parquet
 assets/harvested_parquet/
-assets/geoconnex_features_by_sitemap/
 assets/pmtiles/
 
 # OpenTofu / Terraform
