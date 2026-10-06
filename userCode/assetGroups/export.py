@@ -40,10 +40,12 @@ from userCode.lib.dagster import (
 )
 from userCode.lib.env import (
     ASSETS_DIRECTORY,
+    EXPORTS_PREFIX_IN_S3,
     GEOCONNEX_GRAPH_DIRECTORY,
     GEOCONNEX_INDEX_DIRECTORY,
     GHCR_TOKEN,
     HARVESTED_PARQUET_DIRECTORY,
+    HARVESTED_PARQUET_PREFIX_IN_S3,
     RUNNING_AS_TEST_OR_DEV,
     ZENODO_ACCESS_TOKEN,
     ZENODO_SANDBOX_ACCESS_TOKEN,
@@ -59,9 +61,6 @@ outside of the triplestore.
 
 EXPORT_GROUP = "exports"
 
-
-# the prefix in s3 where nabu stores one parquet file per sitemap
-HARVESTED_PARQUET_PREFIX_IN_S3 = "summoned/"
 
 # the subset of columns in the harvested parquet that are exported as geoparquet;
 # the jsonld is left out since it is large and is already exported as nquads
@@ -258,12 +257,12 @@ def pmtiles_from_harvested_parquet():
         get_dagster_logger().warning("Skipping export as we are running in test mode")
         return
 
-    s3 = S3(bucket="metadata-geoconnex-us")
+    s3 = S3()
 
     for pmtiles_file, sitemap_id in pmtiles_to_sitemap_id.items():
         # the s3 client url encodes the object key, so the raw sitemap id
         # can be used both here and when fetching the object
-        remote_path = f"exports/pmtiles/{sitemap_id}.pmtiles"
+        remote_path = f"{EXPORTS_PREFIX_IN_S3}pmtiles/{sitemap_id}.pmtiles"
         get_dagster_logger().info(
             f"Uploading {remote_path} of size {pmtiles_file.stat().st_size} to bucket '{s3.bucket}' in the object store"
         )
