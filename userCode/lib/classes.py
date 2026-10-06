@@ -4,6 +4,7 @@
 import io
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 from typing import Any
@@ -266,17 +267,17 @@ class RcloneClient:
 
     def copy_directory_to_lakefs(
         self,
-        source_prefix: str,
+        source_directory: Path,
         destination_branch: str,
         lakefs_client: LakeFSClient,
         destination_prefix: str | None = None,
     ):
         """
-        Recursively copy only .nq and .nq.gz files from a directory in minio/GCS
+        Recursively copy only .nq and .nq.gz files from a local directory
         into lakeFS, preserving relative paths.
 
-        source_prefix:
-            Path relative to the bucket (e.g. "graphs/latest")
+        source_directory:
+            Local directory containing the nquads (e.g. "assets/geoconnex_graph")
 
         destination_prefix:
             Path inside the lakeFS branch (e.g. "geoconnex/release_graphs")
@@ -286,7 +287,7 @@ class RcloneClient:
         """
 
         get_dagster_logger().info(
-            f"Uploading .nq/.nq.gz files from {source_prefix} to lakeFS branch {destination_branch}"
+            f"Uploading .nq/.nq.gz files from {source_directory} to lakeFS branch {destination_branch}"
         )
 
         new_branch = lakefs_client.create_branch_if_not_exists(destination_branch)
@@ -297,32 +298,23 @@ class RcloneClient:
             destination_branch, directory_prefix=destination_prefix
         )
 
-        src = (
-            f"s3:{S3_DEFAULT_BUCKET}/{source_prefix}"
-            if RUNNING_AS_TEST_OR_DEV()
-            else f"gs:{S3_DEFAULT_BUCKET}/{source_prefix}"
-        )
-
         dst = f"lakefs:geoconnex/{destination_branch}"
         if destination_prefix:
             dst = f"{dst}/{destination_prefix}"
 
         # rclone include rules:
         # - include *.nq and *.nq.gz
-        # - exclude bytesum hash metadata files
         opts = [
             "-v",
             "--include",
-            "*.nq",
+            "'*.nq'",
             "--include",
-            "*.nq.gz",
-            "--exclude",
-            "*.bytesum",
+            "'*.nq.gz'",
             "--s3-upload-concurrency",
             "8",
         ]
 
-        cmd_to_run = f"{self.get_bin()} copy {src} {dst} {' '.join(opts)}"
+        cmd_to_run = f"{self.get_bin()} copy {shlex.quote(str(source_directory))} {dst} {' '.join(opts)}"
 
         get_dagster_logger().info(f"Running rclone CLI command: {cmd_to_run}")
         self._run_subprocess(cmd_to_run)
@@ -333,7 +325,7 @@ class RcloneClient:
             )
             new_branch.commit(
                 message=(
-                    f"Adding .nq/.nq.gz files from {source_prefix} "
+                    f"Adding .nq/.nq.gz files from {source_directory.name} "
                     "automatically from the geoconnex scheduler"
                 ),
                 metadata={},

@@ -3,7 +3,6 @@
 
 import gzip
 from pathlib import Path
-import shutil
 
 from dagster import (
     AssetSpec,
@@ -17,24 +16,27 @@ from rdflib import Dataset, URIRef
 
 from userCode.assetGroups.export import (
     GEOCONNEX_GRAPH_DIRECTORY,
-    pull_release_nq_for_all_sources,
+    features_from_harvested_parquet,
+    nquads_for_all_sources,
+    pull_harvested_parquet,
 )
 from userCode.assetGroups.harvest import (
     EXIT_3_IS_FATAL,
-    sources_partitions_def,
-)
-from userCode.assetGroups.release_graph_generator import (
     MAINSTEM_FILE_OVERRIDE_TAG,
+    sources_partitions_def,
 )
 import userCode.defs as defs
 from userCode.lib.classes import S3
-from userCode.lib.env import S3_DEFAULT_BUCKET
+from userCode.lib.env import (
+    HARVESTED_PARQUET_DIRECTORY,
+    HARVESTED_PARQUET_PREFIX_IN_S3,
+)
 
 
-def test_e2e_harvest_and_release_nquads():
-    """Run the e2e test for harvesting and releasing the nquads with mainstem info"""
-    # clear any previous graphs to ensure a clean slate
-    S3().remove_prefix("graphs/latest")
+def test_e2e_harvest_and_generate_nquads():
+    """Run the e2e test for harvesting to parquet and generating the nquads and geoparquet with mainstem info"""
+    # clear any previous harvests to ensure a clean slate
+    S3().remove_prefix(HARVESTED_PARQUET_PREFIX_IN_S3)
 
     instance = DagsterInstance.ephemeral()
 
@@ -52,7 +54,7 @@ def test_e2e_harvest_and_release_nquads():
     test_flatgeobuf = Path(__file__).parent / "testdata" / "colorado_subset.fgb"
 
     assert (
-        defs.defs.get_job_def("harvest_and_release_as_nq")
+        defs.defs.get_job_def("harvest_and_generate_parquet")
         .execute_in_process(
             instance=instance,
             tags={
@@ -64,37 +66,22 @@ def test_e2e_harvest_and_release_nquads():
         .success
     ), "Job execution failed for partition 'ref:dams'"
 
-    obj = S3().client.get_object(
-        S3_DEFAULT_BUCKET, "graphs/latest/ref:dams_release.nq.gz"
-    )
-    with gzip.GzipFile(fileobj=obj) as gz:
-        data = gz.read()
+    assert S3().object_has_content(
+        f"{HARVESTED_PARQUET_PREFIX_IN_S3}ref:dams.parquet"
+    ), "Harvest should have generated a parquet file in s3"
 
-    text = data.decode("utf-8")
+    nquads_for_all_sources()
+    nquads_file = GEOCONNEX_GRAPH_DIRECTORY.joinpath("ref:dams.nq.gz")
+    assert nquads_file.exists(), "Generated nquads file does not exist"
+
+    with gzip.open(nquads_file) as gz:
+        text = gz.read().decode("utf-8")
 
     assert (
         "<https://www.opengis.net/def/schema/hy_features/hyf/linearElement> <https://reference.geoconnex.us/collections/mainstems/items/36825>"
         in text
     ), (
-        "Mainstem info should have been inserted into the nquads during converstion. The mainstem should be associated with https://features.geoconnex.dev/collections/dams/items/1076356"
-    )
-    if GEOCONNEX_GRAPH_DIRECTORY.exists():
-        shutil.rmtree(GEOCONNEX_GRAPH_DIRECTORY)
-    pull_release_nq_for_all_sources()
-    assert GEOCONNEX_GRAPH_DIRECTORY.exists(), "Pulled nq folder does not exist"
-
-    pulled_file = GEOCONNEX_GRAPH_DIRECTORY.joinpath("ref:dams_release.nq.gz")
-    last_modified = pulled_file.stat().st_mtime
-    pulled_file_bytesum = GEOCONNEX_GRAPH_DIRECTORY.joinpath(
-        "ref:dams_release.nq.gz.bytesum"
-    )
-    assert pulled_file.exists()
-    assert pulled_file_bytesum.exists()
-
-    pull_release_nq_for_all_sources()
-
-    assert last_modified == pulled_file.stat().st_mtime, (
-        "Since the bytesum is the same there should be no new pull and no new data transferred to disk"
+        "Mainstem info should have been inserted into the jsonld during the harvest. The mainstem should be associated with https://features.geoconnex.dev/collections/dams/items/1076356"
     )
 
     ds = Dataset()
@@ -128,6 +115,16 @@ def test_e2e_harvest_and_release_nquads():
     for row in res.bindings:
         pid, mainstem = row["pid"], row["mainstem"]  # type: ignore rdflib does not have type hints properly
         assert mainstems[pid] == mainstem  # type: ignore rdflib does not have type hints properly
+
+    pull_harvested_parquet()
+    gdf = features_from_harvested_parquet(
+        HARVESTED_PARQUET_DIRECTORY / "ref:dams.parquet", "ref:dams"
+    )
+    assert len(gdf) > 0
+    assert set(gdf["geoconnex_sitemap"]) == {"ref:dams"}
+    features = gdf.set_index("id")
+    for pid, mainstem in mainstems.items():
+        assert features.loc[str(pid), "mainstem_uri"] == str(mainstem)
 
 
 def test_dynamic_partitions():
