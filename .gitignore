@@ -53,6 +53,8 @@ reference_catchments_and_flowlines.fgb
 assets/geoconnex_index
 
 assets/*.parquet
+assets/harvested_parquet/
+assets/pmtiles/
 
 # OpenTofu / Terraform
 opentofu/**/.terraform/
