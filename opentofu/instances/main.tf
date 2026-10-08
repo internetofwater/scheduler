@@ -56,7 +56,6 @@ resource "google_compute_instance" "harvest_vm" {
     cat <<ENV | sudo tee /opt/scheduler/.env > /dev/null
 
     # Gleaner
-    HEADLESS_ENDPOINT=${var.headless_url}
     GLEANER_SITEMAP_INDEX=${var.sitemap_url}
     GLEANER_CONCURRENT_SITEMAPS=4
     GLEANER_SITEMAP_WORKERS=5
