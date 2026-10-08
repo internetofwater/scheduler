@@ -8,7 +8,8 @@ RUN pip install \
     dagster-graphql \
     dagster-webserver \
     dagster-postgres \
-    dagster-docker
+    dagster-docker \ 
+    psycopg[binary]
 
 # Set $DAGSTER_HOME and copy dagster instance and workspace YAML there
 ENV DAGSTER_HOME=/opt/scheduler/dagster_home/
