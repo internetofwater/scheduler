@@ -3,13 +3,17 @@
 
 FROM python:3.12-slim
 
-RUN pip install \
-    dagster \
-    dagster-graphql \
-    dagster-webserver \
-    dagster-postgres \
-    dagster-docker \ 
-    psycopg[binary]
+# Versions are pinned so rebuilds are reproducible and match the user code image.
+# SQLAlchemy 2.1 switched the default postgresql:// driver from psycopg2 to
+# psycopg3, which dagster-postgres doesn't work with; keep it below 2.1 so
+# Dagster uses the psycopg2-binary that dagster-postgres already installs.
+RUN pip install --no-cache-dir \
+    "dagster==1.13.25" \
+    "dagster-graphql==1.13.25" \
+    "dagster-webserver==1.13.25" \
+    "dagster-postgres==0.29.25" \
+    "dagster-docker==0.29.25" \
+    "sqlalchemy>=2.0,<2.1"
 
 # Set $DAGSTER_HOME and copy dagster instance and workspace YAML there
 ENV DAGSTER_HOME=/opt/scheduler/dagster_home/
