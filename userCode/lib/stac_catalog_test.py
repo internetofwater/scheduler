@@ -44,7 +44,9 @@ def test_maplibre_style_for_pmtiles_references_the_given_layer():
     style = maplibre_style_for_pmtiles("https://example.org/data.pmtiles", "my_layer")
 
     assert style["version"] == 8
-    assert style["sources"]["data"]["url"] == "pmtiles://https://example.org/data.pmtiles"
+    assert (
+        style["sources"]["data"]["url"] == "pmtiles://https://example.org/data.pmtiles"
+    )
     assert style["layers"][0]["source-layer"] == "my_layer"
 
 
