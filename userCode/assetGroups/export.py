@@ -707,31 +707,34 @@ def move_geoparquet_to_postgis(config: ParquetConfig):
         f"No harvested parquet files were found in {config.harvested_parquet_directory}"
     )
 
-    # replace the table with the first sitemap and append the rest
-    if_exists: Literal["replace", "append"] = "replace"
-    for harvested_parquet in harvested_parquet_files:
-        sitemap_id = harvested_parquet.stem
-        get_dagster_logger().info(
-            f"Moving geoparquet data for '{sitemap_id}' from {harvested_parquet} to PostGIS"
-        )
-        # load one sitemap at a time so we don't run out of memory
-        gdf = features_from_harvested_parquet(harvested_parquet, sitemap_id)
-        gdf.set_crs(epsg=4326, inplace=True, allow_override=True)
-
-        gdf.to_postgis(
-            name="geoconnex_features",
-            con=engine,
-            if_exists=if_exists,
-            # do not add the pandas index as a separate column
-            index=False,
-            schema=None,
-            # write in chunks so we don't run out of memory
-            chunksize=config.postgis_chunksize,
-        )
-        if_exists = "append"
-
-    # new count in postgis
+    # Do the whole load (table replace, appends, and indexes) in a single transaction
+    # so a failure part way through rolls back and leaves the previous table intact
     with engine.begin() as conn:
+        # first pass through, if exists, replace. Otherwise append to the table
+        # since that means we just overwrite the table and are ready to add to it
+        if_exists: Literal["replace", "append"] = "replace"
+        for harvested_parquet in harvested_parquet_files:
+            sitemap_id = harvested_parquet.stem
+            get_dagster_logger().info(
+                f"Moving geoparquet data for '{sitemap_id}' from {harvested_parquet} to PostGIS"
+            )
+            # load one sitemap at a time so we don't run out of memory
+            gdf = features_from_harvested_parquet(harvested_parquet, sitemap_id)
+            gdf.set_crs(epsg=4326, inplace=True, allow_override=True)
+
+            gdf.to_postgis(
+                name="geoconnex_features",
+                con=conn,
+                if_exists=if_exists,
+                # do not add the pandas index as a separate column
+                index=False,
+                schema=None,
+                # write in chunks so we don't run out of memory
+                chunksize=config.postgis_chunksize,
+            )
+            if_exists = "append"
+
+        # new count in postgis
         result = conn.execute(text("SELECT count(*) FROM geoconnex_features;"))
         count = result.scalar()
 
