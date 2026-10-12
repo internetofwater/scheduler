@@ -193,3 +193,56 @@ def test_move_geoparquet_to_postgis(tmp_path):
 
         for column in expected_columns:
             assert column in columns, f"Expected column {column} to be present"
+
+
+def test_move_geoparquet_to_postgis_with_mixed_geometry_types(tmp_path):
+    """
+    The table's geometry column must accept every geometry type even when
+    the first sitemap loaded only contains a single type like points
+    """
+    from shapely.geometry import Point, Polygon
+
+    engine = new_sqlalchemy_engine_from_env()
+
+    with engine.connect() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS geoconnex_features"))
+
+    def write_sitemap(sitemap_id: str, geometries: list):
+        gpd.GeoDataFrame(
+            {
+                "@id": [
+                    f"https://geoconnex.us/{sitemap_id}/{i}"
+                    for i in range(len(geometries))
+                ],
+                "feature_name": [f"{sitemap_id} {i}" for i in range(len(geometries))],
+                "feature_description": ["test"] * len(geometries),
+                "mainstem_uri": [None] * len(geometries),
+            },
+            geometry=geometries,
+            crs="EPSG:4326",
+        ).to_parquet(tmp_path / f"{sitemap_id}.parquet")
+
+    # files are loaded in sorted order so the points sitemap creates the table
+    write_sitemap("a_points", [Point(0, 0), Point(1, 1)])
+    write_sitemap("b_polygons", [Polygon([(0, 0), (1, 0), (1, 1), (0, 0)])])
+
+    move_geoparquet_to_postgis(ParquetConfig(harvested_parquet_directory=str(tmp_path)))
+
+    with engine.connect() as conn:
+        geometry_types = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT DISTINCT GeometryType(geometry) FROM geoconnex_features")
+            )
+        }
+        assert geometry_types == {"POINT", "POLYGON"}
+
+        column_type = conn.execute(
+            text("""
+            SELECT type, srid
+            FROM geometry_columns
+            WHERE f_table_name = 'geoconnex_features'
+        """)
+        ).fetchone()
+        assert column_type is not None
+        assert tuple(column_type) == ("GEOMETRY", 4326)
