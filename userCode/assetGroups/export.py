@@ -3,6 +3,8 @@
 
 
 from datetime import datetime
+import json
+import mimetypes
 import os
 from pathlib import Path
 import shutil
@@ -46,11 +48,23 @@ from userCode.lib.env import (
     GHCR_TOKEN,
     HARVESTED_PARQUET_DIRECTORY,
     HARVESTED_PARQUET_PREFIX_IN_S3,
+    PMTILES_PREFIX_IN_S3,
     RUNNING_AS_TEST_OR_DEV,
+    S3_ADDRESS,
+    STAC_CATALOG_PREFIX_IN_S3,
     ZENODO_ACCESS_TOKEN,
     ZENODO_SANDBOX_ACCESS_TOKEN,
 )
 from userCode.lib.lakefs import LakeFSClient
+from userCode.lib.stac_catalog import (
+    finalize_catalog,
+    init_catalog,
+    maplibre_style_for_pmtiles,
+    multihash_sha256,
+    patch_sitemap_collection,
+    register_sitemap_collection,
+    render_thumbnail,
+)
 from userCode.lib.utils import new_sqlalchemy_engine_from_env
 
 """
@@ -274,6 +288,145 @@ def pmtiles_from_harvested_parquet():
                 content_type="application/vnd.pmtiles",
                 headers={},
             )
+
+
+def _guess_content_type(file: Path) -> str:
+    """Guess the content type of a generated STAC catalog file"""
+    if file.suffix == ".md":
+        return "text/markdown"
+    content_type, _ = mimetypes.guess_type(file.name)
+    return content_type or "application/octet-stream"
+
+
+@asset(deps=[pmtiles_from_harvested_parquet], group_name=EXPORT_GROUP)
+def publish_stac_catalog():
+    """
+    Build a Portolan-formatted STAC catalog (https://github.com/portolan-sdi/portolan-spec)
+    describing every geoparquet and pmtiles file this export has published, and publish
+    it to the object store alongside the data it describes so it is served statically.
+    """
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning(
+            "Skipping STAC catalog publish as we are running in test mode"
+        )
+        return
+
+    logger = get_dagster_logger()
+    s3 = S3()
+
+    parquet_sizes: dict[str, int] = {}
+    for obj in s3.client.list_objects(
+        s3.bucket, prefix=HARVESTED_PARQUET_PREFIX_IN_S3, recursive=True
+    ):
+        if obj.object_name and obj.object_name.endswith(".parquet"):
+            parquet_sizes[Path(obj.object_name).stem] = obj.size or 0
+
+    assert parquet_sizes, (
+        f"No geoparquet files were found under {HARVESTED_PARQUET_PREFIX_IN_S3}; "
+        "cannot build a STAC catalog"
+    )
+
+    pmtiles_sizes: dict[str, int] = {}
+    for obj in s3.client.list_objects(
+        s3.bucket, prefix=PMTILES_PREFIX_IN_S3, recursive=True
+    ):
+        if obj.object_name and obj.object_name.endswith(".pmtiles"):
+            pmtiles_sizes[Path(obj.object_name).stem] = obj.size or 0
+
+    with tempfile.TemporaryDirectory() as tmp:
+        catalog_root = Path(tmp) / "catalog"
+        catalog_root.mkdir()
+        init_catalog(catalog_root)
+
+        for sitemap_id in sorted(parquet_sizes):
+            local_parquet = HARVESTED_PARQUET_DIRECTORY / f"{sitemap_id}.parquet"
+            if not local_parquet.exists():
+                logger.warning(
+                    f"Harvested parquet for '{sitemap_id}' is listed in s3 but not "
+                    f"present locally at {local_parquet}; skipping its STAC collection"
+                )
+                continue
+
+            gdf = features_from_harvested_parquet(local_parquet, sitemap_id)
+            if gdf.empty:
+                logger.warning(
+                    f"Sitemap '{sitemap_id}' has no features with a geometry; "
+                    "skipping its STAC collection"
+                )
+                continue
+
+            bbox = [round(float(v), 6) for v in gdf.total_bounds.tolist()]
+            parquet_url = (
+                f"https://{S3_ADDRESS}/{s3.bucket}/"
+                f"{HARVESTED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet"
+            )
+
+            collection_path = register_sitemap_collection(
+                catalog_root,
+                sitemap_id=sitemap_id,
+                parquet_url=parquet_url,
+                bbox=bbox,
+            )
+            collection_dir = collection_path.parent
+
+            # the pmtiles file is keyed by the raw sitemap id in s3, same as the
+            # parquet, but tippecanoe names the layer inside it after the
+            # sanitized local filename it was built from (see
+            # pmtiles_from_harvested_parquet above)
+            pmtiles_url = None
+            pmtiles_layer = None
+            if sitemap_id in pmtiles_sizes:
+                pmtiles_layer = sanitize_filename(sitemap_id)
+                pmtiles_url = (
+                    f"https://{S3_ADDRESS}/{s3.bucket}/"
+                    f"{PMTILES_PREFIX_IN_S3}{sitemap_id}.pmtiles"
+                )
+
+            thumbnail_filename = "thumbnail.png"
+            render_thumbnail(gdf, collection_dir / thumbnail_filename)
+
+            style_filename = None
+            if pmtiles_url and pmtiles_layer:
+                style_filename = "style.json"
+                (collection_dir / style_filename).write_text(
+                    json.dumps(maplibre_style_for_pmtiles(pmtiles_url, pmtiles_layer))
+                )
+
+            patch_sitemap_collection(
+                collection_path,
+                parquet_size=parquet_sizes[sitemap_id],
+                parquet_checksum=multihash_sha256(local_parquet.read_bytes()),
+                pmtiles_url=pmtiles_url,
+                pmtiles_layer=pmtiles_layer,
+                thumbnail_filename=thumbnail_filename,
+                style_filename=style_filename,
+            )
+
+        finalize_catalog(catalog_root)
+
+        logger.info(
+            f"Deleting any existing STAC catalog files under {STAC_CATALOG_PREFIX_IN_S3}"
+        )
+        s3.remove_prefix(STAC_CATALOG_PREFIX_IN_S3)
+
+        for file in sorted(catalog_root.rglob("*")):
+            # the .portolan directory holds internal tool state (e.g. the raw
+            # s3 endpoint), not public catalog content, so it is never published
+            if not file.is_file() or ".portolan" in file.parts:
+                continue
+            remote_path = (
+                f"{STAC_CATALOG_PREFIX_IN_S3}"
+                f"{file.relative_to(catalog_root).as_posix()}"
+            )
+            logger.info(f"Uploading {remote_path} to the object store")
+            with file.open("rb") as f:
+                s3.load_stream(
+                    stream=f,
+                    remote_path=remote_path,
+                    content_length=file.stat().st_size,
+                    content_type=_guess_content_type(file),
+                    headers={},
+                )
 
 
 @asset(
