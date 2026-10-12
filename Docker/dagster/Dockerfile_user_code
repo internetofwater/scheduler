@@ -52,6 +52,12 @@ RUN set -eux; \
     chmod +x /usr/local/bin/oras; \
     rm -rf "oras_${ORAS_VERSION}_linux_${ORAS_ARCH}.tar.gz" oras-install/
 
+# Install the Portolan CLI as a standalone tool, not a project dependency:
+# it pins a duckdb range that conflicts with geoparquet-io's, so it must live
+# in its own isolated environment rather than the shared project venv.
+ENV UV_TOOL_DIR=/opt/portolan-tool UV_TOOL_BIN_DIR=/opt/portolan-tool/bin
+RUN uv tool install portolan-cli==0.8.0
+
 WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
@@ -79,9 +85,11 @@ COPY --from=builder /app /app
 COPY --from=builder /usr/local/bin/docker /usr/local/bin/docker
 # Copy the ORAS CLI from the builder
 COPY --from=builder /usr/local/bin/oras /usr/local/bin/oras
+# Copy the Portolan CLI (and its isolated tool environment) from the builder
+COPY --from=builder /opt/portolan-tool /opt/portolan-tool
 
 # Place executables in the environment at the front of the path
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:/opt/portolan-tool/bin:$PATH"
 
 WORKDIR /opt/scheduler/
 COPY userCode/ /opt/scheduler/userCode

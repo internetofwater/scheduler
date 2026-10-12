@@ -46,6 +46,10 @@ S3_USE_SSL = strict_env_bool("S3_USE_SSL")
 HARVESTED_PARQUET_PREFIX_IN_S3 = "summoned/"
 # public exports like pmtiles
 EXPORTS_PREFIX_IN_S3 = "exports/"
+PMTILES_PREFIX_IN_S3 = f"{EXPORTS_PREFIX_IN_S3}pmtiles/"
+# where the public Portolan STAC catalog is published, within the same
+# default bucket as the data it describes
+STAC_CATALOG_PREFIX_IN_S3 = "stac/"
 
 ### Harvest Options
 GLEANER_LOG_LEVEL = strict_env("GLEANER_LOG_LEVEL")
