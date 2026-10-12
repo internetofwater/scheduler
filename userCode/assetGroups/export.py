@@ -732,6 +732,16 @@ def move_geoparquet_to_postgis(config: ParquetConfig):
                 # write in chunks so we don't run out of memory
                 chunksize=config.postgis_chunksize,
             )
+            if if_exists == "replace":
+                # to_postgis types the geometry column from only the first sitemap's
+                # geometries (e.g. POINT); widen it so later sitemaps with other
+                # geometry types (e.g. POLYGON) can be appended
+                conn.execute(
+                    text(
+                        "ALTER TABLE geoconnex_features "
+                        "ALTER COLUMN geometry TYPE geometry(Geometry, 4326);"
+                    )
+                )
             if_exists = "append"
 
         # new count in postgis
