@@ -537,7 +537,6 @@ def stream_qlever_index_to_gcs(context: AssetExecutionContext):
 
 @asset(
     group_name=EXPORT_GROUP,
-    automation_condition=AutomationCondition.eager(),
     deps=[pull_harvested_parquet],
 )
 def move_geoparquet_to_postgis(config: ParquetConfig):
