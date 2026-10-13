@@ -74,8 +74,6 @@ class SitemapHarvestContainer:
             f"--s3-access-key {config.s3_access_key} "
             f"--s3-secret-key {config.s3_secret_key} "
             f"--bucket {config.bucket} "
-            # crawl reports are stored under metadata/ in the same bucket as the harvested data
-            f"--metadata-bucket {config.bucket} "
             f"--log-level {config.log_level} "
             f"--concurrent-sitemaps {config.concurrent_sitemaps} "
             f"--sitemap-workers {config.sitemap_workers} "

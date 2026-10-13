@@ -35,26 +35,6 @@ resource "google_storage_bucket" "terraform_state_bucket" {
   }
 }
 
-resource "google_storage_bucket" "metadata_bucket" {
-  name          = var.s3_metadata_bucket
-  location      = var.region
-  
-  storage_class = "STANDARD"
-  uniform_bucket_level_access = true
-
-  cors {
-    origin          = ["*"]
-    method          = ["GET", "HEAD", "OPTIONS"]
-    response_header = ["*"]
-    max_age_seconds = 3600
-  }
-
-  versioning {
-    enabled = false
-  }
-
-}
-
 resource "google_storage_bucket_iam_member" "bucket_access" {
   bucket = google_storage_bucket.harvest_bucket.name
   role   = "roles/storage.objectAdmin"
@@ -65,12 +45,6 @@ resource "google_storage_bucket_iam_member" "bucket_access" {
 # public Portolan STAC catalog describing it, so it is readable by everyone
 resource "google_storage_bucket_iam_member" "harvest_bucket_public_access" {
   bucket = google_storage_bucket.harvest_bucket.name
-  role   = "roles/storage.objectViewer"
-  member = "allUsers"
-}
-
-resource "google_storage_bucket_iam_member" "metadata_bucket_access" {
-  bucket = google_storage_bucket.metadata_bucket.name
   role   = "roles/storage.objectViewer"
   member = "allUsers"
 }

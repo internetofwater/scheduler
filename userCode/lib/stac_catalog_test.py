@@ -4,6 +4,7 @@
 import hashlib
 
 import geopandas as gpd
+import pystac
 from shapely.geometry import Point
 
 from userCode.lib.stac_catalog import (
@@ -12,7 +13,9 @@ from userCode.lib.stac_catalog import (
     humanize_sitemap_id,
     maplibre_style_for_pmtiles,
     multihash_sha256,
+    patch_sitemap_collection,
     render_thumbnail,
+    sitemap_dataset_descriptions,
     stac_collection_id,
 )
 
@@ -55,7 +58,69 @@ def test_maplibre_style_for_pmtiles_references_the_given_layer():
     assert (
         style["sources"]["data"]["url"] == "pmtiles://https://example.org/data.pmtiles"
     )
-    assert style["layers"][0]["source-layer"] == "my_layer"
+    assert all(layer["source-layer"] == "my_layer" for layer in style["layers"])
+
+
+def test_maplibre_style_for_pmtiles_renders_every_geometry_type():
+    style = maplibre_style_for_pmtiles("https://example.org/data.pmtiles", "my_layer")
+
+    layer_types = {layer["type"] for layer in style["layers"]}
+    assert layer_types == {"fill", "line", "circle"}
+
+
+def test_sitemap_dataset_descriptions_maps_ids_to_descriptions():
+    index_xml = """<?xml version='1.0' encoding='utf-8'?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:geoconnex="https://geoconnex.us">
+<sitemap>
+  <loc>https://geoconnex.us/sitemap/usbr/rise.xml</loc>
+  <geoconnex:sitemap_id>usbr:rise</geoconnex:sitemap_id>
+  <geoconnex:dataset_description> Locations in the USBR RISE API </geoconnex:dataset_description>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/no/description.xml</loc>
+  <geoconnex:sitemap_id>no:description</geoconnex:sitemap_id>
+</sitemap>
+</sitemapindex>"""
+
+    assert sitemap_dataset_descriptions(index_xml) == {
+        "usbr:rise": "Locations in the USBR RISE API"
+    }
+
+
+def test_patch_sitemap_collection_adds_pmtiles_as_a_visual_asset(tmp_path):
+    collection = pystac.Collection(
+        id="usbr_rise",
+        description="test",
+        extent=pystac.Extent(
+            pystac.SpatialExtent([[-180, -90, 180, 90]]),
+            pystac.TemporalExtent([[None, None]]),
+        ),
+    )
+    collection.add_asset(
+        "data", pystac.Asset(href="https://example.org/data.parquet", roles=["data"])
+    )
+    collection_path = tmp_path / "collection.json"
+    collection.set_self_href(str(collection_path))
+    collection.save_object(include_self_link=False)
+
+    pmtiles_url = "https://example.org/usbr:rise.pmtiles"
+    patch_sitemap_collection(
+        collection_path,
+        sitemap_id="usbr:rise",
+        parquet_size=1,
+        parquet_checksum="1220abc",
+        pmtiles_url=pmtiles_url,
+        pmtiles_layer="usbr_rise",
+    )
+
+    patched = pystac.Collection.from_file(str(collection_path))
+    pmtiles_asset = patched.assets["pmtiles"]
+    assert pmtiles_asset.href == pmtiles_url
+    assert pmtiles_asset.media_type == "application/vnd.pmtiles"
+    assert pmtiles_asset.roles == ["visual"]
+    # the default style's source must point at the same file so viewers
+    # apply the style to this asset
+    style = maplibre_style_for_pmtiles(pmtiles_url, "usbr_rise")
+    assert style["sources"]["data"]["url"] == f"pmtiles://{pmtiles_asset.href}"
 
 
 def test_render_thumbnail_writes_a_png(tmp_path):
