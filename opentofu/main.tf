@@ -54,7 +54,6 @@ module "storage" {
   project = var.project
   region  = var.region
   s3_bucket  = var.s3_bucket
-  s3_metadata_bucket = var.s3_metadata_bucket
   s3_terraform_state_bucket = var.s3_terraform_state_bucket
 }
 
@@ -112,7 +111,6 @@ module "instances" {
   static_ip     = module.network.static_ip
 
   s3_bucket     = module.storage.s3_bucket
-  s3_metadata_bucket = var.s3_metadata_bucket
   s3_region     = module.storage.s3_region
   s3_access_key = module.storage.s3_access_key
   s3_secret_key = module.storage.s3_secret_key

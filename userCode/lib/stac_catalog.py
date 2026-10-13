@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import shlex
 import subprocess
+from xml.etree import ElementTree as ET
 
 from dagster import get_dagster_logger
 import geopandas as gpd
@@ -98,6 +99,12 @@ def geoconnex_providers() -> list[dict]:
 
 def maplibre_style_for_pmtiles(pmtiles_url: str, layer: str) -> dict:
     """A minimal MapLibre GL style (spec v8) rendering a PMTiles layer with default styling"""
+
+    def geometry_type_is(*types: str) -> list:
+        # match both single and multi variants since newer MapLibre versions
+        # report e.g. MultiPolygon distinctly from Polygon
+        return ["match", ["geometry-type"], list(types), True, False]
+
     return {
         "version": 8,
         "name": layer,
@@ -109,17 +116,41 @@ def maplibre_style_for_pmtiles(pmtiles_url: str, layer: str) -> dict:
         },
         "layers": [
             {
+                "id": f"{layer}-polygons",
+                "type": "fill",
+                "source": "data",
+                "source-layer": layer,
+                "filter": geometry_type_is("Polygon", "MultiPolygon"),
+                "paint": {
+                    "fill-color": "#2563eb",
+                    "fill-opacity": 0.3,
+                    "fill-outline-color": "#1e40af",
+                },
+            },
+            {
+                "id": f"{layer}-lines",
+                "type": "line",
+                "source": "data",
+                "source-layer": layer,
+                "filter": geometry_type_is("LineString", "MultiLineString"),
+                "paint": {
+                    "line-color": "#2563eb",
+                    "line-width": 1.5,
+                },
+            },
+            {
                 "id": f"{layer}-points",
                 "type": "circle",
                 "source": "data",
                 "source-layer": layer,
+                "filter": geometry_type_is("Point", "MultiPoint"),
                 "paint": {
                     "circle-radius": 3,
                     "circle-color": "#2563eb",
                     "circle-stroke-width": 1,
                     "circle-stroke-color": "#ffffff",
                 },
-            }
+            },
         ],
     }
 
@@ -179,12 +210,44 @@ def init_catalog(catalog_root: Path) -> None:
     )
 
 
+SITEMAP_INDEX_NAMESPACES = {
+    "sm": "http://www.sitemaps.org/schemas/sitemap/0.9",
+    "geoconnex": "https://geoconnex.us",
+}
+
+
+def sitemap_dataset_descriptions(sitemap_index_xml: str) -> dict[str, str]:
+    """
+    Map each geoconnex:sitemap_id in a sitemap index to its
+    geoconnex:dataset_description, skipping sitemaps without one
+    """
+    root = ET.fromstring(sitemap_index_xml)
+    descriptions: dict[str, str] = {}
+    for sitemap in root.findall("sm:sitemap", namespaces=SITEMAP_INDEX_NAMESPACES):
+        sitemap_id = sitemap.findtext(
+            "geoconnex:sitemap_id", namespaces=SITEMAP_INDEX_NAMESPACES
+        )
+        description = sitemap.findtext(
+            "geoconnex:dataset_description", namespaces=SITEMAP_INDEX_NAMESPACES
+        )
+        if sitemap_id and sitemap_id.strip() and description and description.strip():
+            descriptions[sitemap_id.strip()] = description.strip()
+    return descriptions
+
+
 def register_sitemap_collection(
-    catalog_root: Path, *, sitemap_id: str, parquet_url: str, bbox: list[float]
+    catalog_root: Path,
+    *,
+    sitemap_id: str,
+    parquet_url: str,
+    bbox: list[float],
+    dataset_description: str | None = None,
 ) -> Path:
     """
     Register one sitemap's geoparquet export as an external Portolan collection,
     referenced in place rather than copied. Returns the path to its collection.json.
+    `dataset_description` is the description the sitemap index gives for the
+    dataset, and leads the collection description when present.
     """
     title = humanize_sitemap_id(sitemap_id)
     description = (
@@ -193,6 +256,8 @@ def register_sitemap_collection(
         f"of the '{sitemap_id}' sitemap by the Geoconnex scheduler, licensed "
         f"{CATALOG_LICENSE}."
     )
+    if dataset_description:
+        description = f"{dataset_description}\n\n{description}"
     result = _run_portolan(
         [
             "add-external",

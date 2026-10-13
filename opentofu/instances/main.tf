@@ -77,7 +77,6 @@ resource "google_compute_instance" "harvest_vm" {
     S3_SECRET_KEY=${var.s3_secret_key}
     S3_ACCESS_KEY=${var.s3_access_key}
     S3_DEFAULT_BUCKET=${var.s3_bucket}
-    S3_METADATA_BUCKET=${var.s3_metadata_bucket}
     S3_REGION=${var.s3_region}
 
     # Database

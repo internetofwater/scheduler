@@ -77,11 +77,6 @@ variable "s3_bucket" {
   type        = string
 }
 
-variable "s3_metadata_bucket" {
-  description = "GCP bucket"
-  type        = string
-}
-
 variable "s3_region" {
   description = "S3 Region"
   type        = string

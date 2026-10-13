@@ -62,6 +62,7 @@ from userCode.lib.env import (
     PMTILES_PREFIX_IN_S3,
     RUNNING_AS_TEST_OR_DEV,
     S3_ADDRESS,
+    SITEMAP_INDEX,
     STAC_CATALOG_PREFIX_IN_S3,
     ZENODO_ACCESS_TOKEN,
     ZENODO_SANDBOX_ACCESS_TOKEN,
@@ -75,6 +76,7 @@ from userCode.lib.stac_catalog import (
     patch_sitemap_collection,
     register_sitemap_collection,
     render_thumbnail,
+    sitemap_dataset_descriptions,
 )
 from userCode.lib.utils import new_sqlalchemy_engine_from_env
 
@@ -634,6 +636,10 @@ def publish_stac_catalog():
         if obj.object_name and obj.object_name.endswith(".pmtiles"):
             pmtiles_sizes[Path(obj.object_name).stem] = obj.size or 0
 
+    sitemap_index_response = requests.get(SITEMAP_INDEX, timeout=20)
+    sitemap_index_response.raise_for_status()
+    dataset_descriptions = sitemap_dataset_descriptions(sitemap_index_response.text)
+
     with tempfile.TemporaryDirectory() as tmp:
         catalog_root = Path(tmp) / "catalog"
         catalog_root.mkdir()
@@ -667,6 +673,7 @@ def publish_stac_catalog():
                 sitemap_id=sitemap_id,
                 parquet_url=parquet_url,
                 bbox=bbox,
+                dataset_description=dataset_descriptions.get(sitemap_id),
             )
             collection_dir = collection_path.parent
 

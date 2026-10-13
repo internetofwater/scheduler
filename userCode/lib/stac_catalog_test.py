@@ -13,6 +13,7 @@ from userCode.lib.stac_catalog import (
     maplibre_style_for_pmtiles,
     multihash_sha256,
     render_thumbnail,
+    sitemap_dataset_descriptions,
     stac_collection_id,
 )
 
@@ -55,7 +56,32 @@ def test_maplibre_style_for_pmtiles_references_the_given_layer():
     assert (
         style["sources"]["data"]["url"] == "pmtiles://https://example.org/data.pmtiles"
     )
-    assert style["layers"][0]["source-layer"] == "my_layer"
+    assert all(layer["source-layer"] == "my_layer" for layer in style["layers"])
+
+
+def test_maplibre_style_for_pmtiles_renders_every_geometry_type():
+    style = maplibre_style_for_pmtiles("https://example.org/data.pmtiles", "my_layer")
+
+    layer_types = {layer["type"] for layer in style["layers"]}
+    assert layer_types == {"fill", "line", "circle"}
+
+
+def test_sitemap_dataset_descriptions_maps_ids_to_descriptions():
+    index_xml = """<?xml version='1.0' encoding='utf-8'?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:geoconnex="https://geoconnex.us">
+<sitemap>
+  <loc>https://geoconnex.us/sitemap/usbr/rise.xml</loc>
+  <geoconnex:sitemap_id>usbr:rise</geoconnex:sitemap_id>
+  <geoconnex:dataset_description> Locations in the USBR RISE API </geoconnex:dataset_description>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/no/description.xml</loc>
+  <geoconnex:sitemap_id>no:description</geoconnex:sitemap_id>
+</sitemap>
+</sitemapindex>"""
+
+    assert sitemap_dataset_descriptions(index_xml) == {
+        "usbr:rise": "Locations in the USBR RISE API"
+    }
 
 
 def test_render_thumbnail_writes_a_png(tmp_path):
