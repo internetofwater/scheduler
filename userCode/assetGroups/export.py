@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from collections.abc import Iterable
+import csv
 from datetime import datetime
+import io
 import json
 import math
 import mimetypes
@@ -27,13 +30,11 @@ from dagster import (
 import docker
 from docker.errors import NotFound
 import geopandas as gpd
-
-# private helper, but it is the same COPY based insert that to_postgis uses
-from geopandas.io.sql import _psql_insert_copy
 import geoparquet_io as gpio
 from geoparquet_io.core.partition.common import sanitize_filename
 import numpy as np
 import pandas as pd
+from pandas.io.sql import SQLTable
 import pyarrow as pa
 import pyarrow.parquet as pq
 import requests
@@ -222,6 +223,27 @@ def features_from_harvested_parquet(
     return gpd.GeoDataFrame(gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty])
 
 
+def _copy_rows_to_postgis(
+    table: SQLTable, conn: Connection, keys: list[str], data_iter: Iterable[tuple]
+) -> None:
+    """
+    pandas to_sql insert method that streams the rows with COPY; the same fast
+    insert that GeoDataFrame.to_postgis uses
+    """
+    buffer = io.StringIO()
+    csv.writer(buffer).writerows(data_iter)
+    buffer.seek(0)
+
+    columns = ", ".join(f'"{key}"' for key in keys)
+    sql = f'COPY "{table.schema}"."{table.name}" ({columns}) FROM STDIN WITH CSV'
+    # the engine uses psycopg2 so the raw dbapi cursor has copy_expert
+    cursor = conn.connection.cursor()
+    try:
+        cursor.copy_expert(sql, buffer)
+    finally:
+        cursor.close()
+
+
 def append_to_postgis(
     gdf: gpd.GeoDataFrame, name: str, conn: Connection, chunksize: int
 ) -> None:
@@ -246,12 +268,12 @@ def append_to_postgis(
     df.to_sql(
         name,
         conn,
-        # the COPY helper quotes the schema into its SQL so it can't be left as None
+        # the COPY quotes the schema into its SQL so it can't be left as None
         schema="public",
         if_exists="append",
         index=False,
         chunksize=chunksize,
-        method=_psql_insert_copy,
+        method=_copy_rows_to_postgis,
     )
 
 
