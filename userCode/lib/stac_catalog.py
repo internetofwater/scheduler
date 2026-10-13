@@ -236,6 +236,13 @@ def thumbnail_extent(
 WEB_MERCATOR_MAX_LATITUDE = 85.0511
 # meters per degree of longitude in web mercator, at every latitude
 WEB_MERCATOR_METERS_PER_DEGREE = 111_319.49
+# Esri's light gray canvas, a plain basemap made to sit under data that needs no
+# api key (Carto's basemaps now watermark every tile requested without one)
+THUMBNAIL_BASEMAP_URL = (
+    "https://server.arcgisonline.com/ArcGIS/rest/services/"
+    "Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+)
+THUMBNAIL_BASEMAP_ATTRIBUTION = "Tiles (C) Esri -- Esri, DeLorme, NAVTEQ"
 # a thumbnail of a single point (or a tiny extent) still shows this much map
 # around it, in web mercator meters, so the basemap gives it context
 THUMBNAIL_MIN_SPAN_METERS = 20_000
@@ -250,7 +257,8 @@ def thumbnail_frame(
     to the thumbnail's aspect ratio so the basemap fills the whole image
     instead of being letterboxed
     """
-    min_x, min_y, max_x, max_y = (
+    min_x, min_y, max_x, max_y = map(
+        float,
         gpd.GeoSeries.from_xy(
             [bounds[0], bounds[2]],
             [
@@ -260,7 +268,7 @@ def thumbnail_frame(
             crs="EPSG:4326",
         )
         .to_crs("EPSG:3857")
-        .total_bounds
+        .total_bounds,
     )
     aspect = THUMBNAIL_WIDTH_PX / THUMBNAIL_HEIGHT_PX
     width = max(max_x - min_x, THUMBNAIL_MIN_SPAN_METERS) * 1.05
@@ -304,7 +312,7 @@ def render_thumbnail(
     geometry = geometry.clip_by_rect(
         -180, -WEB_MERCATOR_MAX_LATITUDE, 180, WEB_MERCATOR_MAX_LATITUDE
     )
-    geometry = geometry[~geometry.is_empty].to_crs("EPSG:3857")
+    geometry = geometry.loc[~geometry.is_empty].to_crs("EPSG:3857")
 
     fig = plt.figure(
         figsize=(THUMBNAIL_WIDTH_PX / 100, THUMBNAIL_HEIGHT_PX / 100), dpi=100
@@ -312,9 +320,9 @@ def render_thumbnail(
     # the frame has the figure's aspect ratio, so the map fills it edge to edge
     ax = fig.add_axes((0, 0, 1, 1))
     geom_types = geometry.geom_type
-    polygons = geometry[geom_types.isin(["Polygon", "MultiPolygon"])]
-    lines = geometry[geom_types.isin(["LineString", "MultiLineString"])]
-    points = geometry[geom_types.isin(["Point", "MultiPoint"])]
+    polygons = geometry.loc[geom_types.isin(["Polygon", "MultiPolygon"])]
+    lines = geometry.loc[geom_types.isin(["LineString", "MultiLineString"])]
+    points = geometry.loc[geom_types.isin(["Point", "MultiPoint"])]
     # translucent fills with solid outlines so dense polygons such as small
     # watersheds read as a mesh over the basemap rather than a solid mass
     if not polygons.empty:
@@ -346,7 +354,8 @@ def render_thumbnail(
             contextily.add_basemap(
                 ax,
                 crs="EPSG:3857",
-                source=contextily.providers.Esri.WorldGrayCanvas,
+                source=THUMBNAIL_BASEMAP_URL,
+                attribution=THUMBNAIL_BASEMAP_ATTRIBUTION,
                 attribution_size=5,
             )
         except Exception as e:
