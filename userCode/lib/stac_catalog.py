@@ -27,8 +27,10 @@ the same way this codebase already shells out to qlever/oras/docker.
 
 GEOCONNEX_CATALOG_ID = "geoconnex"
 GEOCONNEX_PROVIDER_NAME = "Internet of Water Coalition"
-GEOCONNEX_CONTACT_URL = "https://geoconnex.us"
-CATALOG_LICENSE = "Apache-2.0"
+GEOCONNEX_CONTACT_URL = "cloftus@lincolninst.edu"
+CATALOG_LICENSE = "CC0 1.0 Universal"
+# markdown description of the whole catalog; edit the file to change it
+CATALOG_DESCRIPTION_FILE = Path(__file__).parent / "stac_catalog_description.md"
 
 PMTILES_MEDIA_TYPE = "application/vnd.pmtiles"
 MAPLIBRE_STYLE_MEDIA_TYPE = "application/vnd.mapbox.style+json"
@@ -169,10 +171,7 @@ def init_catalog(catalog_root: Path) -> None:
             "--title",
             "Geoconnex Spatial Data Catalog",
             "--description",
-            (
-                "Public GeoParquet and PMTiles exports of the Geoconnex spatial "
-                f"data graph, published by the {GEOCONNEX_PROVIDER_NAME}."
-            ),
+            CATALOG_DESCRIPTION_FILE.read_text().strip(),
             "--license",
             CATALOG_LICENSE,
         ],
@@ -301,7 +300,10 @@ def finalize_catalog(catalog_root: Path) -> None:
     regenerate READMEs from the finished metadata, then validate. Raises if the
     catalog still fails to conform once Portolan's fixers have run.
     """
-    _run_portolan(["check", "--fix"], cwd=catalog_root)
+    # --no-data: the parquet assets are remote files in s3 which Portolan's data
+    # fixers can't rewrite, so a data pass here can only fail; the parquet is
+    # instead written to spec in optimize_harvested_parquet_file
+    _run_portolan(["check", "--fix", "--no-data"], cwd=catalog_root)
     _run_portolan(["readme"], cwd=catalog_root)
 
     command = ["portolan", "check", "--no-data", "--json"]
