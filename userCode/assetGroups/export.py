@@ -27,14 +27,18 @@ from dagster import (
 import docker
 from docker.errors import NotFound
 import geopandas as gpd
+
+# private helper, but it is the same COPY based insert that to_postgis uses
+from geopandas.io.sql import _psql_insert_copy
 import geoparquet_io as gpio
 from geoparquet_io.core.partition.common import sanitize_filename
 import numpy as np
+import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import requests
 import shapely
-from sqlalchemy import text
+from sqlalchemy import Connection, text
 
 from userCode.assetGroups.harvest import harvest_sitemap
 from userCode.lib.classes import RcloneClient, S3
@@ -94,6 +98,8 @@ GEOPARQUET_COLUMNS = [
 # target compressed size of a row group in the optimized harvested parquet;
 # the low end of the 64-256MB that geoparquet-io recommends
 HARVESTED_PARQUET_ROW_GROUP_TARGET_BYTES = 64 * 1024 * 1024
+# the Portolan spec (rule PTL-DAT-008) limits a geoparquet row group to this many rows
+HARVESTED_PARQUET_ROW_GROUP_MAX_ROWS = 150_000
 
 DEVELOPMENT_BRANCH_IN_LAKEFS = "develop"
 
@@ -216,6 +222,39 @@ def features_from_harvested_parquet(
     return gpd.GeoDataFrame(gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty])
 
 
+def append_to_postgis(
+    gdf: gpd.GeoDataFrame, name: str, conn: Connection, chunksize: int
+) -> None:
+    """
+    Append a GeoDataFrame in EPSG:4326 to an existing PostGIS table.
+
+    This is the same COPY that GeoDataFrame.to_postgis does, minus its check that
+    the table's SRID from Find_SRID matches the GeoDataFrame. PostGIS 3.5 has a bug
+    in the geometry_columns view (the regex for SRID check constraints lost its
+    backslashes) so Find_SRID returns 0 for a column whose SRID is only enforced
+    by a check constraint, which made to_postgis refuse to append. The check
+    constraint on the table still rejects any geometry that is not EPSG:4326
+    """
+    df = pd.DataFrame(gdf)
+    geom_name = gdf.geometry.name
+    # EWKB embeds the SRID in each geometry so it passes the table's check constraint
+    df[geom_name] = shapely.to_wkb(
+        shapely.set_srid(np.asarray(gdf.geometry), 4326),
+        hex=True,
+        include_srid=True,
+    )
+    df.to_sql(
+        name,
+        conn,
+        # the COPY helper quotes the schema into its SQL so it can't be left as None
+        schema="public",
+        if_exists="append",
+        index=False,
+        chunksize=chunksize,
+        method=_psql_insert_copy,
+    )
+
+
 @asset(deps=[harvest_sitemap], group_name=EXPORT_GROUP)
 def pull_harvested_parquet():
     """Download the parquet file harvested by nabu for every sitemap"""
@@ -325,12 +364,14 @@ def optimize_harvested_parquet_file(harvested_parquet: Path, sitemap_id: str) ->
     table = table.cast(large_schema).combine_chunks()
 
     # nabu also compresses with zstd so the current file size is a good estimate;
-    # spread the rows evenly so there isn't a small leftover row group at the end
+    # spread the rows evenly so there isn't a small leftover row group at the end;
+    # small features like points can hit the row limit before the size target
     num_groups = max(
         1,
         round(
             harvested_parquet.stat().st_size / HARVESTED_PARQUET_ROW_GROUP_TARGET_BYTES
         ),
+        math.ceil(table.num_rows / HARVESTED_PARQUET_ROW_GROUP_MAX_ROWS),
     )
     rows_per_group = max(1, math.ceil(table.num_rows / num_groups))
 
@@ -864,24 +905,28 @@ def move_geoparquet_to_postgis(config: ParquetConfig):
                 continue
             gdf.set_crs(epsg=4326, inplace=True, allow_override=True)
 
-            gdf.to_postgis(
-                name="geoconnex_features",
-                con=conn,
-                if_exists=if_exists,
-                # do not add the pandas index as a separate column
-                index=False,
-                schema=None,
-                # write in chunks so we don't run out of memory
-                chunksize=config.postgis_chunksize,
-            )
-            if if_exists == "replace":
+            if if_exists == "append":
+                append_to_postgis(
+                    gdf, "geoconnex_features", conn, config.postgis_chunksize
+                )
+            else:
+                gdf.to_postgis(
+                    name="geoconnex_features",
+                    con=conn,
+                    if_exists=if_exists,
+                    # do not add the pandas index as a separate column
+                    index=False,
+                    schema=None,
+                    # write in chunks so we don't run out of memory
+                    chunksize=config.postgis_chunksize,
+                )
                 # to_postgis types the geometry column from only the first sitemap's
                 # geometries (e.g. POINT); widen it so later sitemaps with other
                 # geometry types (e.g. POLYGON) or dimensions (2D vs 3D) can be appended.
                 # A typmod like geometry(Geometry, 4326) would still pin the column to 2D,
                 # so drop the typmod entirely and enforce the SRID with a check constraint
-                # instead; PostGIS reads the SRID from that constraint for geometry_columns,
-                # which keeps the SRID check geopandas does when appending working
+                # instead. Appends go through append_to_postgis since the SRID from
+                # the constraint is not reported correctly on all PostGIS versions
                 conn.execute(
                     text(
                         "ALTER TABLE geoconnex_features "

@@ -10,6 +10,7 @@ from dagster import AssetCheckResult
 import geopandas as gpd
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 import userCode.assetGroups.export as export
 from userCode.assetGroups.export import ParquetConfig, move_geoparquet_to_postgis
@@ -196,6 +197,39 @@ def test_move_geoparquet_to_postgis(tmp_path):
             assert column in columns, f"Expected column {column} to be present"
 
 
+def assert_geometry_column_is_generic_4326(conn):
+    """
+    The geometry column must accept any geometry type and only EPSG:4326.
+    The SRID is checked on the rows and the check constraint rather than
+    geometry_columns since PostGIS 3.5 reports 0 there for constraint based SRIDs
+    """
+    column_type = conn.execute(
+        text("""
+        SELECT type
+        FROM geometry_columns
+        WHERE f_table_name = 'geoconnex_features'
+    """)
+    ).scalar()
+    assert column_type == "GEOMETRY"
+
+    srids = {
+        row[0]
+        for row in conn.execute(
+            text("SELECT DISTINCT ST_SRID(geometry) FROM geoconnex_features")
+        )
+    }
+    assert srids == {4326}
+
+    with pytest.raises(IntegrityError):
+        with conn.begin_nested():
+            conn.execute(
+                text(
+                    "INSERT INTO geoconnex_features (geometry) "
+                    "VALUES (ST_SetSRID(ST_MakePoint(0, 0), 3857))"
+                )
+            )
+
+
 def test_move_geoparquet_to_postgis_with_mixed_geometry_types(tmp_path):
     """
     The table's geometry column must accept every geometry type even when
@@ -238,15 +272,7 @@ def test_move_geoparquet_to_postgis_with_mixed_geometry_types(tmp_path):
         }
         assert geometry_types == {"POINT", "POLYGON"}
 
-        column_type = conn.execute(
-            text("""
-            SELECT type, srid
-            FROM geometry_columns
-            WHERE f_table_name = 'geoconnex_features'
-        """)
-        ).fetchone()
-        assert column_type is not None
-        assert tuple(column_type) == ("GEOMETRY", 4326)
+        assert_geometry_column_is_generic_4326(conn)
 
 
 def test_move_geoparquet_to_postgis_skips_sitemaps_without_geometry(tmp_path):
@@ -304,15 +330,7 @@ def test_move_geoparquet_to_postgis_skips_sitemaps_without_geometry(tmp_path):
         }
         assert sitemaps == {"b_points"}
 
-        column_type = conn.execute(
-            text("""
-            SELECT type, srid
-            FROM geometry_columns
-            WHERE f_table_name = 'geoconnex_features'
-        """)
-        ).fetchone()
-        assert column_type is not None
-        assert tuple(column_type) == ("GEOMETRY", 4326)
+        assert_geometry_column_is_generic_4326(conn)
 
 
 # the geoparquet metadata nabu writes; it has no crs and no geometry types
@@ -446,6 +464,27 @@ def test_optimize_harvested_parquet_file_row_groups(tmp_path, monkeypatch):
     monkeypatch.setattr(
         export, "HARVESTED_PARQUET_ROW_GROUP_TARGET_BYTES", file_size / 3
     )
+
+    export.optimize_harvested_parquet_file(harvested_parquet, "test")
+
+    metadata = pq.read_metadata(harvested_parquet)
+    assert [metadata.row_group(i).num_rows for i in range(metadata.num_row_groups)] == [
+        4,
+        4,
+        2,
+    ]
+
+
+def test_optimize_harvested_parquet_file_row_group_max_rows(tmp_path, monkeypatch):
+    """Row groups never go over the row limit even when they are under the size target"""
+    import pyarrow.parquet as pq
+    from shapely.geometry import Point
+
+    harvested_parquet = tmp_path / "test.parquet"
+    ids = [str(i) for i in range(10)]
+    write_nabu_parquet(harvested_parquet, ids, [Point(i, i) for i in range(10)])
+
+    monkeypatch.setattr(export, "HARVESTED_PARQUET_ROW_GROUP_MAX_ROWS", 4)
 
     export.optimize_harvested_parquet_file(harvested_parquet, "test")
 
