@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 # Render one collection's thumbnail and run Gate 1.
 # Usage: render_one.sh COLL_DIR BBOX [FORMAT] [SIZE] [QUALITY]
 # Writes to the path the collection's thumbnail asset already points at.

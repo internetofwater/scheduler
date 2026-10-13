@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 # Print the first basemap URL template that actually serves tiles.
 #
 # Usage:

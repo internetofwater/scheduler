@@ -46,24 +46,24 @@ Structural links stay relative, so the catalog is portable.
 
 ## Which command
 
-| Task | Command |
-|---|---|
-| Start a catalog | `portolan init --license <SPDX>` |
-| See what a directory contains before you add it | `portolan scan <dir>` |
-| Add or update a collection | `portolan add <dir>` |
-| Register remote data without copying it | `portolan add-external` |
-| Validate against the spec | `portolan check` |
-| Convert non-cloud-native files in place | `portolan check --fix` |
-| Probe the published host for range requests and CORS | `portolan check --live --url <public base>` |
-| Split a large GeoParquet file | `portolan partition` |
-| Upload | `portolan push <remote>` |
-| Download a remote catalog | `portolan pull <remote>` or `portolan clone <remote>` |
-| Pull, check, and push one collection | `portolan sync <remote> -c <collection>` |
-| Edit the metadata behind the READMEs | `portolan metadata init`, `portolan metadata validate` |
-| Regenerate READMEs | `portolan readme` |
-| Publish a logo | `portolan logo <file>` |
-| Manage collection versions | `portolan version` |
-| Read a skill from this repository | `portolan skills list`, `portolan skills show` |
+| Task                                                 | Command                                                |
+| ---------------------------------------------------- | ------------------------------------------------------ |
+| Start a catalog                                      | `portolan init --license <SPDX>`                       |
+| See what a directory contains before you add it      | `portolan scan <dir>`                                  |
+| Add or update a collection                           | `portolan add <dir>`                                   |
+| Register remote data without copying it              | `portolan add-external`                                |
+| Validate against the spec                            | `portolan check`                                       |
+| Convert non-cloud-native files in place              | `portolan check --fix`                                 |
+| Probe the published host for range requests and CORS | `portolan check --live --url <public base>`            |
+| Split a large GeoParquet file                        | `portolan partition`                                   |
+| Upload                                               | `portolan push <remote>`                               |
+| Download a remote catalog                            | `portolan pull <remote>` or `portolan clone <remote>`  |
+| Pull, check, and push one collection                 | `portolan sync <remote> -c <collection>`               |
+| Edit the metadata behind the READMEs                 | `portolan metadata init`, `portolan metadata validate` |
+| Regenerate READMEs                                   | `portolan readme`                                      |
+| Publish a logo                                       | `portolan logo <file>`                                 |
+| Manage collection versions                           | `portolan version`                                     |
+| Read a skill from this repository                    | `portolan skills list`, `portolan skills show`         |
 
 Facts that trip agents:
 
@@ -105,10 +105,10 @@ The envelope is `{"success": true, "command": "...", "data": {...}, "errors": []
 
 ## Troubleshooting
 
-| Error | Solution |
-|-------|----------|
-| "Not inside a Portolan catalog" | Run `portolan init` or move into the catalog. |
-| `PRTLN-VAL004` | `init` or `add-external` ran with `--auto` and no `--license`. |
-| "Push conflict: remote has newer version" | Run `portolan pull` first, or pass `--force` to overwrite. |
-| Shapefile missing components | Provide `.shp`, `.shx`, and `.dbf` together. |
-| Non-cloud-native files | Run `portolan check --fix` to convert vectors to GeoParquet and rasters to COG. |
+| Error                                     | Solution                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------- |
+| "Not inside a Portolan catalog"           | Run `portolan init` or move into the catalog.                                   |
+| `PRTLN-VAL004`                            | `init` or `add-external` ran with `--auto` and no `--license`.                  |
+| "Push conflict: remote has newer version" | Run `portolan pull` first, or pass `--force` to overwrite.                      |
+| Shapefile missing components              | Provide `.shp`, `.shx`, and `.dbf` together.                                    |
+| Non-cloud-native files                    | Run `portolan check --fix` to convert vectors to GeoParquet and rasters to COG. |

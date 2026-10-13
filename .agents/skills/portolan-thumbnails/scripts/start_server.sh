@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 # Clone chiitiler once, then start it detached from this shell.
 # Usage: start_server.sh   (honours PORT, default 13579)
 set -euo pipefail

@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
+# Copyright 2026 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 """Read the signals a thumbnail render needs from one collection.json.
 
 Prints JSON with absolute paths. Resolves the style through the asset roles
 (`style`, plus `default` when there is more than one) and the PMTiles through
 the `rel: pmtiles` link, never through file names.
 """
-import json, os, sys
+
+import json
+import os
+import sys
 
 coll_dir = os.path.abspath(sys.argv[1])
 c = json.load(open(os.path.join(coll_dir, "collection.json")))
@@ -31,8 +37,9 @@ pm = next((l for l in c.get("links", []) if l.get("rel") == "pmtiles"), None)
 if pm is None:
     raise SystemExit("no rel: pmtiles link (PORTO-FMT-011)")
 
-thumb_key = next((k for k, a in assets.items()
-                  if "thumbnail" in (a.get("roles") or [])), None)
+thumb_key = next(
+    (k for k, a in assets.items() if "thumbnail" in (a.get("roles") or [])), None
+)
 if thumb_key is None:
     raise SystemExit("no thumbnail-role asset; run portolan add first")
 

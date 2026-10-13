@@ -64,6 +64,7 @@ SUBMITTER_EMAIL="you@example.org"  # supplied by the user
 Fork, clone into a temporary directory, add the file, and open the PR. Write the PR body first, in Simplified Technical English. The registry runs `lint_body.py --kind pr`, which requires the three sections and the waiver line below.
 
 <!-- drift-sample: pr -->
+
 ````markdown
 ## What changed
 

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 # Probe one upstream asset for the capabilities a metadata-only
 # mirror depends on: ranged GET, HEAD size, and CORS preflight.
 # A failed probe limits clients. It does not make the catalog

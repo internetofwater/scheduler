@@ -153,8 +153,8 @@ For an archive, run `unzip -v` and distinguish bare files, stored members, and c
 
 Record observed values in a table. Put size, time, and maintenance estimates in a separate table. Then choose:
 
-* Metadata-only mirror when the upstream copy is cloud-native and the probes show range and CORS support. Clients get the full capability set with no hosted bytes.
-* Full mirror when the upstream copy is not cloud-native, or when the probes show a limit the users of this catalog will hit. Estimate recurring checks, refreshes, storage, transfer, and conversion.
+- Metadata-only mirror when the upstream copy is cloud-native and the probes show range and CORS support. Clients get the full capability set with no hosted bytes.
+- Full mirror when the upstream copy is not cloud-native, or when the probes show a limit the users of this catalog will hit. Estimate recurring checks, refreshes, storage, transfer, and conversion.
 
 When a small upstream change would remove the need for hosted copies, offer an optional `upstream-gaps.md` report. Do not block publication on it.
 
@@ -162,13 +162,13 @@ When a small upstream change would remove the need for hosted copies, offer an o
 
 Present this before extracting anything:
 
-* The candidate list with a one-line description each, and which ones you propose to drop as duplicative or low-value.
-* Columns you decoded, with the source for each.
-* Columns that remain opaque after research.
-* Proposed license, producer, and attribution, with the page you found them on.
-* Estimated feature counts, total size, and time.
-* The selected mirror path, probe evidence, and expected maintenance cost.
-* The optional `upstream-gaps.md` offer, when a small change can enable direct access.
+- The candidate list with a one-line description each, and which ones you propose to drop as duplicative or low-value.
+- Columns you decoded, with the source for each.
+- Columns that remain opaque after research.
+- Proposed license, producer, and attribution, with the page you found them on.
+- Estimated feature counts, total size, and time.
+- The selected mirror path, probe evidence, and expected maintenance cost.
+- The optional `upstream-gaps.md` offer, when a small change can enable direct access.
 
 Ask whether to proceed with this candidate set.
 
@@ -209,7 +209,7 @@ Every URL is a markdown link. A bare URL renders as plain text in the data brows
 
 ```markdown
 File a new service request at
-https://example.gov/csb/submit        <- renders as text
+https://example.gov/csb/submit <- renders as text
 
 File a new [service request](https://example.gov/csb/submit).
 ```
@@ -252,7 +252,7 @@ Use `source.coop` URLs for anything a human reads, because that host renders REA
 
 Read [styling.md](https://github.com/portolan-sdi/portolan-spec/blob/main/specs/best-practices/styling.md) and the Visualization section of [core.md](https://github.com/portolan-sdi/portolan-spec/blob/main/specs/portolan/core.md#visualization) for the requirements.
 
-Each style is a collection-level asset with media type `application/vnd.mapbox.style+json` and the `style` role (PORTO-FMT-015, PORTO-CORE-069). When a collection ships more than one style, exactly one carries both `style` and `default` (PORTO-CORE-070). There is no manifest and no registration step beyond the asset entry. The PMTiles file itself is a collection-level `rel: pmtiles` link that carries a non-empty `pmtiles:layers` array (PORTO-FMT-011, PORTO-FMT-012).  `portolan add --pmtiles` writes that link.
+Each style is a collection-level asset with media type `application/vnd.mapbox.style+json` and the `style` role (PORTO-FMT-015, PORTO-CORE-069). When a collection ships more than one style, exactly one carries both `style` and `default` (PORTO-CORE-070). There is no manifest and no registration step beyond the asset entry. The PMTiles file itself is a collection-level `rel: pmtiles` link that carries a non-empty `pmtiles:layers` array (PORTO-FMT-011, PORTO-FMT-012). `portolan add --pmtiles` writes that link.
 
 Publish as many styles as the data supports distinct readings of, and no more. A style that paints every feature the same color says nothing the bounding box did not already say. Choose styles after you query the actual distributions. Sale price plus area becomes price per square foot. Use a date column as an age band or a recency band. Style a category column only after you confirm the categories are populated and mean something.
 
@@ -269,9 +269,12 @@ A style that produces a legend looks like this:
   "type": "fill",
   "paint": {
     "fill-color": [
-      "match", ["get", "material"],
-      "ductile_iron", "#1f77b4",
-      "lead", "#d62728",
+      "match",
+      ["get", "material"],
+      "ductile_iron",
+      "#1f77b4",
+      "lead",
+      "#d62728",
       "#cccccc"
     ]
   }
@@ -299,9 +302,9 @@ Per collection, present the proposed styles, the column each uses, the distribut
 
 A reader who wants the authoritative original should not have to leave the catalog and search for it. A reader checking your work needs to see what you started from. Each carried asset has a role that says what it is:
 
-* The upstream download you converted from has the `source` role when it is directly downloadable (PORTO-FMT-002). Link it at its original location. You do not need to rehost it, and its format is exempt from the format rules (PORTO-FMT-045).
-* Sidecar metadata such as FGDC XML or a data dictionary PDF carries the `metadata` role. An ISO 19115 file carries `iso-19115` (PORTO-CORE-027, PORTO-FMT-003).
-* A publisher logo is not an asset. Publish it with `portolan logo <file>`, which writes a root `rel: icon` link (PORTO-CORE-074). Only do this when the user confirms the catalog may carry the publisher's branding.
+- The upstream download you converted from has the `source` role when it is directly downloadable (PORTO-FMT-002). Link it at its original location. You do not need to rehost it, and its format is exempt from the format rules (PORTO-FMT-045).
+- Sidecar metadata such as FGDC XML or a data dictionary PDF carries the `metadata` role. An ISO 19115 file carries `iso-19115` (PORTO-CORE-027, PORTO-FMT-003).
+- A publisher logo is not an asset. Publish it with `portolan logo <file>`, which writes a root `rel: icon` link (PORTO-CORE-074). Only do this when the user confirms the catalog may carry the publisher's branding.
 
 Give each carried asset a title that says what it is and where it came from, so the asset list reads as a provenance record rather than a list of filenames.
 
@@ -321,13 +324,13 @@ Open each collection in the data browser and look at it. Most defects in a new c
 
 Per collection:
 
-* The default style renders visible data at the full extent. A blank map or a barely-visible tint is a failure.
-* Every legend entry corresponds to values that exist in the data.
-* The bbox is tight. One outlier row dragging the extent into the next state makes every thumbnail useless.
-* The first PMTiles load is small enough to open on a laptop, and the data is still complete at the target zoom.
-* The thumbnail shows data rather than basemap. Hand off to the `portolan-thumbnails` skill when the generated thumbnail is not good enough.
-* A multi-scene raster collection has one item directory per scene, and `items.parquet` has one row per item.
-* Every link in the description, README, and `AGENTS.md` resolves, and human-facing links point at `source.coop`.
+- The default style renders visible data at the full extent. A blank map or a barely-visible tint is a failure.
+- Every legend entry corresponds to values that exist in the data.
+- The bbox is tight. One outlier row dragging the extent into the next state makes every thumbnail useless.
+- The first PMTiles load is small enough to open on a laptop, and the data is still complete at the target zoom.
+- The thumbnail shows data rather than basemap. Hand off to the `portolan-thumbnails` skill when the generated thumbnail is not good enough.
+- A multi-scene raster collection has one item directory per scene, and `items.parquet` has one row per item.
+- Every link in the description, README, and `AGENTS.md` resolves, and human-facing links point at `source.coop`.
 
 Check the bbox with a query, because one stray row is invisible at full extent and moves the whole frame:
 
@@ -394,32 +397,32 @@ Destination setup is delegated. Use the `sourcecoop` skill for Source Cooperativ
 
 ## Checkpoints and Failure Handling
 
-| Checkpoint | Present | Ask |
-|---|---|---|
-| Research findings | Candidates, decoded columns, opaque columns, proposed license and producer | Proceed with this set? |
-| Discovery | Layer or file count, feature estimates, size, time, warnings | Proceed with extraction? |
-| Extraction complete | Success count, failures with reasons, total size | Continue? |
-| Destination | Options available | Where should this publish? |
-| License and contact | What the source states, and where it says it | Confirm license, host name, and url or email |
-| Style plan | Styles per collection, columns, distributions, legend viability | Approve before tiling? |
-| Quality control | Per-collection checklist results and grader tiers | Fix now, or publish? |
-| Publish | File count, size, destination, accumulated warnings | Push? |
+| Checkpoint          | Present                                                                    | Ask                                          |
+| ------------------- | -------------------------------------------------------------------------- | -------------------------------------------- |
+| Research findings   | Candidates, decoded columns, opaque columns, proposed license and producer | Proceed with this set?                       |
+| Discovery           | Layer or file count, feature estimates, size, time, warnings               | Proceed with extraction?                     |
+| Extraction complete | Success count, failures with reasons, total size                           | Continue?                                    |
+| Destination         | Options available                                                          | Where should this publish?                   |
+| License and contact | What the source states, and where it says it                               | Confirm license, host name, and url or email |
+| Style plan          | Styles per collection, columns, distributions, legend viability            | Approve before tiling?                       |
+| Quality control     | Per-collection checklist results and grader tiers                          | Fix now, or publish?                         |
+| Publish             | File count, size, destination, accumulated warnings                        | Push?                                        |
 
-| Situation | Action |
-|---|---|
-| Layer fails extraction | Warn inline, continue, summarize at end |
-| Missing CRS | Flag it, ask the user whether it is critical |
-| Dataset over 100k features | Warn about time and memory before proceeding |
-| Credentials invalid | Stop and help the user fix it |
-| Upstream fails a range or CORS probe | Choose the full mirror for that asset. The catalog remains conformant either way |
-| Mixed languages in source metadata | Checkpoint and ask which is primary |
-| Field exists in source but was not extracted | Checkpoint with the exact source text |
-| Required field missing from source | Checkpoint and ask the user to provide it |
-| Producer unknown after research | Checkpoint. `providers` cannot be guessed |
-| Column meaning not found after research | Document the gap in `known_issues`. Do not guess |
-| Legend lists categories the data lacks | Fix the style before publishing, not after |
-| Thumbnail shows basemap only | Hand off to `portolan-thumbnails` before publishing |
-| Documented query fails when rerun | Fix the query or delete it. Do not publish it broken |
-| Source file cannot be carried as an asset | Keep the `via` link and record why in `processing_notes` |
-| Raster collection has scenes but no item directories | Relayout as one subdirectory per scene and re-add before publishing |
-| Browser, CLI, or spec behaves wrongly | File the issue upstream. Note the workaround in `known_issues` |
+| Situation                                            | Action                                                                           |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Layer fails extraction                               | Warn inline, continue, summarize at end                                          |
+| Missing CRS                                          | Flag it, ask the user whether it is critical                                     |
+| Dataset over 100k features                           | Warn about time and memory before proceeding                                     |
+| Credentials invalid                                  | Stop and help the user fix it                                                    |
+| Upstream fails a range or CORS probe                 | Choose the full mirror for that asset. The catalog remains conformant either way |
+| Mixed languages in source metadata                   | Checkpoint and ask which is primary                                              |
+| Field exists in source but was not extracted         | Checkpoint with the exact source text                                            |
+| Required field missing from source                   | Checkpoint and ask the user to provide it                                        |
+| Producer unknown after research                      | Checkpoint. `providers` cannot be guessed                                        |
+| Column meaning not found after research              | Document the gap in `known_issues`. Do not guess                                 |
+| Legend lists categories the data lacks               | Fix the style before publishing, not after                                       |
+| Thumbnail shows basemap only                         | Hand off to `portolan-thumbnails` before publishing                              |
+| Documented query fails when rerun                    | Fix the query or delete it. Do not publish it broken                             |
+| Source file cannot be carried as an asset            | Keep the `via` link and record why in `processing_notes`                         |
+| Raster collection has scenes but no item directories | Relayout as one subdirectory per scene and re-add before publishing              |
+| Browser, CLI, or spec behaves wrongly                | File the issue upstream. Note the workaround in `known_issues`                   |

@@ -85,14 +85,14 @@ Right for parcels, buildings, addresses, service requests, permits, and trees.
 
 These are defaults. Override them when the data says otherwise.
 
-| Signal | Default |
-|---|---|
-| Polygons, `feature_count` <= 50 | A |
-| Name matches boundary, border, limit, district, ward, precinct, zone, tract, county, city, watershed, region, and geometry is polygons | A |
-| Any geometry, `feature_count` >= 5000 | B |
-| Points or lines, `feature_count` >= 1000 | B |
-| Anything else | A when `fill` >= 0.4, otherwise B |
-| `aspect` outside 2.2:1 after capping | Decide explicitly and record why |
+| Signal                                                                                                                                 | Default                           |
+| -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Polygons, `feature_count` <= 50                                                                                                        | A                                 |
+| Name matches boundary, border, limit, district, ward, precinct, zone, tract, county, city, watershed, region, and geometry is polygons | A                                 |
+| Any geometry, `feature_count` >= 5000                                                                                                  | B                                 |
+| Points or lines, `feature_count` >= 1000                                                                                               | B                                 |
+| Anything else                                                                                                                          | A when `fill` >= 0.4, otherwise B |
+| `aspect` outside 2.2:1 after capping                                                                                                   | Decide explicitly and record why  |
 
 `fill` and `aspect` come from Step 3. The last two rows mean you run `frame.py`
 first and then reconsider.
@@ -102,13 +102,13 @@ first and then reconsider.
 `frame.py` reshapes a bbox to 3:2 in Web Mercator and reports `fill`, `aspect`,
 and the effective zoom.
 
-| Knob | Default | Why |
-|---|---|---|
-| `TARGET_ASPECT` | 1.5 | The browser card is 350 to about 700 px wide and 250 px tall |
-| `MARGIN` | 0.05 | Fractional per axis, so the aspect is unchanged |
-| `MAX_CONTEXT` | 2.5 | The short axis grows to at most 2.5x the data span, so data stays at 40% of the frame or more |
-| `FRAME_ASPECT_LIMIT` | 2.2 | A capped frame still worse than 2.2:1 means full-extent framing failed |
-| `--size` | 1024 | Twice the widest realistic card |
+| Knob                 | Default | Why                                                                                           |
+| -------------------- | ------- | --------------------------------------------------------------------------------------------- |
+| `TARGET_ASPECT`      | 1.5     | The browser card is 350 to about 700 px wide and 250 px tall                                  |
+| `MARGIN`             | 0.05    | Fractional per axis, so the aspect is unchanged                                               |
+| `MAX_CONTEXT`        | 2.5     | The short axis grows to at most 2.5x the data span, so data stays at 40% of the frame or more |
+| `FRAME_ASPECT_LIMIT` | 2.2     | A capped frame still worse than 2.2:1 means full-extent framing failed                        |
+| `--size`             | 1024    | Twice the widest realistic card                                                               |
 
 ### Strategy A
 
@@ -243,16 +243,16 @@ View every image. Six questions. Any "no" is a failure.
 
 ### Remediation
 
-| Symptom | Fix |
-|---|---|
-| All basemap, probe empty | Confirm `source-layer` matches `pmtiles_layers`, the rewrite kept the source key, and the bbox intersects the data |
-| All basemap, probe has data | The data is under the basemap or fully transparent. Check layer order and paint opacity |
-| Black background | The basemap failed to fetch and transparency became black. Check that the shell did not expand the `{z}/{x}/{y}` template |
-| Thin or portrait image | Framing was skipped, or `MAX_CONTEXT` capped it. Re-run `frame.py`, then either `--max-context 99` or Strategy B |
-| Sliver of data in a big frame | `fill` is too low. Switch to Strategy B, or crop with a quantile trim |
-| Scattered holes in a continuous fabric | Shrink the window until the render is at or above `max_zoom`. If it already does, the archive needs retiling |
-| Washed out, flat grey | Lower `BASEMAP_OPACITY`, switch to a plainer basemap, or raise the fill opacity in the style |
-| Identical to a sibling | Change strategy, raise the `OFFSET` rank, or change the palette |
+| Symptom                                | Fix                                                                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| All basemap, probe empty               | Confirm `source-layer` matches `pmtiles_layers`, the rewrite kept the source key, and the bbox intersects the data        |
+| All basemap, probe has data            | The data is under the basemap or fully transparent. Check layer order and paint opacity                                   |
+| Black background                       | The basemap failed to fetch and transparency became black. Check that the shell did not expand the `{z}/{x}/{y}` template |
+| Thin or portrait image                 | Framing was skipped, or `MAX_CONTEXT` capped it. Re-run `frame.py`, then either `--max-context 99` or Strategy B          |
+| Sliver of data in a big frame          | `fill` is too low. Switch to Strategy B, or crop with a quantile trim                                                     |
+| Scattered holes in a continuous fabric | Shrink the window until the render is at or above `max_zoom`. If it already does, the archive needs retiling              |
+| Washed out, flat grey                  | Lower `BASEMAP_OPACITY`, switch to a plainer basemap, or raise the fill opacity in the style                              |
+| Identical to a sibling                 | Change strategy, raise the `OFFSET` rank, or change the palette                                                           |
 
 Retry at most three times per collection, then report what is left and why. Some
 collections cannot produce a good thumbnail. A two-point collection is a locator
@@ -347,13 +347,13 @@ The result is cached in `$WORK/basemap.url`, so a batch probes once. When no
 candidate answers, the render falls back to a white background, which reads
 better than a watermark.
 
-| Style | URL | Notes |
-|-------|-----|-------|
+| Style                           | URL                                                                                                              | Notes                                       |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
 | Esri World Light Gray (default) | `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}` | Pale street canvas, built to sit under data |
-| Esri World Dark Gray | `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}` | For light-coloured data |
-| Esri World Topographic | `https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}` | Terrain and labels; busier |
-| Esri World Imagery | `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}` | Aerial |
-| OpenStreetMap | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` | See the usage note below |
+| Esri World Dark Gray            | `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`  | For light-coloured data                     |
+| Esri World Topographic          | `https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}`               | Terrain and labels; busier                  |
+| Esri World Imagery              | `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}`                | Aerial                                      |
+| OpenStreetMap                   | `https://tile.openstreetmap.org/{z}/{x}/{y}.png`                                                                 | See the usage note below                    |
 
 The Esri tile path is `{z}/{y}/{x}`. Row comes before column, which is the
 reverse of the usual order. Copy the URL rather than assemble it.
@@ -381,12 +381,12 @@ plain white background, which renders faster and makes no external requests.
 Problems with the image itself are in the remediation table in Step 5. These are
 the environment failures.
 
-| Issue | Solution |
-|-------|----------|
-| `ERR_UNKNOWN_BUILTIN_MODULE: node:sqlite` | Node is too old. Install 24.12 or newer |
-| Server will not start | Read `/tmp/chiitiler.log`. When another session holds 13579, export a free `PORT` before both scripts |
-| `curl` reports an empty reply | The worker exited. A `symbol` layer with no `glyphs` endpoint is the usual cause |
-| Basemap not loading | Check network access, and check the log for a truncated `{z` in the requested URL |
-| A watermark across every image | The provider moved behind an API key. Run `pick_basemap.sh --list` and set `BASEMAP_URL` to one that reports `ok` |
-| Render returns 500 | The style is invalid, or a source is unreachable. `/tmp/chiitiler.log` names the cause |
-| New thumbnail not showing in the browser | The asset `href` still points at the old file. See Step 7 |
+| Issue                                     | Solution                                                                                                          |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `ERR_UNKNOWN_BUILTIN_MODULE: node:sqlite` | Node is too old. Install 24.12 or newer                                                                           |
+| Server will not start                     | Read `/tmp/chiitiler.log`. When another session holds 13579, export a free `PORT` before both scripts             |
+| `curl` reports an empty reply             | The worker exited. A `symbol` layer with no `glyphs` endpoint is the usual cause                                  |
+| Basemap not loading                       | Check network access, and check the log for a truncated `{z` in the requested URL                                 |
+| A watermark across every image            | The provider moved behind an API key. Run `pick_basemap.sh --list` and set `BASEMAP_URL` to one that reports `ok` |
+| Render returns 500                        | The style is invalid, or a source is unreachable. `/tmp/chiitiler.log` names the cause                            |
+| New thumbnail not showing in the browser  | The asset `href` still points at the old file. See Step 7                                                         |

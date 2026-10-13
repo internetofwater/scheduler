@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
+# Copyright 2026 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 """Build render, probe and blank styles for one collection.
 
 Usage: buildstyle.py STYLE PMTILES USE_BASEMAP BASEMAP_URL OPACITY OUTDIR
 """
-import json, os, sys
 
-style_path, pmtiles_path, use_basemap, basemap_url, basemap_opacity, outdir = sys.argv[1:7]
+import json
+import os
+import sys
+
+style_path, pmtiles_path, use_basemap, basemap_url, basemap_opacity, outdir = sys.argv[
+    1:7
+]
 use_basemap = use_basemap == "true"
 basemap_opacity = float(basemap_opacity)
 
@@ -22,27 +30,42 @@ MINZ, MAXZ = h[100], h[101]
 # layers already reference. The declared zoom range makes MapLibre overzoom
 # the deepest stored tile instead of asking for one that does not exist.
 def pmtiles_source(src=None):
-    return {"type": (src or {}).get("type", "vector"),
-            "tiles": ["pmtiles://%s/{z}/{x}/{y}" % pmtiles_path],
-            "minzoom": MINZ, "maxzoom": MAXZ}
+    return {
+        "type": (src or {}).get("type", "vector"),
+        "tiles": ["pmtiles://%s/{z}/{x}/{y}" % pmtiles_path],
+        "minzoom": MINZ,
+        "maxzoom": MAXZ,
+    }
 
 
 sources = {k: pmtiles_source(v) for k, v in style.get("sources", {}).items()}
 sources = sources or {"data": pmtiles_source()}
 
-white = {"id": "background", "type": "background",
-         "paint": {"background-color": "#ffffff"}}
+white = {
+    "id": "background",
+    "type": "background",
+    "paint": {"background-color": "#ffffff"},
+}
 
 render = dict(style)
 render["sources"] = dict(sources)
 if use_basemap:
     render["sources"]["basemap"] = {
-        "type": "raster", "tiles": [basemap_url], "tileSize": 256}
+        "type": "raster",
+        "tiles": [basemap_url],
+        "tileSize": 256,
+    }
     # White under the basemap: a failed tile fetch then leaves white rather
     # than transparent, and transparent becomes black in JPEG.
-    base_layers = [white,
-                   {"id": "basemap", "type": "raster", "source": "basemap",
-                    "paint": {"raster-opacity": basemap_opacity}}]
+    base_layers = [
+        white,
+        {
+            "id": "basemap",
+            "type": "raster",
+            "source": "basemap",
+            "paint": {"raster-opacity": basemap_opacity},
+        },
+    ]
 else:
     base_layers = [white]
 render["layers"] = base_layers + layers
