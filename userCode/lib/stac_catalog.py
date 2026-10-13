@@ -28,7 +28,7 @@ the same way this codebase already shells out to qlever/oras/docker.
 GEOCONNEX_CATALOG_ID = "geoconnex"
 GEOCONNEX_PROVIDER_NAME = "Internet of Water Coalition"
 GEOCONNEX_CONTACT_URL = "cloftus@lincolninst.edu"
-CATALOG_LICENSE = "CC0 1.0 Universal"
+CATALOG_LICENSE = "CC0-1.0"  # must be an SPDX identifier for portolan
 # markdown description of the whole catalog; edit the file to change it
 CATALOG_DESCRIPTION_FILE = Path(__file__).parent / "stac_catalog_description.md"
 
