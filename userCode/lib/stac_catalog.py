@@ -11,7 +11,9 @@ from xml.etree import ElementTree as ET
 
 from dagster import get_dagster_logger
 import geopandas as gpd
+import numpy as np
 import pystac
+import shapely
 
 """
 Builds a Portolan-formatted STAC catalog (https://github.com/portolan-sdi/portolan-spec)
@@ -57,6 +59,18 @@ GEOPARQUET_TABLE_COLUMNS = [
 def multihash_sha256(data: bytes) -> str:
     """Multihash-encode a sha256 digest, as required for STAC file:checksum"""
     return f"1220{hashlib.sha256(data).hexdigest()}"
+
+
+def multihash_sha256_file(path: Path, chunk_size: int = 8 * 1024 * 1024) -> str:
+    """
+    Same as `multihash_sha256` for the contents of a file, read in chunks so
+    multi-gigabyte exports are never loaded into memory at once
+    """
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        while chunk := f.read(chunk_size):
+            digest.update(chunk)
+    return f"1220{digest.hexdigest()}"
 
 
 def humanize_sitemap_id(sitemap_id: str) -> str:
@@ -155,17 +169,201 @@ def maplibre_style_for_pmtiles(pmtiles_url: str, layer: str) -> dict:
     }
 
 
-def render_thumbnail(gdf: gpd.GeoDataFrame, output_path: Path) -> None:
-    """Render a static default-styled preview image of a collection's features"""
+# the Portolan browser shows thumbnails in cards about 350-700px wide and
+# 250px tall, so they are rendered at 3:2 to fill the card without cropping
+THUMBNAIL_WIDTH_PX = 600
+THUMBNAIL_HEIGHT_PX = 400
+# plotting every feature of a large sitemap (e.g. detailed polygons) takes far
+# longer than the rest of catalog generation, and a thumbnail cannot show
+# more than this many features anyway
+THUMBNAIL_MAX_FEATURES = 20_000
+
+
+def thumbnail_features(
+    gdf: gpd.GeoDataFrame, max_features: int = THUMBNAIL_MAX_FEATURES
+) -> gpd.GeoDataFrame:
+    """
+    The features to draw in a thumbnail: a random sample of at most
+    `max_features`, so that plotting cost is bounded regardless of the size
+    of the sitemap
+    """
+    if len(gdf) > max_features:
+        # a fixed seed keeps the thumbnail, and so its checksum, stable across runs
+        gdf = gdf.sample(n=max_features, random_state=0)
+    return gdf
+
+
+# the share of the data, by size, that a thumbnail may leave out of its frame
+# on each side, so a few outliers (e.g. a territory across the antimeridian, or
+# a misplaced point) do not zoom the thumbnail out to the whole world
+THUMBNAIL_OUTLIER_FRACTION = 0.01
+
+
+def _weighted_quantile(values: np.ndarray, weights: np.ndarray, q: float) -> float:
+    order = np.argsort(values)
+    cumulative = np.cumsum(weights[order])
+    index = np.searchsorted(cumulative, q * cumulative[-1])
+    return float(values[order][min(index, len(values) - 1)])
+
+
+def thumbnail_extent(
+    gdf: gpd.GeoDataFrame, outlier_fraction: float = THUMBNAIL_OUTLIER_FRACTION
+) -> tuple[float, float, float, float]:
+    """
+    The EPSG:4326 extent a thumbnail of these features should show: the bounds
+    of all but `outlier_fraction` of the data on each side. Multi-part features
+    are split into their parts and each part is weighted by its area, length,
+    or as one point, so that small far-off parts like the western Aleutians or
+    Guam are left out while large features like Alaska stay whole
+    """
+    parts = shapely.get_parts(gdf.geometry.values)
+    weights = shapely.area(parts)
+    if not weights.any():
+        weights = shapely.length(parts)
+    if not weights.any():
+        weights = np.ones(len(parts))
+    bounds = shapely.bounds(parts)
+    low, high = outlier_fraction, 1 - outlier_fraction
+    return (
+        _weighted_quantile(bounds[:, 0], weights, low),
+        _weighted_quantile(bounds[:, 1], weights, low),
+        _weighted_quantile(bounds[:, 2], weights, high),
+        _weighted_quantile(bounds[:, 3], weights, high),
+    )
+
+
+# web mercator, which basemap tiles are served in, is undefined at the poles
+WEB_MERCATOR_MAX_LATITUDE = 85.0511
+# meters per degree of longitude in web mercator, at every latitude
+WEB_MERCATOR_METERS_PER_DEGREE = 111_319.49
+# Esri's light gray canvas, a plain basemap made to sit under data that needs no
+# api key (Carto's basemaps now watermark every tile requested without one)
+THUMBNAIL_BASEMAP_URL = (
+    "https://server.arcgisonline.com/ArcGIS/rest/services/"
+    "Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+)
+THUMBNAIL_BASEMAP_ATTRIBUTION = "Tiles (C) Esri -- Esri, DeLorme, NAVTEQ"
+# a thumbnail of a single point (or a tiny extent) still shows this much map
+# around it, in web mercator meters, so the basemap gives it context
+THUMBNAIL_MIN_SPAN_METERS = 20_000
+
+
+def thumbnail_frame(
+    bounds: tuple[float, float, float, float],
+) -> tuple[float, float, float, float]:
+    """
+    The 3:2 web mercator frame for a thumbnail of features within the given
+    EPSG:4326 bounds: their extent with a small margin, widened along one axis
+    to the thumbnail's aspect ratio so the basemap fills the whole image
+    instead of being letterboxed
+    """
+    min_x, min_y, max_x, max_y = map(
+        float,
+        gpd.GeoSeries.from_xy(
+            [bounds[0], bounds[2]],
+            [
+                max(bounds[1], -WEB_MERCATOR_MAX_LATITUDE),
+                min(bounds[3], WEB_MERCATOR_MAX_LATITUDE),
+            ],
+            crs="EPSG:4326",
+        )
+        .to_crs("EPSG:3857")
+        .total_bounds,
+    )
+    aspect = THUMBNAIL_WIDTH_PX / THUMBNAIL_HEIGHT_PX
+    width = max(max_x - min_x, THUMBNAIL_MIN_SPAN_METERS) * 1.05
+    height = max(max_y - min_y, THUMBNAIL_MIN_SPAN_METERS) * 1.05
+    width, height = max(width, height * aspect), max(height, width / aspect)
+    center_x, center_y = (min_x + max_x) / 2, (min_y + max_y) / 2
+    return (
+        center_x - width / 2,
+        center_y - height / 2,
+        center_x + width / 2,
+        center_y + height / 2,
+    )
+
+
+def render_thumbnail(
+    gdf: gpd.GeoDataFrame, output_path: Path, basemap: bool = True
+) -> None:
+    """
+    Render a static default-styled preview image of a collection's features
+    over a basemap. The basemap tiles are fetched over the network, so if they
+    cannot be fetched the features are rendered on a plain background instead
+    of failing the catalog build
+    """
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    fig, ax = plt.subplots(figsize=(4, 4), dpi=100)
-    gdf.plot(ax=ax, markersize=4, color="#2563eb")
+    features = thumbnail_features(gdf)
+    frame_min_x, frame_min_y, frame_max_x, frame_max_y = thumbnail_frame(
+        thumbnail_extent(features)
+    )
+
+    # simplify to about one pixel of the frame; polygons smaller than that
+    # collapse to empty geometries, so keep their originals to still show a dot
+    pixel_degrees = (
+        (frame_max_x - frame_min_x) / THUMBNAIL_WIDTH_PX
+    ) / WEB_MERCATOR_METERS_PER_DEGREE
+    simplified = features.geometry.simplify(pixel_degrees, preserve_topology=False)
+    geometry = simplified.where(~simplified.is_empty, features.geometry)
+    geometry = geometry.clip_by_rect(
+        -180, -WEB_MERCATOR_MAX_LATITUDE, 180, WEB_MERCATOR_MAX_LATITUDE
+    )
+    geometry = geometry.loc[~geometry.is_empty].to_crs("EPSG:3857")
+
+    fig = plt.figure(
+        figsize=(THUMBNAIL_WIDTH_PX / 100, THUMBNAIL_HEIGHT_PX / 100), dpi=100
+    )
+    # the frame has the figure's aspect ratio, so the map fills it edge to edge
+    ax = fig.add_axes((0, 0, 1, 1))
+    geom_types = geometry.geom_type
+    polygons = geometry.loc[geom_types.isin(["Polygon", "MultiPolygon"])]
+    lines = geometry.loc[geom_types.isin(["LineString", "MultiLineString"])]
+    points = geometry.loc[geom_types.isin(["Point", "MultiPoint"])]
+    # translucent fills with solid outlines so dense polygons such as small
+    # watersheds read as a mesh over the basemap rather than a solid mass
+    if not polygons.empty:
+        polygons.plot(
+            ax=ax,
+            facecolor=(0.145, 0.388, 0.922, 0.35),
+            edgecolor="#1e40af",
+            linewidth=0.4,
+        )
+    if not lines.empty:
+        lines.plot(ax=ax, color="#2563eb", linewidth=0.8)
+    if not points.empty:
+        points.plot(
+            ax=ax,
+            markersize=4,
+            color="#2563eb",
+            edgecolor="#1e40af",
+            linewidth=0.3,
+        )
+    # set before adding the basemap, which fetches tiles for the current limits
+    ax.set_xlim(frame_min_x, frame_max_x)
+    ax.set_ylim(frame_min_y, frame_max_y)
     ax.set_axis_off()
-    fig.tight_layout(pad=0)
+
+    if basemap:
+        import contextily
+
+        try:
+            contextily.add_basemap(
+                ax,
+                crs="EPSG:3857",
+                source=THUMBNAIL_BASEMAP_URL,
+                attribution=THUMBNAIL_BASEMAP_ATTRIBUTION,
+                attribution_size=5,
+            )
+        except Exception as e:
+            get_dagster_logger().warning(
+                f"Could not add a basemap to {output_path}, rendering it on a "
+                f"plain background instead: {e}"
+            )
+
     fig.savefig(output_path, facecolor="white")
     plt.close(fig)
 
