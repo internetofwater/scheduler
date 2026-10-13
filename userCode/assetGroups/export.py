@@ -488,7 +488,7 @@ def optimize_harvested_parquet_file(harvested_parquet: Path, sitemap_id: str) ->
                     np.concatenate([boundaries, [len(groups)]]),
                     strict=True,
                 ):
-                    spill_writers[groups[group_start]].write_table(
+                    spill_writers[int(groups[group_start])].write_table(
                         table.slice(group_start, group_stop - group_start)
                     )
                 start = stop
