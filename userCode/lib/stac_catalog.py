@@ -332,6 +332,20 @@ def patch_sitemap_collection(
             )
         )
         extensions.add(WEB_MAP_LINKS_EXTENSION_SCHEMA)
+        # map viewers like the Portolan browser only render tiles from assets,
+        # not links; with this present they draw the PMTiles instead of
+        # downloading the entire GeoParquet file, and the default style
+        # applies to it since its source url matches this href
+        collection.add_asset(
+            "pmtiles",
+            pystac.Asset(
+                href=pmtiles_url,
+                media_type=PMTILES_MEDIA_TYPE,
+                title="Vector tiles",
+                description="Features as PMTiles vector tiles for web visualization.",
+                roles=["visual"],
+            ),
+        )
 
     if thumbnail_filename:
         collection.add_asset(
