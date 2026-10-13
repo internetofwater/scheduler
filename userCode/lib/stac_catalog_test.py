@@ -5,18 +5,25 @@ import hashlib
 
 import geopandas as gpd
 import pystac
-from shapely.geometry import Point
+import pytest
+from shapely.geometry import Point, box
 
 from userCode.lib.stac_catalog import (
     GEOCONNEX_PROVIDER_NAME,
+    THUMBNAIL_HEIGHT_PX,
+    THUMBNAIL_WIDTH_PX,
     geoconnex_providers,
     humanize_sitemap_id,
     maplibre_style_for_pmtiles,
     multihash_sha256,
+    multihash_sha256_file,
     patch_sitemap_collection,
     render_thumbnail,
     sitemap_dataset_descriptions,
     stac_collection_id,
+    thumbnail_extent,
+    thumbnail_features,
+    thumbnail_frame,
 )
 
 
@@ -27,6 +34,15 @@ def test_multihash_sha256_is_sha2_256_multihash_prefixed():
     # 0x12 (sha2-256) + 0x20 (32-byte length), per the multihash spec
     assert digest.startswith("1220")
     assert digest == f"1220{hashlib.sha256(data).hexdigest()}"
+
+
+def test_multihash_sha256_file_matches_in_memory_digest(tmp_path):
+    data = b"some bytes to checksum" * 1000
+    path = tmp_path / "data.bin"
+    path.write_bytes(data)
+
+    # a small chunk size so the file is read in many chunks
+    assert multihash_sha256_file(path, chunk_size=7) == multihash_sha256(data)
 
 
 def test_humanize_sitemap_id():
@@ -127,7 +143,40 @@ def test_render_thumbnail_writes_a_png(tmp_path):
     gdf = gpd.GeoDataFrame({"geometry": [Point(0, 0), Point(1, 1)]}, crs="EPSG:4326")
     output_path = tmp_path / "thumbnail.png"
 
-    render_thumbnail(gdf, output_path)
+    # no basemap so the test does not fetch tiles over the network
+    render_thumbnail(gdf, output_path, basemap=False)
 
     assert output_path.exists()
     assert output_path.stat().st_size > 0
+
+
+def test_thumbnail_features_samples_large_collections():
+    gdf = gpd.GeoDataFrame(
+        {"geometry": [Point(i, i) for i in range(100)]}, crs="EPSG:4326"
+    )
+
+    sample = thumbnail_features(gdf, max_features=10)
+
+    assert len(sample) == 10
+    # the sample is seeded so thumbnails are stable across runs
+    assert sample.index.equals(thumbnail_features(gdf, max_features=10).index)
+    assert len(thumbnail_features(gdf, max_features=1000)) == 100
+
+
+def test_thumbnail_extent_leaves_out_small_outliers():
+    # a large area of data, plus a tiny island on the other side of the world
+    gdf = gpd.GeoDataFrame(
+        {"geometry": [box(-120, 30, -80, 45), box(145, 13, 145.1, 13.1)]},
+        crs="EPSG:4326",
+    )
+
+    assert thumbnail_extent(gdf) == (-120, 30, -80, 45)
+
+
+def test_thumbnail_frame_is_the_thumbnail_aspect_ratio():
+    for bounds in [(-120, 30, -80, 45), (-100, 25, -99, 49), (-90, 30, -90, 30)]:
+        min_x, min_y, max_x, max_y = thumbnail_frame(bounds)
+
+        assert (max_x - min_x) / (max_y - min_y) == pytest.approx(
+            THUMBNAIL_WIDTH_PX / THUMBNAIL_HEIGHT_PX
+        )

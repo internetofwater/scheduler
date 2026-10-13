@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "portolan-bootstrap": {
+      "source": "portolan-sdi/portolan-skills",
+      "sourceType": "github",
+      "skillPath": "skills/portolan-bootstrap/SKILL.md",
+      "computedHash": "1af32d8e56d52c59964d0aa1946316d0085a37d3bc7f01e81cc5ac53460ca4c5"
+    },
+    "portolan-cli": {
+      "source": "portolan-sdi/portolan-skills",
+      "sourceType": "github",
+      "skillPath": "skills/portolan-cli/SKILL.md",
+      "computedHash": "a635a9d37961fdc005d7dcb9c2f99f31439d20738b245451ec7c69bf2cce8c81"
+    },
+    "portolan-thumbnails": {
+      "source": "portolan-sdi/portolan-skills",
+      "sourceType": "github",
+      "skillPath": "skills/portolan-thumbnails/SKILL.md",
+      "computedHash": "5bffb2c08f6a36026bdb5ffb3ff2ba07ebb7ad208b552c291e5bfdcce04f6d12"
+    },
+    "register-catalog": {
+      "source": "portolan-sdi/portolan-skills",
+      "sourceType": "github",
+      "skillPath": "skills/register-catalog/SKILL.md",
+      "computedHash": "5437f72c304b38f966ac743fea5458da78e879a51fcc049d0a05f06a55f89707"
+    }
+  }
+}
