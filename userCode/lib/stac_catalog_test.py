@@ -13,6 +13,7 @@ from userCode.lib.stac_catalog import (
     maplibre_style_for_pmtiles,
     multihash_sha256,
     render_thumbnail,
+    stac_collection_id,
 )
 
 
@@ -28,6 +29,13 @@ def test_multihash_sha256_is_sha2_256_multihash_prefixed():
 def test_humanize_sitemap_id():
     assert humanize_sitemap_id("monitoring_locations") == "Monitoring Locations"
     assert humanize_sitemap_id("usgs-gages") == "Usgs Gages"
+
+
+def test_stac_collection_id_is_portolan_valid():
+    assert stac_collection_id("monitoring_locations") == "monitoring_locations"
+    assert stac_collection_id("ca_gage_assessment:gages") == "ca_gage_assessment-gages"
+    assert stac_collection_id("USGS/Gages::v2") == "usgs-gages-v2"
+    assert stac_collection_id("_leading") == "leading"
 
 
 def test_geoconnex_providers_has_producer_and_host_last():

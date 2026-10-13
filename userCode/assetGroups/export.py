@@ -394,6 +394,7 @@ def publish_stac_catalog():
 
             patch_sitemap_collection(
                 collection_path,
+                sitemap_id=sitemap_id,
                 parquet_size=parquet_sizes[sitemap_id],
                 parquet_checksum=multihash_sha256(local_parquet.read_bytes()),
                 pmtiles_url=pmtiles_url,
