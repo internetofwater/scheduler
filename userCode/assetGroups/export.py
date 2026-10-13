@@ -735,11 +735,17 @@ def move_geoparquet_to_postgis(config: ParquetConfig):
             if if_exists == "replace":
                 # to_postgis types the geometry column from only the first sitemap's
                 # geometries (e.g. POINT); widen it so later sitemaps with other
-                # geometry types (e.g. POLYGON) can be appended
+                # geometry types (e.g. POLYGON) or dimensions (2D vs 3D) can be appended.
+                # A typmod like geometry(Geometry, 4326) would still pin the column to 2D,
+                # so drop the typmod entirely and enforce the SRID with a check constraint
+                # instead; PostGIS reads the SRID from that constraint for geometry_columns,
+                # which keeps the SRID check geopandas does when appending working
                 conn.execute(
                     text(
                         "ALTER TABLE geoconnex_features "
-                        "ALTER COLUMN geometry TYPE geometry(Geometry, 4326);"
+                        "ALTER COLUMN geometry TYPE geometry, "
+                        "ADD CONSTRAINT enforce_srid_geometry "
+                        "CHECK (ST_SRID(geometry) = 4326);"
                     )
                 )
             if_exists = "append"
