@@ -4,6 +4,7 @@
 import hashlib
 import json
 from pathlib import Path
+import re
 import shlex
 import subprocess
 
@@ -58,6 +59,24 @@ def multihash_sha256(data: bytes) -> str:
 def humanize_sitemap_id(sitemap_id: str) -> str:
     """Turn a sitemap id like 'monitoring_locations' into a human-readable title"""
     return sitemap_id.replace("_", " ").replace("-", " ").title()
+
+
+def stac_collection_id(sitemap_id: str) -> str:
+    """
+    Turn a sitemap id like 'ca_gage_assessment:gages' into a valid Portolan
+    collection id ('ca_gage_assessment-gages'). Portolan only accepts lowercase
+    letters, numbers, hyphens and underscores (slashes would nest collections),
+    starting with a letter or number, and offers no flag to skip that check.
+    This id only names the collection's directory; `patch_sitemap_collection`
+    restores the raw sitemap id as the STAC `id` afterwards.
+    """
+    collection_id = re.sub(r"[^a-z0-9_-]+", "-", sitemap_id.lower())
+    collection_id = re.sub(r"-+", "-", collection_id).strip("-_")
+    if not collection_id:
+        raise ValueError(
+            f"Sitemap id '{sitemap_id}' has no characters usable in a collection id"
+        )
+    return collection_id
 
 
 def geoconnex_providers() -> list[dict]:
@@ -180,7 +199,7 @@ def register_sitemap_collection(
             "add-external",
             parquet_url,
             "--collection",
-            sitemap_id,
+            stac_collection_id(sitemap_id),
             "--title",
             title,
             "--description",
@@ -198,6 +217,7 @@ def register_sitemap_collection(
 def patch_sitemap_collection(
     collection_path: Path,
     *,
+    sitemap_id: str,
     parquet_size: int,
     parquet_checksum: str,
     pmtiles_url: str | None = None,
@@ -207,13 +227,20 @@ def patch_sitemap_collection(
 ) -> None:
     """
     Patch a collection.json that `register_sitemap_collection` already created with
-    the metadata the CLI's external-asset path cannot infer on its own: correct
+    the metadata the CLI's external-asset path cannot infer on its own: the raw
+    sitemap id as the collection id, correct
     providers (it is not a mirror, Geoconnex hosts the data it produces), the
     GeoParquet table schema and checksum, an optional PMTiles render link, and
     optional local thumbnail/style assets (expected to already sit alongside
     collection.json, named `thumbnail_filename`/`style_filename`).
     """
     collection = pystac.Collection.from_file(str(collection_path))
+
+    # the collection directory has to use the sanitized `stac_collection_id`,
+    # since characters like ':' break relative hrefs and portolan rejects them,
+    # but the STAC id itself should match the sitemap it describes. portolan
+    # check reports this as a PTL-COL-003 naming warning, not an error.
+    collection.id = sitemap_id
 
     # add-external always emits a rel:via link, assuming the data is a
     # third-party mirror; this catalog's producer and host are the same
