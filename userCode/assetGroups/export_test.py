@@ -8,6 +8,7 @@ from typing import cast
 
 from dagster import AssetCheckResult
 import geopandas as gpd
+import pytest
 from sqlalchemy import text
 
 import userCode.assetGroups.export as export
@@ -246,3 +247,211 @@ def test_move_geoparquet_to_postgis_with_mixed_geometry_types(tmp_path):
         ).fetchone()
         assert column_type is not None
         assert tuple(column_type) == ("GEOMETRY", 4326)
+
+
+def test_move_geoparquet_to_postgis_skips_sitemaps_without_geometry(tmp_path):
+    """
+    A sitemap whose features have no geometry (like epa:hmw) must be skipped
+    instead of creating the table without a usable geometry column
+    """
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from shapely.geometry import Point
+
+    engine = new_sqlalchemy_engine_from_env()
+
+    with engine.connect() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS geoconnex_features"))
+
+    # mirror the parquet nabu harvests for a sitemap without geometry: an entirely
+    # null WKB column with geo metadata that has no crs or geometry types;
+    # it sorts first so it would otherwise be the one to create the table
+    pq.write_table(
+        pa.table(
+            {
+                "@id": ["https://geoconnex.us/no_geometry/0"],
+                "feature_name": ["no geometry"],
+                "feature_description": ["test"],
+                "geometry": pa.array([None], type=pa.binary()),
+                "mainstem_uri": pa.array([None], type=pa.string()),
+            },
+            metadata={
+                "geo": '{"columns":{"geometry":{"encoding":"WKB","geometry_types":[]}},'
+                '"primary_column":"geometry","version":"1.1.0"}'
+            },
+        ),
+        tmp_path / "c_no_geometry.parquet",
+    )
+    gpd.GeoDataFrame(
+        {
+            "@id": ["https://geoconnex.us/b_points/0"],
+            "feature_name": ["point"],
+            "feature_description": ["test"],
+            "mainstem_uri": [None],
+        },
+        geometry=[Point(0, 0)],
+        crs="EPSG:4326",
+    ).to_parquet(tmp_path / "b_points.parquet")
+
+    move_geoparquet_to_postgis(ParquetConfig(harvested_parquet_directory=str(tmp_path)))
+
+    with engine.connect() as conn:
+        sitemaps = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT DISTINCT geoconnex_sitemap FROM geoconnex_features")
+            )
+        }
+        assert sitemaps == {"b_points"}
+
+        column_type = conn.execute(
+            text("""
+            SELECT type, srid
+            FROM geometry_columns
+            WHERE f_table_name = 'geoconnex_features'
+        """)
+        ).fetchone()
+        assert column_type is not None
+        assert tuple(column_type) == ("GEOMETRY", 4326)
+
+
+# the geoparquet metadata nabu writes; it has no crs and no geometry types
+NABU_GEO_METADATA = (
+    '{"columns":{"geometry":{"encoding":"WKB","geometry_types":[]}},'
+    '"primary_column":"geometry","version":"1.1.0"}'
+)
+
+
+def write_nabu_parquet(path: Path, ids: list[str], geometries: list) -> None:
+    """Write a parquet file with the same schema and metadata as one harvested by nabu"""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    import shapely
+
+    pq.write_table(
+        pa.table(
+            {
+                "@id": ids,
+                "feature_name": [f"name {id}" for id in ids],
+                "feature_description": ["test"] * len(ids),
+                "geometry": pa.array(
+                    [None if g is None else shapely.to_wkb(g) for g in geometries],
+                    type=pa.binary(),
+                ),
+                "jsonld": pa.array(
+                    [f'{{"@id": "{id}"}}' for id in ids], type=pa.string()
+                ),
+                "url": [f"https://example.com/{id}" for id in ids],
+                "mainstem_uri": pa.array([None] * len(ids), type=pa.string()),
+            },
+            schema=pa.schema(
+                [
+                    ("@id", pa.string()),
+                    ("feature_name", pa.string()),
+                    ("feature_description", pa.string()),
+                    ("geometry", pa.binary()),
+                    pa.field("jsonld", pa.string(), nullable=False),
+                    ("url", pa.string()),
+                    ("mainstem_uri", pa.string()),
+                ],
+                metadata={"geo": NABU_GEO_METADATA},
+            ),
+        ),
+        path,
+        compression="zstd",
+    )
+
+
+def test_optimize_harvested_parquet_file(tmp_path):
+    """
+    Optimizing must wrap out of range longitudes (like the usgs:gnis points in the
+    Aleutians), sort the rows spatially, and keep everything else nabu wrote as is
+    """
+    import pyarrow.parquet as pq
+    import shapely
+    from shapely.geometry import MultiPoint, Point
+
+    harvested_parquet = tmp_path / "test.parquet"
+    # alternate between two far apart areas so the sort has to move rows around
+    ids = ["near_0", "far_0", "near_1", "far_1", "no_geometry", "too_far_west"]
+    geometries = [
+        Point(0, 0),
+        Point(100, 60),
+        Point(0.1, 0.1),
+        MultiPoint([(181, 60), (100.1, 60.1)]),
+        None,
+        Point(-182.63438, 51.94777, 5),
+    ]
+    write_nabu_parquet(harvested_parquet, ids, geometries)
+    original = pq.read_table(harvested_parquet)
+
+    export.optimize_harvested_parquet_file(harvested_parquet, "test")
+
+    optimized = pq.read_table(harvested_parquet)
+    assert optimized.schema.remove_metadata().equals(original.schema.remove_metadata())
+    assert pq.read_metadata(harvested_parquet).metadata[b"geo"] == (
+        NABU_GEO_METADATA.encode()
+    )
+    assert sorted(optimized.column("@id").to_pylist()) == sorted(ids)
+
+    rows = {row["@id"]: row for row in optimized.to_pylist()}
+    for id in ids:
+        assert rows[id]["jsonld"] == f'{{"@id": "{id}"}}'
+    assert rows["no_geometry"]["geometry"] is None
+
+    wrapped = shapely.from_wkb(rows["too_far_west"]["geometry"])
+    assert wrapped.x == pytest.approx(177.36562)
+    assert wrapped.y == pytest.approx(51.94777)
+    assert wrapped.z == 5
+    assert shapely.from_wkb(rows["far_1"]["geometry"]).equals(
+        MultiPoint([(-179, 60), (100.1, 60.1)])
+    )
+
+    # spatially close features end up next to each other
+    order = optimized.column("@id").to_pylist()
+    assert abs(order.index("near_0") - order.index("near_1")) == 1
+    # null geometries can't be placed on the curve so they go at the end
+    assert order[-1] == "no_geometry"
+
+    gdf = export.features_from_harvested_parquet(harvested_parquet, "test")
+    minx, _, maxx, _ = gdf.total_bounds
+    assert -180 <= minx and maxx <= 180
+
+
+def test_optimize_harvested_parquet_file_without_geometry(tmp_path):
+    """A sitemap without any geometry (like epa:hmw) can still be optimized"""
+    import pyarrow.parquet as pq
+
+    harvested_parquet = tmp_path / "test.parquet"
+    write_nabu_parquet(harvested_parquet, ["a", "b"], [None, None])
+    original = pq.read_table(harvested_parquet)
+
+    export.optimize_harvested_parquet_file(harvested_parquet, "test")
+
+    optimized = pq.read_table(harvested_parquet)
+    assert optimized.equals(original)
+
+
+def test_optimize_harvested_parquet_file_row_groups(tmp_path, monkeypatch):
+    """Row groups are sized to the target number of compressed bytes"""
+    import pyarrow.parquet as pq
+    from shapely.geometry import Point
+
+    harvested_parquet = tmp_path / "test.parquet"
+    ids = [str(i) for i in range(10)]
+    write_nabu_parquet(harvested_parquet, ids, [Point(i, i) for i in range(10)])
+
+    # target a third of the current file per row group
+    file_size = harvested_parquet.stat().st_size
+    monkeypatch.setattr(
+        export, "HARVESTED_PARQUET_ROW_GROUP_TARGET_BYTES", file_size / 3
+    )
+
+    export.optimize_harvested_parquet_file(harvested_parquet, "test")
+
+    metadata = pq.read_metadata(harvested_parquet)
+    assert [metadata.row_group(i).num_rows for i in range(metadata.num_row_groups)] == [
+        4,
+        4,
+        2,
+    ]
