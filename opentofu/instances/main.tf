@@ -60,7 +60,6 @@ resource "google_compute_instance" "harvest_vm" {
     GLEANER_CONCURRENT_SITEMAPS=4
     GLEANER_SITEMAP_WORKERS=5
     GLEANER_LOG_LEVEL=INFO
-    GLEANER_SHACL_VALIDATOR_GRPC_ENDPOINT=scheduler_shacl_validator:50051
     GLEANER_USE_SHACL=true
 
     # Nabu
