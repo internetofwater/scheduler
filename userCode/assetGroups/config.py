@@ -13,7 +13,11 @@ from dagster import (
 import docker
 import requests
 
-from userCode.lib.dagster import filter_partitions
+from userCode.lib.dagster import (
+    bulk_sources_partitions_def,
+    filter_partitions,
+    sources_partitions_def,
+)
 from userCode.lib.env import (
     MAINSTEM_FILE,
     NABU_IMAGE,
@@ -105,7 +109,9 @@ NS = {
 
 @asset(backfill_policy=BackfillPolicy.single_run(), group_name=CONFIG_GROUP)
 def sitemap_partitions(context: AssetExecutionContext):
-    """Generate a dynamic partition for each geoconnex:sitemap_id in the sitemap index."""
+    """Generate a dynamic partition for each geoconnex:sitemap_id in the sitemap index.
+    Sitemaps with a geoconnex:bulk_container_image are put in a separate partition since
+    they are harvested by a different asset than sitemaps which crawl features / apis"""
 
     r = requests.get(SITEMAP_INDEX, timeout=20)
     r.raise_for_status()
@@ -113,15 +119,19 @@ def sitemap_partitions(context: AssetExecutionContext):
     root = ET.fromstring(r.text)
 
     names: set[str] = set()
+    bulk_names: set[str] = set()
 
-    sitemap_ids = root.findall(
-        "sm:sitemap/geoconnex:sitemap_id",
-        namespaces=NS,
-    )
+    sitemaps = [
+        sitemap
+        for sitemap in root.findall("sm:sitemap", namespaces=NS)
+        if sitemap.find("geoconnex:sitemap_id", namespaces=NS) is not None
+    ]
 
-    assert sitemap_ids, f"No geoconnex:sitemap_id values found in index {SITEMAP_INDEX}"
+    assert sitemaps, f"No geoconnex:sitemap_id values found in index {SITEMAP_INDEX}"
 
-    for elem in sitemap_ids:
+    for sitemap in sitemaps:
+        elem = sitemap.find("geoconnex:sitemap_id", namespaces=NS)
+        assert elem is not None
         if elem.text is None:
             raise ValueError(f"Empty geoconnex:sitemap_id found in {SITEMAP_INDEX}")
 
@@ -130,23 +140,31 @@ def sitemap_partitions(context: AssetExecutionContext):
         if not name:
             raise ValueError(f"Empty geoconnex:sitemap_id found in {SITEMAP_INDEX}")
 
-        if name in names:
+        if name in names or name in bulk_names:
             get_dagster_logger().warning(
                 f"Found duplicate sitemap_id '{name}' in "
                 f"{SITEMAP_INDEX}. Skipping duplicate."
             )
             continue
 
-        get_dagster_logger().info(f"Adding partition {name}")
-        names.add(name)
-
-    filter_partitions(context.instance, "sources_partitions_def", names)
+        if sitemap.find("geoconnex:bulk_container_image", namespaces=NS) is not None:
+            get_dagster_logger().info(f"Adding bulk partition {name}")
+            bulk_names.add(name)
+        else:
+            get_dagster_logger().info(f"Adding partition {name}")
+            names.add(name)
 
     # Each sitemap_id is a partition that can be crawled independently
-    context.instance.add_dynamic_partitions(
-        partitions_def_name="sources_partitions_def",
-        partition_keys=sorted(names),
-    )
+    for partitions_def, keys in (
+        (sources_partitions_def, names),
+        (bulk_sources_partitions_def, bulk_names),
+    ):
+        assert partitions_def.name
+        filter_partitions(context.instance, partitions_def.name, keys)
+        context.instance.add_dynamic_partitions(
+            partitions_def_name=partitions_def.name,
+            partition_keys=sorted(keys),
+        )
 
 
 @asset(backfill_policy=BackfillPolicy.single_run(), group_name=CONFIG_GROUP)

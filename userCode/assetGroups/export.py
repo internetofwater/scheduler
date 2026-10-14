@@ -42,7 +42,7 @@ import requests
 import shapely
 from sqlalchemy import Connection, text
 
-from userCode.assetGroups.harvest import harvest_sitemap
+from userCode.assetGroups.harvest import harvest_bulk_sitemap, harvest_sitemap
 from userCode.lib.classes import RcloneClient, S3
 from userCode.lib.containers import (
     NquadsConfig,
@@ -197,7 +197,7 @@ def harvested_sitemap_ids() -> list[str]:
 
 
 @asset(
-    deps=[harvest_sitemap],
+    deps=[harvest_sitemap, harvest_bulk_sitemap],
     # this is put in a separate group since it is potentially expensive
     # and thus we don't want to run it automatically
     group_name=EXPORT_GROUP,
@@ -284,7 +284,7 @@ def append_to_postgis(
     )
 
 
-@asset(deps=[harvest_sitemap], group_name=EXPORT_GROUP)
+@asset(deps=[harvest_sitemap, harvest_bulk_sitemap], group_name=EXPORT_GROUP)
 def pull_harvested_parquet():
     """Download the parquet file harvested by nabu for every sitemap"""
     # start fresh so that parquet for sitemaps which were removed is not kept
