@@ -13,7 +13,12 @@ from dagster import (
 )
 
 # This is the list of sources to crawl that is dynamically generated at runtime by parsing the geoconnex config
+# bulk sources are kept in a separate partition so that they can be harvested by a separate asset with
+# its own concurrency pool; that way crawls of different types do not block each other
 sources_partitions_def = DynamicPartitionsDefinition(name="sources_partitions_def")
+bulk_sources_partitions_def = DynamicPartitionsDefinition(
+    name="bulk_sources_partitions_def"
+)
 
 
 def filter_partitions(

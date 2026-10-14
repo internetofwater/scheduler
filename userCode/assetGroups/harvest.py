@@ -19,7 +19,7 @@ from userCode.lib.containers import (
     SitemapHarvestConfig,
     SitemapHarvestContainer,
 )
-from userCode.lib.dagster import sources_partitions_def
+from userCode.lib.dagster import bulk_sources_partitions_def, sources_partitions_def
 from userCode.lib.env import MAINSTEM_FILE, RUNNING_AS_TEST_OR_DEV
 
 """
@@ -31,7 +31,7 @@ HARVEST_GROUP = "harvest"
 
 
 # a tag representing whether we should exit 3 on failure
-# this is used in the harvest_sitemap asset to
+# this is used in the harvest assets to
 EXIT_3_IS_FATAL = "exit_3_is_fatal"
 # tag exclusively used for testing and overriding the default mainstem
 # file set by the .env file
@@ -78,17 +78,8 @@ def mainstem_file_and_volume_mount(
     return mainstem_file, []
 
 
-@asset(
-    partitions_def=sources_partitions_def,
-    deps=[docker_client_environment, sitemap_partitions, mainstem_catchment_metadata],
-    group_name=HARVEST_GROUP,
-    pool="harvest_pool",
-)
-def harvest_sitemap(
-    context: AssetExecutionContext,
-    config: SitemapHarvestConfig,
-):
-    """Harvest the jsonld for each site in the sitemap into a parquet file in s3"""
+def run_harvest(context: AssetExecutionContext, config: SitemapHarvestConfig):
+    """Harvest the sitemap for the current partition into a parquet file in s3"""
     mainstem_file, volume_mount = mainstem_file_and_volume_mount(context)
     container = SitemapHarvestContainer(
         context.partition_key,
@@ -103,3 +94,42 @@ def harvest_sitemap(
         container.run(strictConfig)
     else:
         container.run(config)
+
+
+# Feature / api crawls and bulk crawls are separate assets in separate pools
+# so that each type of crawl has its own concurrency limit; the limit for each
+# pool is set by the default pool limit in dagster.yaml. This lets us crawl
+# multiple sources at once without overwhelming any one server
+HARVEST_DEPS = [
+    docker_client_environment,
+    sitemap_partitions,
+    mainstem_catchment_metadata,
+]
+
+
+@asset(
+    partitions_def=sources_partitions_def,
+    deps=HARVEST_DEPS,
+    group_name=HARVEST_GROUP,
+    pool="feature_harvest_pool",
+)
+def harvest_sitemap(
+    context: AssetExecutionContext,
+    config: SitemapHarvestConfig,
+):
+    """Harvest the jsonld for each site in the sitemap into a parquet file in s3"""
+    run_harvest(context, config)
+
+
+@asset(
+    partitions_def=bulk_sources_partitions_def,
+    deps=HARVEST_DEPS,
+    group_name=HARVEST_GROUP,
+    pool="bulk_harvest_pool",
+)
+def harvest_bulk_sitemap(
+    context: AssetExecutionContext,
+    config: SitemapHarvestConfig,
+):
+    """Harvest a bulk sitemap by running its bulk container and put the output in a parquet file in s3"""
+    run_harvest(context, config)

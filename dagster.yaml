@@ -10,10 +10,12 @@ concurrency:
     max_concurrent_runs: 6
   pools:
     # dagster has no way to declaratively set the limit for a specific
-    # pool; but since we have only one pool, we can set it here as the default
+    # pool; but since we want the same limit for both the feature and
+    # bulk harvest pools, we can set it here as the default
     # see https://github.com/dagster-io/dagster/issues/19793
     # this is done to address https://github.com/internetofwater/scheduler/issues/184
-    default_limit: 1
+    # and allows up to 2 feature crawls and 2 bulk crawls at once
+    default_limit: 2
 
 run_monitoring:
   enabled: true

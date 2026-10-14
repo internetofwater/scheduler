@@ -161,6 +161,14 @@ def test_sitemap_partitions_extracts_sitemap_ids():
         mock_get.assert_called_once()
 
         partitions = instance.get_dynamic_partitions("sources_partitions_def")
-        assert len(partitions) == NUMBER_OF_SITEMAPS
+        bulk_partitions = instance.get_dynamic_partitions("bulk_sources_partitions_def")
+        assert len(partitions) + len(bulk_partitions) == NUMBER_OF_SITEMAPS
         assert "iow:wqp:stations__15" in partitions
         assert "iow:state_gages:ndwr" in partitions
+        # sitemaps with a bulk container image are harvested by a separate asset
+        assert set(bulk_partitions) == {
+            "bulk:sciencebase",
+            "bulk:gnis",
+            "bulk:usgs_monitoring_locations",
+        }
+        assert not set(partitions) & set(bulk_partitions)

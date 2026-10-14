@@ -2,11 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from collections.abc import Iterator
+
 from dagster import (
     AssetSelection,
     DefaultScheduleStatus,
     DefaultSensorStatus,
     Definitions,
+    DynamicPartitionsDefinition,
     RunRequest,
     ScheduleEvaluationContext,
     define_asset_job,
@@ -29,7 +32,11 @@ from userCode.assetGroups.harvest import (
     docker_client_environment,
     sitemap_partitions,
 )
-from userCode.lib.dagster import slack_error_fn
+from userCode.lib.dagster import (
+    bulk_sources_partitions_def,
+    slack_error_fn,
+    sources_partitions_def,
+)
 from userCode.lib.env import (
     RUNNING_AS_TEST_OR_DEV,
     strict_env,
@@ -53,19 +60,27 @@ export_job = define_asset_job(
     selection=AssetSelection.groups(export.EXPORT_GROUP),
 )
 
+# feature and bulk harvests are separate jobs since they use
+# different partitions and dagster jobs can only have one partitions definition
 harvest_job = define_asset_job(
     "harvest_and_generate_parquet",
     description="harvest a source and generate a parquet file of its jsonld in s3",
-    selection=AssetSelection.groups(harvest.HARVEST_GROUP),
+    selection=AssetSelection.assets(harvest.harvest_sitemap),
+)
+
+harvest_bulk_job = define_asset_job(
+    "harvest_bulk_and_generate_parquet",
+    description="harvest a bulk source by running its bulk container and generate a parquet file of its jsonld in s3",
+    selection=AssetSelection.assets(harvest.harvest_bulk_sitemap),
 )
 
 
-@schedule(
-    cron_schedule="@monthly",
-    job=harvest_job,
-    default_status=DefaultScheduleStatus.STOPPED,
-)
-def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
+def harvest_run_requests(
+    context: ScheduleEvaluationContext,
+    job_name: str,
+    partitions_def: DynamicPartitionsDefinition,
+) -> Iterator[RunRequest]:
+    """Set up the environment and create a run of the harvest job for every partition"""
     context.log.info("Schedule triggered.")
 
     result = materialize(
@@ -78,7 +93,8 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
     if not result.success:
         raise Exception(f"Failed to materialize environment assets!: {result}")
 
-    partition_keys = context.instance.get_dynamic_partitions("sources_partitions_def")
+    assert partitions_def.name
+    partition_keys = context.instance.get_dynamic_partitions(partitions_def.name)
     context.log.info(f"Found partition keys: {partition_keys}")
 
     if not partition_keys:
@@ -87,11 +103,31 @@ def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
     for partition_key in partition_keys:
         context.log.info(f"Creating run for {partition_key}")
         yield RunRequest(
-            job_name=harvest_job.name,
+            job_name=job_name,
             run_key=partition_key,
             partition_key=partition_key,
             tags={"run_type": "harvest_weekly"},
         )
+
+
+@schedule(
+    cron_schedule="@monthly",
+    job=harvest_job,
+    default_status=DefaultScheduleStatus.STOPPED,
+)
+def crawl_entire_graph_schedule(context: ScheduleEvaluationContext):
+    yield from harvest_run_requests(context, harvest_job.name, sources_partitions_def)
+
+
+@schedule(
+    cron_schedule="@monthly",
+    job=harvest_bulk_job,
+    default_status=DefaultScheduleStatus.STOPPED,
+)
+def crawl_bulk_sources_schedule(context: ScheduleEvaluationContext):
+    yield from harvest_run_requests(
+        context, harvest_bulk_job.name, bulk_sources_partitions_def
+    )
 
 
 # expose all the code needed for our dagster repo
@@ -106,6 +142,7 @@ defs = Definitions(
     ),
     schedules=[
         crawl_entire_graph_schedule,
+        crawl_bulk_sources_schedule,
     ],
     asset_checks=load_asset_checks_from_modules(
         [
@@ -119,6 +156,7 @@ defs = Definitions(
         export_job,
         setup_config_job,
         harvest_job,
+        harvest_bulk_job,
     ],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(
