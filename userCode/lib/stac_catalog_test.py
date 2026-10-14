@@ -58,10 +58,10 @@ def test_humanize_sitemap_id():
     assert humanize_sitemap_id("usgs-gages") == "Usgs Gages"
 
 
-def test_sitemap_collection_title_joins_dataset_name_and_sitemap_id():
+def test_sitemap_collection_title_uses_dataset_name():
     assert (
         sitemap_collection_title("usbr:rise", "USBR RISE Locations")
-        == "USBR RISE Locations (usbr:rise)"
+        == "USBR RISE Locations"
     )
     assert sitemap_collection_title("usgs-gages", None) == "Usgs Gages"
 
@@ -182,7 +182,7 @@ def test_register_sitemap_collection_puts_dataset_description_first(
     )
 
     args = portolan_calls[0]
-    assert args[args.index("--title") + 1] == "USBR RISE Locations (usbr:rise)"
+    assert args[args.index("--title") + 1] == "USBR RISE Locations"
     description = args[args.index("--description") + 1]
     (
         dataset_part,

@@ -96,12 +96,12 @@ def humanize_sitemap_id(sitemap_id: str) -> str:
 
 def sitemap_collection_title(sitemap_id: str, dataset_name: str | None) -> str:
     """
-    The collection title for a sitemap: its dataset name from the sitemap index
-    joined with the sitemap id, e.g. 'USBR RISE Locations (usbr:rise)', falling
-    back to a humanized sitemap id when the index gives no name
+    The collection title for a sitemap: its dataset name from the sitemap index,
+    e.g. 'USBR RISE Locations', falling back to a humanized sitemap id when the
+    index gives no name. The sitemap id itself stays in the collection id.
     """
     if dataset_name:
-        return f"{dataset_name} ({sitemap_id})"
+        return dataset_name
     return humanize_sitemap_id(sitemap_id)
 
 
