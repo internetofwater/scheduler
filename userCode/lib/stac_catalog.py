@@ -145,17 +145,40 @@ def geoconnex_providers() -> list[dict]:
     ]
 
 
+# symbol layers need a glyphs server to render text; these are the open fonts
+# Protomaps publishes for MapLibre, and LABEL_FONT must be one of them
+GLYPHS_URL = "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf"
+LABEL_FONT = "Noto Sans Regular"
+# below this zoom most sitemaps are too dense for labels to be readable
+LABEL_MIN_ZOOM = 11
+
+
 def maplibre_style_for_pmtiles(pmtiles_url: str, layer: str) -> dict:
-    """A minimal MapLibre GL style (spec v8) rendering a PMTiles layer with default styling"""
+    """
+    A minimal MapLibre GL style (spec v8) rendering a PMTiles layer with default
+    styling, labelling features with their `feature_name` from LABEL_MIN_ZOOM up
+    """
 
     def geometry_type_is(*types: str) -> list:
         # match both single and multi variants since newer MapLibre versions
         # report e.g. MultiPolygon distinctly from Polygon
         return ["match", ["geometry-type"], list(types), True, False]
 
+    label_layout = {
+        "text-field": ["to-string", ["get", "feature_name"]],
+        "text-font": [LABEL_FONT],
+        "text-size": ["interpolate", ["linear"], ["zoom"], LABEL_MIN_ZOOM, 11, 16, 14],
+    }
+    label_paint = {
+        "text-color": "#1e293b",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.5,
+    }
+
     return {
         "version": 8,
         "name": layer,
+        "glyphs": GLYPHS_URL,
         "sources": {
             "data": {
                 "type": "vector",
@@ -198,6 +221,38 @@ def maplibre_style_for_pmtiles(pmtiles_url: str, layer: str) -> dict:
                     "circle-stroke-width": 1,
                     "circle-stroke-color": "#ffffff",
                 },
+            },
+            {
+                "id": f"{layer}-labels",
+                "type": "symbol",
+                "source": "data",
+                "source-layer": layer,
+                "minzoom": LABEL_MIN_ZOOM,
+                "filter": geometry_type_is(
+                    "Point", "MultiPoint", "Polygon", "MultiPolygon"
+                ),
+                "layout": {
+                    **label_layout,
+                    # sit beside the point (or polygon centre) rather than on it,
+                    # trying each side so labels of nearby features collide less
+                    "text-variable-anchor": ["top", "bottom", "left", "right"],
+                    "text-radial-offset": 0.6,
+                    "text-max-width": 10,
+                },
+                "paint": label_paint,
+            },
+            {
+                "id": f"{layer}-line-labels",
+                "type": "symbol",
+                "source": "data",
+                "source-layer": layer,
+                "minzoom": LABEL_MIN_ZOOM,
+                "filter": geometry_type_is("LineString", "MultiLineString"),
+                "layout": {
+                    **label_layout,
+                    "symbol-placement": "line",
+                },
+                "paint": label_paint,
             },
         ],
     }
