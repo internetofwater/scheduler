@@ -35,7 +35,14 @@ GEOCONNEX_PROVIDER_NAME = "Internet of Water Coalition"
 GEOCONNEX_PROVIDER_URL = "https://geoconnex.us"
 # the maintainer of the pipeline that processes and exports the data
 MAINTAINER_PROVIDER_NAME = "Colton Loftus"
-MAINTAINER_PROVIDER_URL = "mailto:cloftus@lincolninst.edu"
+# STAC providers have no email field and their url must be a homepage IRI
+# (validators reject mailto:), so the contact address goes in the description
+MAINTAINER_PROVIDER_URL = "https://cgsearth.org/"
+MAINTAINER_PROVIDER_DESCRIPTION = (
+    "Processed and maintained by Colton Loftus at the Lincoln Institute of Land "
+    "Policy's Center for Geospatial Solutions. For help, contact cloftus@lincolninst.edu or open an issue at "
+    "https://github.com/internetofwater/geoconnex.us/issues"
+)
 CATALOG_LICENSE = "CC0-1.0"  # must be an SPDX identifier for portolan
 # markdown description of the whole catalog; edit the file to change it
 CATALOG_DESCRIPTION_FILE = Path(__file__).parent / "stac_catalog_description.md"
@@ -114,6 +121,7 @@ def geoconnex_providers() -> list[dict]:
         {"name": GEOCONNEX_PROVIDER_NAME, "roles": ["producer"]},
         {
             "name": MAINTAINER_PROVIDER_NAME,
+            "description": MAINTAINER_PROVIDER_DESCRIPTION,
             "roles": ["processor"],
             "url": MAINTAINER_PROVIDER_URL,
         },

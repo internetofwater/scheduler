@@ -71,8 +71,8 @@ def test_geoconnex_providers_has_producer_processor_and_host_last():
     assert providers[1]["url"] == MAINTAINER_PROVIDER_URL
     assert providers[-1]["roles"] == ["host"]
     assert providers[0]["name"] == providers[-1]["name"] == GEOCONNEX_PROVIDER_NAME
-    # STAC validators reject anything but an absolute IRI here, e.g. a bare email
-    assert providers[-1]["url"].startswith("https://")
+    # STAC validators reject anything but a web IRI here, e.g. an email or mailto:
+    assert all(p["url"].startswith("https://") for p in providers if "url" in p)
 
 
 def test_add_catalog_icon_links_and_copies_the_logo_once(tmp_path):
