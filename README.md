@@ -49,6 +49,16 @@ make pull_state
 make apply
 ```
 
+### Deploying code changes
+
+`tofu apply` is only needed for infrastructure changes. To ship new code to the running VM, push to `main` and run from the repo root:
+
+```sh
+make redeploy
+```
+
+This waits for the `push_to_ghcr` image build of the latest `origin/main` commit, then SSHes into the VM (with `gcloud compute ssh`) and runs `make cloudUpdate` there. That pulls the repo and the new images and recreates only the containers that changed. It refuses to restart while Dagster runs are in progress, since restarting user code kills them; pass `FORCE=true` to override. The VM name and zone come from the tofu outputs, or set `VM_NAME` and `VM_ZONE`. If you are already on the VM, run `sudo make cloudUpdate` in `/opt/scheduler`.
+
 ## Configuration
 
 - All env vars must be defined in `.env` at the root of the repo

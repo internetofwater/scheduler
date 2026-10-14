@@ -69,6 +69,7 @@ from userCode.lib.env import (
 )
 from userCode.lib.lakefs import LakeFSClient
 from userCode.lib.stac_catalog import (
+    add_catalog_icon,
     finalize_catalog,
     init_catalog,
     maplibre_style_for_pmtiles,
@@ -644,6 +645,7 @@ def publish_stac_catalog():
         catalog_root = Path(tmp) / "catalog"
         catalog_root.mkdir()
         init_catalog(catalog_root)
+        add_catalog_icon(catalog_root)
 
         for sitemap_id in sorted(parquet_sizes):
             local_parquet = HARVESTED_PARQUET_DIRECTORY / f"{sitemap_id}.parquet"

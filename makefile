@@ -5,6 +5,9 @@ ALL_SERVICES = docker compose --profile localInfra --profile production -f Docke
 PRODUCTION_USING_CLOUD_INFRA = docker compose --profile production -f Docker/Docker-compose.yaml
 # Storage needed for local development; userCode runs local, not in Docker
 DEV_SERVICES = docker compose --profile localInfra -f Docker/Docker-compose.yaml
+# The images published to GHCR by the push_to_ghcr workflow on every push to main
+CLOUD_IMAGES = DAGSTER_USER_CODE_IMAGE=ghcr.io/internetofwater/geoconnex_dagster_user_code:latest \
+	DAGSTER_SERVER_IMAGE=ghcr.io/internetofwater/geoconnex_dagster_server:latest
 
 # Using uv, install all Python dependencies needed for local development and spin up necessary docker services
 deps: init-env
@@ -50,9 +53,21 @@ prodBuild: init-env
 
 # Run dagster with dockerized Python code but don't run any storage locally
 cloudProd: init-env
-	DAGSTER_USER_CODE_IMAGE=ghcr.io/internetofwater/geoconnex_dagster_user_code:latest \
-	DAGSTER_SERVER_IMAGE=ghcr.io/internetofwater/geoconnex_dagster_server:latest \
-	$(PRODUCTION_USING_CLOUD_INFRA) up -d $(ARGS)
+	$(CLOUD_IMAGES) $(PRODUCTION_USING_CLOUD_INFRA) up -d $(ARGS)
+
+# Pull the latest published images used by cloudProd
+cloudPull: init-env
+	$(CLOUD_IMAGES) $(PRODUCTION_USING_CLOUD_INFRA) pull
+
+# On the cloud VM: pull the latest code and images and restart what changed,
+# refusing if Dagster runs are in progress unless FORCE=true
+cloudUpdate:
+	./scripts/cloud_update.sh
+
+# From a laptop: wait for the image build of origin/main, then run cloudUpdate on the
+# VM over ssh; needs gh, gcloud, and tofu state (or VM_NAME and VM_ZONE set)
+redeploy:
+	./scripts/redeploy.sh
 
 # Stop all docker services
 down: 
@@ -68,4 +83,4 @@ init-env:
 	@test -f .env || cp .env.example .env
 
 # All targets are cli commands 
-.PHONY: deps test cov clean up dev prod cloudProd down pull init-env
+.PHONY: deps test cov clean up dev prod cloudProd cloudPull cloudUpdate redeploy down pull init-env
