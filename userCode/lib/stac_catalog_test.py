@@ -199,7 +199,8 @@ def test_register_sitemap_collection_puts_dataset_description_first(
         "All features in this dataset derive from the 'usbr:rise' sitemap in Geoconnex."
     )
     assert source_code_part == (
-        "The source code that generates this sitemap can be found at "
+        "The source code that generated the RDF data which was transformed into "
+        "this asset can be found at "
         "https://github.com/internetofwater/geoconnex_bulk_runners"
     )
     assert mainstem_part == (
