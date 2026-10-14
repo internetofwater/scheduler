@@ -69,6 +69,7 @@ from userCode.lib.env import (
 )
 from userCode.lib.lakefs import LakeFSClient
 from userCode.lib.stac_catalog import (
+    SitemapDatasetMetadata,
     add_catalog_icon,
     finalize_catalog,
     init_catalog,
@@ -77,7 +78,7 @@ from userCode.lib.stac_catalog import (
     patch_sitemap_collection,
     register_sitemap_collection,
     render_thumbnail,
-    sitemap_dataset_descriptions,
+    sitemap_dataset_metadata,
 )
 from userCode.lib.utils import new_sqlalchemy_engine_from_env
 
@@ -639,7 +640,7 @@ def publish_stac_catalog():
 
     sitemap_index_response = requests.get(SITEMAP_INDEX, timeout=20)
     sitemap_index_response.raise_for_status()
-    dataset_descriptions = sitemap_dataset_descriptions(sitemap_index_response.text)
+    dataset_metadata = sitemap_dataset_metadata(sitemap_index_response.text)
 
     with tempfile.TemporaryDirectory() as tmp:
         catalog_root = Path(tmp) / "catalog"
@@ -670,12 +671,17 @@ def publish_stac_catalog():
                 f"{HARVESTED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet"
             )
 
+            metadata = dataset_metadata.get(sitemap_id, SitemapDatasetMetadata())
             collection_path = register_sitemap_collection(
                 catalog_root,
                 sitemap_id=sitemap_id,
                 parquet_url=parquet_url,
                 bbox=bbox,
-                dataset_description=dataset_descriptions.get(sitemap_id),
+                dataset_name=metadata.name,
+                dataset_description=metadata.description,
+                dataset_documentation_link=metadata.documentation_link,
+                source_code_link=metadata.source_code_link,
+                add_associated_mainstems=metadata.add_associated_mainstems,
             )
             collection_dir = collection_path.parent
 
