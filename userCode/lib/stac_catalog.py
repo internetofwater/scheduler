@@ -228,15 +228,28 @@ def maplibre_style_for_pmtiles(pmtiles_url: str, layer: str) -> dict:
                 "source": "data",
                 "source-layer": layer,
                 "minzoom": LABEL_MIN_ZOOM,
-                "filter": geometry_type_is(
-                    "Point", "MultiPoint", "Polygon", "MultiPolygon"
-                ),
+                "filter": geometry_type_is("Point", "MultiPoint"),
                 "layout": {
                     **label_layout,
-                    # sit beside the point (or polygon centre) rather than on it,
-                    # trying each side so labels of nearby features collide less
+                    # sit beside the point rather than on it, trying each
+                    # side so labels of nearby features collide less
                     "text-variable-anchor": ["top", "bottom", "left", "right"],
                     "text-radial-offset": 0.6,
+                    "text-max-width": 10,
+                },
+                "paint": label_paint,
+            },
+            {
+                # polygon labels go at the polygon's interior centre rather than
+                # being offset beside it like point labels
+                "id": f"{layer}-polygon-labels",
+                "type": "symbol",
+                "source": "data",
+                "source-layer": layer,
+                "minzoom": LABEL_MIN_ZOOM,
+                "filter": geometry_type_is("Polygon", "MultiPolygon"),
+                "layout": {
+                    **label_layout,
                     "text-max-width": 10,
                 },
                 "paint": label_paint,

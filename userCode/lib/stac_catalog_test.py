@@ -123,6 +123,17 @@ def test_maplibre_style_for_pmtiles_renders_every_geometry_type():
     assert layer_types == {"fill", "line", "circle", "symbol"}
 
 
+def test_maplibre_style_for_pmtiles_fills_and_labels_polygons():
+    style = maplibre_style_for_pmtiles("https://example.org/data.pmtiles", "my_layer")
+
+    polygon_layer_types = sorted(
+        layer["type"]
+        for layer in style["layers"]
+        if "Polygon" in layer["filter"][2] and "MultiPolygon" in layer["filter"][2]
+    )
+    assert polygon_layer_types == ["fill", "symbol"]
+
+
 def test_maplibre_style_for_pmtiles_labels_features_by_name_at_high_zoom():
     style = maplibre_style_for_pmtiles("https://example.org/data.pmtiles", "my_layer")
 
