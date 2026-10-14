@@ -15,16 +15,21 @@ from userCode.lib.stac_catalog import (
     GEOCONNEX_PROVIDER_NAME,
     LABEL_MIN_ZOOM,
     MAINTAINER_PROVIDER_URL,
+    PROCESSED_USGS_CATALOG_ID,
     SitemapDatasetMetadata,
     THUMBNAIL_HEIGHT_PX,
     THUMBNAIL_WIDTH_PX,
     add_catalog_icon,
     geoconnex_providers,
     humanize_sitemap_id,
+    init_sub_catalog,
     maplibre_style_for_pmtiles,
     multihash_sha256,
     multihash_sha256_file,
+    patch_processed_usgs_collection,
     patch_sitemap_collection,
+    processed_usgs_providers,
+    register_processed_usgs_collection,
     register_sitemap_collection,
     render_thumbnail,
     sitemap_collection_title,
@@ -367,3 +372,97 @@ def test_register_sitemap_collection_skips_missing_dataset_metadata(
     assert "More info" not in description
     assert "Mainstem association" not in description
     assert "source code" not in description
+
+
+def test_init_sub_catalog_links_to_the_root_catalog(tmp_path):
+    catalog_path = init_sub_catalog(
+        tmp_path,
+        catalog_id=PROCESSED_USGS_CATALOG_ID,
+        title="Processed USGS Data Products",
+        description="test",
+    )
+
+    assert catalog_path == tmp_path / PROCESSED_USGS_CATALOG_ID / "catalog.json"
+    catalog = json.loads(catalog_path.read_text())
+    assert catalog["type"] == "Catalog"
+    assert catalog["title"] == "Processed USGS Data Products"
+    assert {link["rel"]: link["href"] for link in catalog["links"]} == {
+        "root": "../catalog.json",
+        "parent": "../catalog.json",
+    }
+
+
+def test_register_processed_usgs_collection_nests_it_in_the_sub_catalog(
+    tmp_path, monkeypatch
+):
+    portolan_calls = []
+
+    def fake_run_portolan(args, cwd):
+        portolan_calls.append(args)
+        return {"data": {"collection_path": str(tmp_path / "collection.json")}}
+
+    monkeypatch.setattr("userCode.lib.stac_catalog._run_portolan", fake_run_portolan)
+
+    register_processed_usgs_collection(
+        tmp_path,
+        name="reference_catchments_and_flowlines",
+        data_url="https://example.com/processed/reference_catchments_and_flowlines.fgb",
+        title="Reference Catchments",
+        description="test",
+        bbox=[-125.0, 24.0, -66.0, 53.0],
+    )
+
+    args = portolan_calls[0]
+    assert args[args.index("--collection") + 1] == (
+        f"{PROCESSED_USGS_CATALOG_ID}/reference_catchments_and_flowlines"
+    )
+
+
+def test_processed_usgs_providers_credit_usgs_and_keep_the_host_last():
+    providers = processed_usgs_providers()
+
+    assert providers[0]["name"] == "U.S. Geological Survey"
+    assert providers[0]["roles"] == ["producer"]
+    assert providers[-1]["roles"] == ["host"]
+
+
+def test_patch_processed_usgs_collection_links_its_sources(tmp_path):
+    collection = pystac.Collection(
+        id=f"{PROCESSED_USGS_CATALOG_ID}/reference_catchments_and_flowlines",
+        description="test",
+        extent=pystac.Extent(
+            pystac.SpatialExtent([[-180, -90, 180, 90]]),
+            pystac.TemporalExtent([[None, None]]),
+        ),
+    )
+    collection.add_asset(
+        "data", pystac.Asset(href="https://example.org/data.fgb", roles=["data"])
+    )
+    collection.add_link(pystac.Link(rel="via", target="https://example.org/data.fgb"))
+    collection_path = tmp_path / "collection.json"
+    collection.set_self_href(str(collection_path))
+    collection.save_object(include_self_link=False)
+
+    columns = [{"name": "geoconnex_url", "type": "string"}]
+    patch_processed_usgs_collection(
+        collection_path,
+        data_size=10,
+        data_checksum="1220abc",
+        table_columns=columns,
+        sources=[{"href": "https://example.org/lookup.csv", "title": "Lookup"}],
+        thumbnail_filename="thumbnail.png",
+    )
+
+    patched = pystac.Collection.from_file(str(collection_path))
+    assert not patched.get_links("via")
+    derived_from = patched.get_links("derived_from")
+    assert [(link.href, link.title) for link in derived_from] == [
+        ("https://example.org/lookup.csv", "Lookup")
+    ]
+    data_asset = patched.assets["data"]
+    assert data_asset.extra_fields["table:columns"] == columns
+    assert data_asset.extra_fields["file:size"] == 10
+    assert data_asset.extra_fields["file:checksum"] == "1220abc"
+    assert patched.assets["thumbnail"].roles == ["thumbnail"]
+    assert patched.providers is not None
+    assert patched.providers[0].name == "U.S. Geological Survey"

@@ -5,7 +5,7 @@ import geopandas as gpd
 
 # This is script for creating a flatgeobuf which can be used for
 # testing on a small subset of data.
-url = "https://storage.googleapis.com/national-hydrologic-geospatial-fabric-reference-hydrofabric/reference_catchments_and_flowlines.fgb"
+url = "https://storage.googleapis.com/harvest-geoconnex-us/processed/reference_catchments_and_flowlines.fgb"
 
 # This is a reference dam feature with a known mainstem
 feature_x = -108.2236

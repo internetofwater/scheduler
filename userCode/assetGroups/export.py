@@ -33,6 +33,7 @@ from docker.errors import NotFound
 import geopandas as gpd
 import geoparquet_io as gpio
 from geoparquet_io.core.partition.common import sanitize_filename
+from minio.error import S3Error
 import numpy as np
 import pandas as pd
 from pandas.io.sql import SQLTable
@@ -43,6 +44,15 @@ import shapely
 from sqlalchemy import Connection, text
 
 from userCode.assetGroups.harvest import harvest_bulk_sitemap, harvest_sitemap
+from userCode.assetGroups.processed import (
+    REFERENCE_CATCHMENTS_DESCRIPTION,
+    REFERENCE_CATCHMENTS_METADATA_PATH_IN_S3,
+    REFERENCE_CATCHMENTS_NAME,
+    REFERENCE_CATCHMENTS_PATH_IN_S3,
+    REFERENCE_CATCHMENTS_TABLE_COLUMNS,
+    REFERENCE_CATCHMENTS_THUMBNAIL_PATH_IN_S3,
+    REFERENCE_CATCHMENTS_TITLE,
+)
 from userCode.lib.classes import RcloneClient, S3
 from userCode.lib.containers import (
     NquadsConfig,
@@ -69,13 +79,19 @@ from userCode.lib.env import (
 )
 from userCode.lib.lakefs import LakeFSClient
 from userCode.lib.stac_catalog import (
+    PROCESSED_USGS_CATALOG_DESCRIPTION,
+    PROCESSED_USGS_CATALOG_ID,
+    PROCESSED_USGS_CATALOG_TITLE,
     SitemapDatasetMetadata,
     add_catalog_icon,
     finalize_catalog,
     init_catalog,
+    init_sub_catalog,
     maplibre_style_for_pmtiles,
     multihash_sha256_file,
+    patch_processed_usgs_collection,
     patch_sitemap_collection,
+    register_processed_usgs_collection,
     register_sitemap_collection,
     render_thumbnail,
     sitemap_dataset_metadata,
@@ -603,6 +619,51 @@ def _guess_content_type(file: Path) -> str:
     return content_type or "application/octet-stream"
 
 
+def add_processed_usgs_catalog(catalog_root: Path, s3: S3) -> None:
+    """
+    Add the processed USGS data products sub-catalog to the STAC catalog, with a
+    collection for the reference catchments flatgeobuf the processed asset group
+    publishes; skipped if that file has not been generated yet
+    """
+    try:
+        metadata = json.loads(s3.read(REFERENCE_CATCHMENTS_METADATA_PATH_IN_S3))
+    except S3Error as e:
+        if e.code != "NoSuchKey":
+            raise
+        get_dagster_logger().warning(
+            f"{REFERENCE_CATCHMENTS_METADATA_PATH_IN_S3} is not in the object store; "
+            f"skipping the '{PROCESSED_USGS_CATALOG_TITLE}' catalog"
+        )
+        return
+
+    init_sub_catalog(
+        catalog_root,
+        catalog_id=PROCESSED_USGS_CATALOG_ID,
+        title=PROCESSED_USGS_CATALOG_TITLE,
+        description=PROCESSED_USGS_CATALOG_DESCRIPTION,
+    )
+    collection_path = register_processed_usgs_collection(
+        catalog_root,
+        name=REFERENCE_CATCHMENTS_NAME,
+        data_url=f"https://{S3_ADDRESS}/{s3.bucket}/{REFERENCE_CATCHMENTS_PATH_IN_S3}",
+        title=REFERENCE_CATCHMENTS_TITLE,
+        description=REFERENCE_CATCHMENTS_DESCRIPTION,
+        bbox=metadata["bbox"],
+    )
+    thumbnail_filename = "thumbnail.png"
+    (collection_path.parent / thumbnail_filename).write_bytes(
+        s3.read(REFERENCE_CATCHMENTS_THUMBNAIL_PATH_IN_S3)
+    )
+    patch_processed_usgs_collection(
+        collection_path,
+        data_size=metadata["file:size"],
+        data_checksum=metadata["file:checksum"],
+        table_columns=REFERENCE_CATCHMENTS_TABLE_COLUMNS,
+        sources=metadata["sources"],
+        thumbnail_filename=thumbnail_filename,
+    )
+
+
 @asset(deps=[pmtiles_from_harvested_parquet], group_name=EXPORT_GROUP)
 def publish_stac_catalog():
     """
@@ -718,6 +779,8 @@ def publish_stac_catalog():
                 thumbnail_filename=thumbnail_filename,
                 style_filename=style_filename,
             )
+
+        add_processed_usgs_catalog(catalog_root, s3)
 
         finalize_catalog(catalog_root)
 

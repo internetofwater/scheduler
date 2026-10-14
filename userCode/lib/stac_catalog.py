@@ -767,6 +767,147 @@ def patch_sitemap_collection(
     collection.save_object(include_self_link=False)
 
 
+PROCESSED_USGS_CATALOG_ID = "processed_usgs"
+PROCESSED_USGS_CATALOG_TITLE = "Processed USGS Data Products"
+PROCESSED_USGS_CATALOG_DESCRIPTION = (
+    "Datasets that Geoconnex derives from USGS data products for use in its "
+    "pipeline, such as the NHDPlusV2 reference catchments joined to Geoconnex "
+    "reference mainstems which are used to associate harvested features with "
+    "their mainstem."
+)
+USGS_PROVIDER_NAME = "U.S. Geological Survey"
+USGS_PROVIDER_URL = "https://www.usgs.gov/"
+
+
+def init_sub_catalog(
+    catalog_root: Path, *, catalog_id: str, title: str, description: str
+) -> Path:
+    """
+    Create an empty sub-catalog directly under the root catalog and return the
+    path to its catalog.json. `portolan add-external` links a nested collection
+    into its parent sub-catalog when that catalog.json exists, but unlike
+    `portolan add` it never creates it, so this has to run first.
+    """
+    catalog_path = catalog_root / catalog_id / "catalog.json"
+    catalog_path.parent.mkdir(parents=True, exist_ok=True)
+    catalog = {
+        "type": "Catalog",
+        "id": catalog_id,
+        "stac_version": "1.1.0",
+        "title": title,
+        "description": description,
+        "links": [
+            {"rel": "root", "href": "../catalog.json", "type": "application/json"},
+            {"rel": "parent", "href": "../catalog.json", "type": "application/json"},
+        ],
+    }
+    catalog_path.write_text(json.dumps(catalog, indent=2))
+    return catalog_path
+
+
+def processed_usgs_providers() -> list[dict]:
+    """
+    The STAC providers array for a collection Geoconnex derives from a USGS data
+    product: USGS produces the source data, Geoconnex produces the mainstems it
+    is joined to, the maintainer processes it, and Geoconnex hosts the result.
+    """
+    producer, processor, host = geoconnex_providers()
+    return [
+        {"name": USGS_PROVIDER_NAME, "roles": ["producer"], "url": USGS_PROVIDER_URL},
+        producer,
+        processor,
+        host,
+    ]
+
+
+def register_processed_usgs_collection(
+    catalog_root: Path,
+    *,
+    name: str,
+    data_url: str,
+    title: str,
+    description: str,
+    bbox: list[float],
+) -> Path:
+    """
+    Register a processed USGS dataset as an external Portolan collection named
+    `name` in the processed USGS sub-catalog, which `init_sub_catalog` must have
+    already created. Returns the path to its collection.json.
+    """
+    result = _run_portolan(
+        [
+            "add-external",
+            data_url,
+            "--collection",
+            f"{PROCESSED_USGS_CATALOG_ID}/{name}",
+            "--title",
+            title,
+            "--description",
+            description,
+            "--license",
+            CATALOG_LICENSE,
+            "--bbox",
+            ",".join(str(round(v, 6)) for v in bbox),
+        ],
+        cwd=catalog_root,
+    )
+    return Path(result["data"]["collection_path"])
+
+
+def patch_processed_usgs_collection(
+    collection_path: Path,
+    *,
+    data_size: int,
+    data_checksum: str,
+    table_columns: list[dict],
+    sources: list[dict],
+    thumbnail_filename: str | None = None,
+) -> None:
+    """
+    Patch a collection.json that `register_processed_usgs_collection` created
+    with the metadata the CLI's external-asset path cannot infer on its own:
+    providers (Geoconnex hosts the data it derives, so it is not a mirror), the
+    table schema, size and checksum of the data, a rel:derived_from link to
+    each of the `sources` ({href, title}) it was derived from, and an optional
+    local thumbnail (expected to already sit alongside collection.json).
+    """
+    collection = pystac.Collection.from_file(str(collection_path))
+
+    # see patch_sitemap_collection; the data is hosted by its processor so
+    # the rel:via mirror link add-external emits does not apply
+    collection.links = [link for link in collection.links if link.rel != "via"]
+    collection.providers = [pystac.Provider(**p) for p in processed_usgs_providers()]
+    for source in sources:
+        collection.add_link(
+            pystac.Link(
+                rel="derived_from", target=source["href"], title=source["title"]
+            )
+        )
+
+    extensions = set(collection.stac_extensions or [])
+    extensions.add(TABLE_EXTENSION_SCHEMA)
+    extensions.add(FILE_EXTENSION_SCHEMA)
+
+    data_asset = collection.assets["data"]
+    data_asset.extra_fields["table:columns"] = table_columns
+    data_asset.extra_fields["file:size"] = data_size
+    data_asset.extra_fields["file:checksum"] = data_checksum
+
+    if thumbnail_filename:
+        collection.add_asset(
+            "thumbnail",
+            pystac.Asset(
+                href=f"./{thumbnail_filename}",
+                media_type="image/png",
+                title="Default thumbnail",
+                roles=["thumbnail"],
+            ),
+        )
+
+    collection.stac_extensions = sorted(extensions)
+    collection.save_object(include_self_link=False)
+
+
 def finalize_catalog(catalog_root: Path) -> None:
     """
     Run Portolan's own mechanical fixers (schema URIs, README-link backfill),
