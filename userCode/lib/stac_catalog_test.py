@@ -14,6 +14,7 @@ from userCode.lib.stac_catalog import (
     CATALOG_LOGO_HREF,
     GEOCONNEX_PROVIDER_NAME,
     MAINTAINER_PROVIDER_URL,
+    SitemapDatasetMetadata,
     THUMBNAIL_HEIGHT_PX,
     THUMBNAIL_WIDTH_PX,
     add_catalog_icon,
@@ -23,8 +24,10 @@ from userCode.lib.stac_catalog import (
     multihash_sha256,
     multihash_sha256_file,
     patch_sitemap_collection,
+    register_sitemap_collection,
     render_thumbnail,
-    sitemap_dataset_descriptions,
+    sitemap_collection_title,
+    sitemap_dataset_metadata,
     stac_collection_id,
     thumbnail_extent,
     thumbnail_features,
@@ -53,6 +56,14 @@ def test_multihash_sha256_file_matches_in_memory_digest(tmp_path):
 def test_humanize_sitemap_id():
     assert humanize_sitemap_id("monitoring_locations") == "Monitoring Locations"
     assert humanize_sitemap_id("usgs-gages") == "Usgs Gages"
+
+
+def test_sitemap_collection_title_joins_dataset_name_and_sitemap_id():
+    assert (
+        sitemap_collection_title("usbr:rise", "USBR RISE Locations")
+        == "USBR RISE Locations (usbr:rise)"
+    )
+    assert sitemap_collection_title("usgs-gages", None) == "Usgs Gages"
 
 
 def test_stac_collection_id_is_portolan_valid():
@@ -111,22 +122,117 @@ def test_maplibre_style_for_pmtiles_renders_every_geometry_type():
     assert layer_types == {"fill", "line", "circle"}
 
 
-def test_sitemap_dataset_descriptions_maps_ids_to_descriptions():
+def test_sitemap_dataset_metadata_maps_ids_to_names_descriptions_and_links():
     index_xml = """<?xml version='1.0' encoding='utf-8'?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:geoconnex="https://geoconnex.us">
 <sitemap>
   <loc>https://geoconnex.us/sitemap/usbr/rise.xml</loc>
   <geoconnex:sitemap_id>usbr:rise</geoconnex:sitemap_id>
+  <geoconnex:dataset_name> USBR RISE Locations </geoconnex:dataset_name>
   <geoconnex:dataset_description> Locations in the USBR RISE API </geoconnex:dataset_description>
+  <geoconnex:dataset_documentation_link> https://data.usbr.gov/rise-api </geoconnex:dataset_documentation_link>
+  <geoconnex:source_code_link>
+    https://github.com/internetofwater/geoconnex_bulk_runners/tree/main/usbr%3Arise
+  </geoconnex:source_code_link>
+  <geoconnex:add_associated_mainstems>True</geoconnex:add_associated_mainstems>
+</sitemap><sitemap>
+  <loc>https://geoconnex.us/sitemap/no/mainstems.xml</loc>
+  <geoconnex:sitemap_id>no:mainstems</geoconnex:sitemap_id>
+  <geoconnex:add_associated_mainstems>False</geoconnex:add_associated_mainstems>
 </sitemap><sitemap>
   <loc>https://geoconnex.us/sitemap/no/description.xml</loc>
   <geoconnex:sitemap_id>no:description</geoconnex:sitemap_id>
 </sitemap>
 </sitemapindex>"""
 
-    assert sitemap_dataset_descriptions(index_xml) == {
-        "usbr:rise": "Locations in the USBR RISE API"
+    assert sitemap_dataset_metadata(index_xml) == {
+        "usbr:rise": SitemapDatasetMetadata(
+            name="USBR RISE Locations",
+            description="Locations in the USBR RISE API",
+            documentation_link="https://data.usbr.gov/rise-api",
+            source_code_link="https://github.com/internetofwater/geoconnex_bulk_runners/tree/main/usbr%3Arise",
+            add_associated_mainstems=True,
+        ),
+        "no:mainstems": SitemapDatasetMetadata(add_associated_mainstems=False),
+        "no:description": SitemapDatasetMetadata(),
     }
+
+
+def test_register_sitemap_collection_puts_dataset_description_first(
+    tmp_path, monkeypatch
+):
+    portolan_calls = []
+
+    def fake_run_portolan(args, cwd):
+        portolan_calls.append(args)
+        return {"data": {"collection_path": str(tmp_path / "collection.json")}}
+
+    monkeypatch.setattr("userCode.lib.stac_catalog._run_portolan", fake_run_portolan)
+
+    register_sitemap_collection(
+        tmp_path,
+        sitemap_id="usbr:rise",
+        parquet_url="https://example.com/usbr:rise.parquet",
+        bbox=[-120.0, 30.0, -100.0, 45.0],
+        dataset_name="USBR RISE Locations",
+        dataset_description="Locations in the USBR RISE API",
+        dataset_documentation_link="https://data.usbr.gov/rise-api",
+        source_code_link="https://github.com/internetofwater/geoconnex_bulk_runners",
+        add_associated_mainstems=True,
+    )
+
+    args = portolan_calls[0]
+    assert args[args.index("--title") + 1] == "USBR RISE Locations (usbr:rise)"
+    description = args[args.index("--description") + 1]
+    (
+        dataset_part,
+        documentation_part,
+        harvest_part,
+        source_code_part,
+        mainstem_part,
+    ) = description.split("\n\n")
+    assert dataset_part == "Locations in the USBR RISE API"
+    assert (
+        documentation_part == "More info can be found at https://data.usbr.gov/rise-api"
+    )
+    assert harvest_part == (
+        "All features in this dataset derive from the 'usbr:rise' sitemap in Geoconnex."
+    )
+    assert source_code_part == (
+        "The source code that generates this sitemap can be found at "
+        "https://github.com/internetofwater/geoconnex_bulk_runners"
+    )
+    assert mainstem_part == (
+        "Mainstem association was enabled for this dataset so features may "
+        "have an associated Geoconnex mainstem."
+    )
+
+
+def test_register_sitemap_collection_notes_disabled_mainstem_association(
+    tmp_path, monkeypatch
+):
+    portolan_calls = []
+
+    def fake_run_portolan(args, cwd):
+        portolan_calls.append(args)
+        return {"data": {"collection_path": str(tmp_path / "collection.json")}}
+
+    monkeypatch.setattr("userCode.lib.stac_catalog._run_portolan", fake_run_portolan)
+
+    register_sitemap_collection(
+        tmp_path,
+        sitemap_id="ref:hu12",
+        parquet_url="https://example.com/ref:hu12.parquet",
+        bbox=[-120.0, 30.0, -100.0, 45.0],
+        add_associated_mainstems=False,
+    )
+
+    args = portolan_calls[0]
+    description = args[args.index("--description") + 1]
+    assert description.endswith(
+        "\n\nMainstem association was disabled for this dataset so features will "
+        "not have an associated Geoconnex mainstem."
+    )
 
 
 def test_patch_sitemap_collection_adds_pmtiles_as_a_visual_asset(tmp_path):
@@ -207,3 +313,30 @@ def test_thumbnail_frame_is_the_thumbnail_aspect_ratio():
         assert (max_x - min_x) / (max_y - min_y) == pytest.approx(
             THUMBNAIL_WIDTH_PX / THUMBNAIL_HEIGHT_PX
         )
+
+
+def test_register_sitemap_collection_skips_missing_dataset_metadata(
+    tmp_path, monkeypatch
+):
+    portolan_calls = []
+
+    def fake_run_portolan(args, cwd):
+        portolan_calls.append(args)
+        return {"data": {"collection_path": str(tmp_path / "collection.json")}}
+
+    monkeypatch.setattr("userCode.lib.stac_catalog._run_portolan", fake_run_portolan)
+
+    register_sitemap_collection(
+        tmp_path,
+        sitemap_id="usgs-gages",
+        parquet_url="https://example.com/usgs-gages.parquet",
+        bbox=[-120.0, 30.0, -100.0, 45.0],
+    )
+
+    args = portolan_calls[0]
+    assert args[args.index("--title") + 1] == "Usgs Gages"
+    description = args[args.index("--description") + 1]
+    assert "\n\n" not in description
+    assert "More info" not in description
+    assert "Mainstem association" not in description
+    assert "source code" not in description

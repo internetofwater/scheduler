@@ -1,6 +1,7 @@
 # Copyright 2026 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
+from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
@@ -91,6 +92,17 @@ def multihash_sha256_file(path: Path, chunk_size: int = 8 * 1024 * 1024) -> str:
 def humanize_sitemap_id(sitemap_id: str) -> str:
     """Turn a sitemap id like 'monitoring_locations' into a human-readable title"""
     return sitemap_id.replace("_", " ").replace("-", " ").title()
+
+
+def sitemap_collection_title(sitemap_id: str, dataset_name: str | None) -> str:
+    """
+    The collection title for a sitemap: its dataset name from the sitemap index
+    joined with the sitemap id, e.g. 'USBR RISE Locations (usbr:rise)', falling
+    back to a humanized sitemap id when the index gives no name
+    """
+    if dataset_name:
+        return f"{dataset_name} ({sitemap_id})"
+    return humanize_sitemap_id(sitemap_id)
 
 
 def stac_collection_id(sitemap_id: str) -> str:
@@ -460,23 +472,59 @@ SITEMAP_INDEX_NAMESPACES = {
 }
 
 
-def sitemap_dataset_descriptions(sitemap_index_xml: str) -> dict[str, str]:
+@dataclass(frozen=True)
+class SitemapDatasetMetadata:
+    """
+    The dataset name, description, documentation link, source code link and
+    mainstem association setting the sitemap index gives for one sitemap
+    """
+
+    name: str | None = None
+    description: str | None = None
+    documentation_link: str | None = None
+    source_code_link: str | None = None
+    add_associated_mainstems: bool | None = None
+
+
+def _sitemap_index_text(sitemap: ET.Element, tag: str) -> str | None:
+    """The stripped text of a geoconnex:<tag> child, or None if missing or blank"""
+    text = sitemap.findtext(f"geoconnex:{tag}", namespaces=SITEMAP_INDEX_NAMESPACES)
+    return text.strip() if text and text.strip() else None
+
+
+def _sitemap_index_bool(sitemap: ET.Element, tag: str) -> bool | None:
+    """A geoconnex:<tag> child parsed as 'True'/'False', or None if missing or neither"""
+    text = _sitemap_index_text(sitemap, tag)
+    return {"true": True, "false": False}.get(text.lower()) if text else None
+
+
+def sitemap_dataset_metadata(
+    sitemap_index_xml: str,
+) -> dict[str, SitemapDatasetMetadata]:
     """
     Map each geoconnex:sitemap_id in a sitemap index to its
-    geoconnex:dataset_description, skipping sitemaps without one
+    geoconnex:dataset_name, geoconnex:dataset_description,
+    geoconnex:dataset_documentation_link, geoconnex:source_code_link and
+    geoconnex:add_associated_mainstems, any of which may be None if the index
+    leaves it out
     """
     root = ET.fromstring(sitemap_index_xml)
-    descriptions: dict[str, str] = {}
+    metadata: dict[str, SitemapDatasetMetadata] = {}
     for sitemap in root.findall("sm:sitemap", namespaces=SITEMAP_INDEX_NAMESPACES):
-        sitemap_id = sitemap.findtext(
-            "geoconnex:sitemap_id", namespaces=SITEMAP_INDEX_NAMESPACES
-        )
-        description = sitemap.findtext(
-            "geoconnex:dataset_description", namespaces=SITEMAP_INDEX_NAMESPACES
-        )
-        if sitemap_id and sitemap_id.strip() and description and description.strip():
-            descriptions[sitemap_id.strip()] = description.strip()
-    return descriptions
+        sitemap_id = _sitemap_index_text(sitemap, "sitemap_id")
+        if sitemap_id:
+            metadata[sitemap_id] = SitemapDatasetMetadata(
+                name=_sitemap_index_text(sitemap, "dataset_name"),
+                description=_sitemap_index_text(sitemap, "dataset_description"),
+                documentation_link=_sitemap_index_text(
+                    sitemap, "dataset_documentation_link"
+                ),
+                source_code_link=_sitemap_index_text(sitemap, "source_code_link"),
+                add_associated_mainstems=_sitemap_index_bool(
+                    sitemap, "add_associated_mainstems"
+                ),
+            )
+    return metadata
 
 
 def register_sitemap_collection(
@@ -485,23 +533,57 @@ def register_sitemap_collection(
     sitemap_id: str,
     parquet_url: str,
     bbox: list[float],
+    dataset_name: str | None = None,
     dataset_description: str | None = None,
+    dataset_documentation_link: str | None = None,
+    source_code_link: str | None = None,
+    add_associated_mainstems: bool | None = None,
 ) -> Path:
     """
     Register one sitemap's geoparquet export as an external Portolan collection,
     referenced in place rather than copied. Returns the path to its collection.json.
-    `dataset_description` is the description the sitemap index gives for the
-    dataset, and leads the collection description when present.
+    `dataset_name`, `dataset_description` and `dataset_documentation_link` are
+    what the sitemap index gives for the dataset: the name titles the collection
+    (see `sitemap_collection_title`), and the description and documentation link
+    lead the collection description, when present. `source_code_link` follows
+    the harvest details, and `add_associated_mainstems` adds a closing note on
+    whether features have an associated mainstem.
     """
-    title = humanize_sitemap_id(sitemap_id)
-    description = (
-        f"Geoconnex features harvested from the '{sitemap_id}' sitemap, published "
-        f"as GeoParquet by the {GEOCONNEX_PROVIDER_NAME}. Source: automated harvest "
-        f"of the '{sitemap_id}' sitemap by the Geoconnex scheduler, licensed "
-        f"{CATALOG_LICENSE}."
+    title = sitemap_collection_title(sitemap_id, dataset_name)
+    harvest_description = f"All features in this dataset derive from the '{sitemap_id}' sitemap in Geoconnex."
+
+    documentation_description = (
+        f"More info can be found at {dataset_documentation_link}"
+        if dataset_documentation_link
+        else None
     )
-    if dataset_description:
-        description = f"{dataset_description}\n\n{description}"
+    source_code_description = (
+        f"The source code that generated the RDF data which was transformed into this asset can be found at "
+        f"{source_code_link}"
+        if source_code_link
+        else None
+    )
+    mainstem_description = None
+    if add_associated_mainstems is not None:
+        mainstem_description = (
+            f"Mainstem association was "
+            f"{'enabled' if add_associated_mainstems else 'disabled'} for this "
+            f"dataset so features {'may ' if add_associated_mainstems else 'will not '}"
+            f"have an associated Geoconnex mainstem."
+        )
+    # the dataset's own description and documentation come first, above the
+    # harvest details
+    description = "\n\n".join(
+        part
+        for part in (
+            dataset_description,
+            documentation_description,
+            harvest_description,
+            source_code_description,
+            mainstem_description,
+        )
+        if part
+    )
     result = _run_portolan(
         [
             "add-external",
