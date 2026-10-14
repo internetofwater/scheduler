@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
+import json
 
 import geopandas as gpd
 import pystac
@@ -9,9 +10,13 @@ import pytest
 from shapely.geometry import Point, box
 
 from userCode.lib.stac_catalog import (
+    CATALOG_LOGO_FILE,
+    CATALOG_LOGO_HREF,
     GEOCONNEX_PROVIDER_NAME,
+    MAINTAINER_PROVIDER_URL,
     THUMBNAIL_HEIGHT_PX,
     THUMBNAIL_WIDTH_PX,
+    add_catalog_icon,
     geoconnex_providers,
     humanize_sitemap_id,
     maplibre_style_for_pmtiles,
@@ -57,14 +62,36 @@ def test_stac_collection_id_is_portolan_valid():
     assert stac_collection_id("_leading") == "leading"
 
 
-def test_geoconnex_providers_has_producer_and_host_last():
+def test_geoconnex_providers_has_producer_processor_and_host_last():
     providers = geoconnex_providers()
 
-    assert len(providers) == 2
+    assert len(providers) == 3
     assert providers[0]["roles"] == ["producer"]
+    assert providers[1]["roles"] == ["processor"]
+    assert providers[1]["url"] == MAINTAINER_PROVIDER_URL
     assert providers[-1]["roles"] == ["host"]
-    assert all(p["name"] == GEOCONNEX_PROVIDER_NAME for p in providers)
-    assert "url" in providers[-1]
+    assert providers[0]["name"] == providers[-1]["name"] == GEOCONNEX_PROVIDER_NAME
+    # STAC validators reject anything but an absolute IRI here, e.g. a bare email
+    assert providers[-1]["url"].startswith("https://")
+
+
+def test_add_catalog_icon_links_and_copies_the_logo_once(tmp_path):
+    catalog_path = tmp_path / "catalog.json"
+    catalog_path.write_text(
+        json.dumps({"type": "Catalog", "links": [{"rel": "root", "href": "./"}]})
+    )
+
+    # running twice must not duplicate the link
+    add_catalog_icon(tmp_path)
+    add_catalog_icon(tmp_path)
+
+    links = json.loads(catalog_path.read_text())["links"]
+    icons = [link for link in links if link["rel"] == "icon"]
+    assert len(icons) == 1
+    assert icons[0]["href"] == CATALOG_LOGO_HREF
+    assert icons[0]["type"] == "image/png"
+    assert any(link["rel"] == "root" for link in links)
+    assert (tmp_path / CATALOG_LOGO_HREF).read_bytes() == CATALOG_LOGO_FILE.read_bytes()
 
 
 def test_maplibre_style_for_pmtiles_references_the_given_layer():

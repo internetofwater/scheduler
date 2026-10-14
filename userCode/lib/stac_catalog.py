@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import re
 import shlex
+import shutil
 import subprocess
 from xml.etree import ElementTree as ET
 
@@ -30,10 +31,17 @@ the same way this codebase already shells out to qlever/oras/docker.
 
 GEOCONNEX_CATALOG_ID = "geoconnex"
 GEOCONNEX_PROVIDER_NAME = "Internet of Water Coalition"
-GEOCONNEX_CONTACT_URL = "cloftus@lincolninst.edu"
+# STAC requires provider urls to be IRIs (the provider homepage), not an email
+GEOCONNEX_PROVIDER_URL = "https://geoconnex.us"
+# the maintainer of the pipeline that processes and exports the data
+MAINTAINER_PROVIDER_NAME = "Colton Loftus"
+MAINTAINER_PROVIDER_URL = "mailto:cloftus@lincolninst.edu"
 CATALOG_LICENSE = "CC0-1.0"  # must be an SPDX identifier for portolan
 # markdown description of the whole catalog; edit the file to change it
 CATALOG_DESCRIPTION_FILE = Path(__file__).parent / "stac_catalog_description.md"
+# logo the registry shows for the catalog; linked from the root catalog as rel:icon
+CATALOG_LOGO_FILE = Path(__file__).parent / "stac_catalog_logo.png"
+CATALOG_LOGO_HREF = "./_assets/geoconnex-logo.png"
 
 PMTILES_MEDIA_TYPE = "application/vnd.pmtiles"
 MAPLIBRE_STYLE_MEDIA_TYPE = "application/vnd.mapbox.style+json"
@@ -99,14 +107,20 @@ def stac_collection_id(sitemap_id: str) -> str:
 def geoconnex_providers() -> list[dict]:
     """
     The STAC providers array for a collection that Geoconnex both produces and
-    hosts itself: a producer and, listed last, a host with contact info.
+    hosts itself: a producer, the maintainer who processes the exports, and,
+    listed last, a host with its homepage.
     """
     return [
         {"name": GEOCONNEX_PROVIDER_NAME, "roles": ["producer"]},
         {
+            "name": MAINTAINER_PROVIDER_NAME,
+            "roles": ["processor"],
+            "url": MAINTAINER_PROVIDER_URL,
+        },
+        {
             "name": GEOCONNEX_PROVIDER_NAME,
             "roles": ["host"],
-            "url": GEOCONNEX_CONTACT_URL,
+            "url": GEOCONNEX_PROVIDER_URL,
         },
     ]
 
@@ -406,6 +420,30 @@ def init_catalog(catalog_root: Path) -> None:
         ],
         cwd=catalog_root,
     )
+
+
+def add_catalog_icon(catalog_root: Path) -> None:
+    """
+    Copy the catalog logo into `catalog_root` and link it from the root catalog.json
+    as rel:icon, which catalog registries use to display the catalog with its logo
+    """
+    logo_path = catalog_root / CATALOG_LOGO_HREF
+    logo_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(CATALOG_LOGO_FILE, logo_path)
+
+    catalog_path = catalog_root / "catalog.json"
+    catalog = json.loads(catalog_path.read_text())
+    links = [link for link in catalog.get("links", []) if link.get("rel") != "icon"]
+    links.append(
+        {
+            "rel": "icon",
+            "href": CATALOG_LOGO_HREF,
+            "type": "image/png",
+            "title": GEOCONNEX_PROVIDER_NAME,
+        }
+    )
+    catalog["links"] = links
+    catalog_path.write_text(json.dumps(catalog, indent=2))
 
 
 SITEMAP_INDEX_NAMESPACES = {
