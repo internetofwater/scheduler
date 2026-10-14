@@ -13,6 +13,7 @@ from userCode.lib.stac_catalog import (
     CATALOG_LOGO_FILE,
     CATALOG_LOGO_HREF,
     GEOCONNEX_PROVIDER_NAME,
+    LABEL_MIN_ZOOM,
     MAINTAINER_PROVIDER_URL,
     SitemapDatasetMetadata,
     THUMBNAIL_HEIGHT_PX,
@@ -58,10 +59,10 @@ def test_humanize_sitemap_id():
     assert humanize_sitemap_id("usgs-gages") == "Usgs Gages"
 
 
-def test_sitemap_collection_title_joins_dataset_name_and_sitemap_id():
+def test_sitemap_collection_title_uses_dataset_name():
     assert (
         sitemap_collection_title("usbr:rise", "USBR RISE Locations")
-        == "USBR RISE Locations (usbr:rise)"
+        == "USBR RISE Locations"
     )
     assert sitemap_collection_title("usgs-gages", None) == "Usgs Gages"
 
@@ -119,7 +120,21 @@ def test_maplibre_style_for_pmtiles_renders_every_geometry_type():
     style = maplibre_style_for_pmtiles("https://example.org/data.pmtiles", "my_layer")
 
     layer_types = {layer["type"] for layer in style["layers"]}
-    assert layer_types == {"fill", "line", "circle"}
+    assert layer_types == {"fill", "line", "circle", "symbol"}
+
+
+def test_maplibre_style_for_pmtiles_labels_features_by_name_at_high_zoom():
+    style = maplibre_style_for_pmtiles("https://example.org/data.pmtiles", "my_layer")
+
+    label_layers = [layer for layer in style["layers"] if layer["type"] == "symbol"]
+    assert label_layers
+    assert style["glyphs"]
+    for layer in label_layers:
+        assert layer["minzoom"] == LABEL_MIN_ZOOM
+        assert layer["layout"]["text-field"] == [
+            "to-string",
+            ["get", "feature_name"],
+        ]
 
 
 def test_sitemap_dataset_metadata_maps_ids_to_names_descriptions_and_links():
@@ -182,7 +197,7 @@ def test_register_sitemap_collection_puts_dataset_description_first(
     )
 
     args = portolan_calls[0]
-    assert args[args.index("--title") + 1] == "USBR RISE Locations (usbr:rise)"
+    assert args[args.index("--title") + 1] == "USBR RISE Locations"
     description = args[args.index("--description") + 1]
     (
         dataset_part,
