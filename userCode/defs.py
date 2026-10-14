@@ -27,6 +27,7 @@ from userCode.assetGroups import (
     config,
     export,
     harvest,
+    processed,
 )
 from userCode.assetGroups.harvest import (
     docker_client_environment,
@@ -66,6 +67,14 @@ harvest_job = define_asset_job(
     "harvest_and_generate_parquet",
     description="harvest a source and generate a parquet file of its jsonld in s3",
     selection=AssetSelection.assets(harvest.harvest_sitemap),
+)
+
+# processed datasets are expensive to generate and their upstream sources
+# rarely change, so this job is run by hand rather than on a schedule
+processed_job = define_asset_job(
+    "generate_processed_data",
+    description="derive datasets like the catchment to mainstem lookup file from upstream data products and publish them to processed/ in s3",
+    selection=AssetSelection.groups(processed.PROCESSED_GROUP),
 )
 
 harvest_bulk_job = define_asset_job(
@@ -138,6 +147,7 @@ defs = Definitions(
             harvest,
             export,
             config,
+            processed,
         ]
     ),
     schedules=[
@@ -150,6 +160,7 @@ defs = Definitions(
             harvest,
             export,
             config,
+            processed,
         ]
     ),
     jobs=[
@@ -157,6 +168,7 @@ defs = Definitions(
         setup_config_job,
         harvest_job,
         harvest_bulk_job,
+        processed_job,
     ],
     sensors=[
         dagster_slack.make_slack_on_run_failure_sensor(

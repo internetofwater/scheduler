@@ -11,8 +11,11 @@ from dagster import (
     get_dagster_logger,
 )
 import docker
+from minio.error import S3Error
 import requests
 
+from userCode.assetGroups.processed import REFERENCE_CATCHMENTS_PATH_IN_S3
+from userCode.lib.classes import S3
 from userCode.lib.dagster import (
     bulk_sources_partitions_def,
     filter_partitions,
@@ -38,9 +41,10 @@ CONFIG_GROUP = "config"
 @asset(group_name=CONFIG_GROUP)
 def mainstem_catchment_metadata():
     """
-    Download the geoconnex mainstem catchment fgb metadata file locally
-    using streaming. This file can be used for adding mainstems to the
-    harvested features during the harvest
+    Download the catchment to mainstem flatgeobuf that the
+    reference_catchments_and_mainstems asset publishes to the object store.
+    This file is used for adding mainstems to the harvested features during
+    the harvest
     """
     if os.environ.get("GITHUB_ACTIONS") or os.environ.get("PYTEST_CURRENT_TEST"):
         get_dagster_logger().info(
@@ -48,42 +52,48 @@ def mainstem_catchment_metadata():
         )
         return
 
-    url = (
-        "https://storage.googleapis.com/"
-        "national-hydrologic-geospatial-fabric-reference-hydrofabric/"
-        "reference_catchments_and_flowlines.fgb"
-    )
-    ONE_MB = 1024 * 1024
+    s3 = S3()
+    try:
+        remote = s3.client.stat_object(s3.bucket, REFERENCE_CATCHMENTS_PATH_IN_S3)
+    except S3Error as e:
+        if e.code != "NoSuchKey":
+            raise
+        if MAINSTEM_FILE.exists():
+            get_dagster_logger().warning(
+                f"{REFERENCE_CATCHMENTS_PATH_IN_S3} is not in bucket '{s3.bucket}'; "
+                f"using the existing local file {MAINSTEM_FILE}"
+            )
+            return
+        raise Exception(
+            f"{REFERENCE_CATCHMENTS_PATH_IN_S3} is not in bucket '{s3.bucket}'; "
+            "materialize the reference_catchments_and_mainstems asset to generate "
+            f"it, or put a copy of it at {MAINSTEM_FILE}"
+        ) from e
 
-    if MAINSTEM_FILE.exists():
+    # the etag of the object the local file was downloaded from, so the file
+    # is downloaded again whenever the processed file is regenerated
+    etag_file = MAINSTEM_FILE.with_name(f"{MAINSTEM_FILE.name}.etag")
+    if (
+        MAINSTEM_FILE.exists()
+        and etag_file.exists()
+        and etag_file.read_text() == remote.etag
+    ):
         get_dagster_logger().info(
-            f"File {MAINSTEM_FILE} already exists; skipping download"
+            f"File {MAINSTEM_FILE} is already up to date; skipping download"
         )
         return
 
-    FIFTEEN_MINUTES = 60 * 15
-    get_dagster_logger(f"Downloading {url} to {MAINSTEM_FILE.absolute()} ...")
-
-    LOG_EVERY_BYTES = 250 * ONE_MB
-    bytes_downloaded = 0
-    next_log_threshold = LOG_EVERY_BYTES
-
-    with requests.get(url, stream=True, timeout=FIFTEEN_MINUTES) as response:
-        response.raise_for_status()
-
-        with MAINSTEM_FILE.open("wb") as f:
-            for chunk in response.iter_content(chunk_size=ONE_MB):
-                if not chunk:  # filter out keep-alive chunks
-                    continue
-
-                f.write(chunk)
-                bytes_downloaded += len(chunk)
-
-                if bytes_downloaded >= next_log_threshold:
-                    get_dagster_logger().info(
-                        f"Downloaded {bytes_downloaded / (1024**3):.2f} GB so far..."
-                    )
-                    next_log_threshold += LOG_EVERY_BYTES
+    get_dagster_logger().info(
+        f"Downloading {REFERENCE_CATCHMENTS_PATH_IN_S3} ({remote.size} bytes) "
+        f"to {MAINSTEM_FILE.absolute()} ..."
+    )
+    # fget_object downloads to a temporary file and then renames it, so the
+    # asset server never serves a partially downloaded file
+    s3.client.fget_object(
+        s3.bucket, REFERENCE_CATCHMENTS_PATH_IN_S3, str(MAINSTEM_FILE)
+    )
+    assert remote.etag
+    etag_file.write_text(remote.etag)
 
 
 @asset(backfill_policy=BackfillPolicy.single_run(), group_name=CONFIG_GROUP)
