@@ -80,6 +80,16 @@ def test_join_catchments_to_mainstems_reprojects_to_wgs84():
     assert joined.total_bounds == pytest.approx([0, 0, 3, 1])
 
 
+def test_join_catchments_to_mainstems_accepts_a_geometry_column_named_geometry():
+    # reading the reference catchments gpkg with pyogrio names it 'geometry'
+    named_geometry = catchments().rename_geometry("geometry")
+
+    joined = join_catchments_to_mainstems(named_geometry, lookup(), mainstems())
+
+    assert joined.geometry.name == "geometry"
+    assert len(joined) == 3
+
+
 def test_join_catchments_to_mainstems_rejects_superseded_mainstems():
     superseded_lookup = pd.concat(
         [

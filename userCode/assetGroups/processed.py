@@ -13,7 +13,7 @@ import pyogrio
 import requests
 
 from userCode.lib.classes import S3
-from userCode.lib.env import PROCESSED_PREFIX_IN_S3
+from userCode.lib.env import PROCESSED_PREFIX_IN_S3, S3_ADDRESS
 from userCode.lib.stac_catalog import multihash_sha256_file, render_thumbnail
 
 """
@@ -31,16 +31,18 @@ PROCESSED_GROUP = "processed"
 REFERENCE_HYDROFABRIC_URL = (
     "https://www.sciencebase.gov/catalog/item/61295190d34e40dd9c06bcd7"
 )
-# ScienceBase only serves reference_catchments.gpkg after a login, so this
-# reads the public GeoParquet copy of the same catchments
-REFERENCE_CATCHMENTS_URL = (
-    "https://storage.googleapis.com/"
-    "national-hydrologic-geospatial-fabric-reference-hydrofabric/"
-    "outdated_versions/reference_catchments.parquet"
+# ScienceBase only serves reference_catchments.gpkg after a login, so an
+# unmodified copy of it is kept in the default bucket alongside the outputs
+REFERENCE_CATCHMENTS_INPUT_PATH_IN_S3 = (
+    f"{PROCESSED_PREFIX_IN_S3}intermediate_inputs/reference_catchments.gpkg"
 )
-# v3.2 is the current mainstem release for every table except the NHDPlusHR
-# lookup, which v3.3 re-releases; these catchments are NHDPlusV2 so they only
-# need the NHDPlusV2 lookup from v3.2
+# The mainstems are joined with the NHDPlusV2 COMID lookup from v3.2, the
+# current mainstem release for every table except the NHDPlusHR lookup (which
+# v3.3 re-releases). The reference catchments are only NHDPlusV2 catchments,
+# and most v3 mainstems are on NHDPlusV2 flowlines; the few v3 mainstems that
+# are only on NHDPlusHR will not get associations. Per the ref_rivers
+# maintainer, bringing in the NHDPlusHR crosswalk is premature while the v3
+# hydrographic framework is still being backfilled, so do not add it yet.
 REF_RIVERS_RELEASE = "v3.2"
 REF_RIVERS_RELEASE_URL = (
     f"https://github.com/internetofwater/ref_rivers/releases/tag/{REF_RIVERS_RELEASE}"
@@ -178,7 +180,10 @@ def join_catchments_to_mainstems(
         catchments[[*CATCHMENT_COLUMNS, catchments.geometry.name]]
     )
     selected["featureid"] = featureids.astype("Int64")
-    selected = selected.to_crs("EPSG:4326").rename_geometry("geometry")
+    selected = selected.to_crs("EPSG:4326")
+    # the geometry column is named 'geom' in some sources and 'geometry' in others
+    if selected.geometry.name != "geometry":
+        selected = selected.rename_geometry("geometry")
 
     joined = selected.merge(
         mainstem_lookup,
@@ -210,15 +215,19 @@ def reference_catchments_and_mainstems():
     logger = get_dagster_logger()
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
-        catchments_file = tmp_dir / "reference_catchments.parquet"
+        catchments_file = tmp_dir / "reference_catchments.gpkg"
         lookup_file = tmp_dir / "nhdpv2_lookup.csv"
         mainstems_file = tmp_dir / "mainstems.gpkg"
-        download_file(REFERENCE_CATCHMENTS_URL, catchments_file)
+        s3 = S3()
+        logger.info(f"Downloading {REFERENCE_CATCHMENTS_INPUT_PATH_IN_S3}")
+        s3.client.fget_object(
+            s3.bucket, REFERENCE_CATCHMENTS_INPUT_PATH_IN_S3, str(catchments_file)
+        )
         download_file(NHDPV2_MAINSTEM_LOOKUP_URL, lookup_file)
         download_file(MAINSTEMS_URL, mainstems_file)
 
         joined = join_catchments_to_mainstems(
-            gpd.read_parquet(catchments_file),
+            gpd.read_file(catchments_file, engine="pyogrio", use_arrow=True),
             pd.read_csv(lookup_file),
             pyogrio.read_dataframe(
                 mainstems_file, columns=["uri", "superseded"], read_geometry=False
@@ -255,7 +264,11 @@ def reference_catchments_and_mainstems():
                     "href": REFERENCE_HYDROFABRIC_URL,
                     "title": "USGS Reference Hydrofabric",
                 },
-                {"href": REFERENCE_CATCHMENTS_URL, "title": "Reference catchments"},
+                {
+                    "href": f"https://{S3_ADDRESS}/{s3.bucket}/"
+                    f"{REFERENCE_CATCHMENTS_INPUT_PATH_IN_S3}",
+                    "title": "USGS Reference Hydrofabric reference catchments",
+                },
                 {
                     "href": NHDPV2_MAINSTEM_LOOKUP_URL,
                     "title": f"ref_rivers {REF_RIVERS_RELEASE} NHDPlusV2 mainstem lookup",
@@ -267,7 +280,6 @@ def reference_catchments_and_mainstems():
             ],
         }
 
-        s3 = S3()
         # the metadata is uploaded last so that it only describes a
         # flatgeobuf which has finished uploading
         for file, remote_path, content_type in (
