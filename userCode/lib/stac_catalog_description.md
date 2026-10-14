@@ -1,4 +1,4 @@
-Geoconnex is a data product from the Internet of Water Coalition, maintained by the US Geological Survey and the Lincoln Institute of Land Policy's Center for Geospatial Solutions. It aims to link vector hydrologic features across the United States such as water monitoring locations, Hydrologic Unit Codes (HUCs), or administrative boundaries like public water supply areas. 
+Geoconnex is a data product from the Internet of Water Coalition, maintained by the US Geological Survey and the Lincoln Institute of Land Policy's Center for Geospatial Solutions. It aims to link vector hydrologic features across the United States such as water monitoring locations, Hydrologic Unit Codes (HUCs), or administrative boundaries like public water supply areas.
 
 This catalog contains a GeoParquet and PMTiles export for all vector features in each dataset in the Geoconnex registry. Metadata for each is listed in the sitemap here: https://geoconnex.us/sitemap.xml
 The GeoParquet files contain a `jsonld` column which can be used for reconstructing the RDF graph database. For columnar analytics, this column can be ignored.
