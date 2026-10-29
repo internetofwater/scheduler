@@ -333,19 +333,24 @@ def test_move_geoparquet_to_postgis_skips_sitemaps_without_geometry(tmp_path):
         assert_geometry_column_is_generic_4326(conn)
 
 
-# the geoparquet metadata nabu writes; it has no crs and no geometry types
+# the geoparquet metadata nabu writes for the structured parquet; it has no crs and
+# no geometry types, and declares the bbox column as the covering
 NABU_GEO_METADATA = (
-    '{"columns":{"geometry":{"encoding":"WKB","geometry_types":[]}},'
+    '{"columns":{"geometry":{"encoding":"WKB","geometry_types":[],'
+    '"covering":{"bbox":{"xmin":["bbox","xmin"],"ymin":["bbox","ymin"],'
+    '"xmax":["bbox","xmax"],"ymax":["bbox","ymax"]}}}},'
     '"primary_column":"geometry","version":"1.1.0"}'
 )
 
 
 def write_nabu_parquet(path: Path, ids: list[str], geometries: list) -> None:
-    """Write a parquet file with the same schema and metadata as one harvested by nabu"""
+    """Write a parquet file with the same schema and metadata as the structured file harvested by nabu"""
     import pyarrow as pa
     import pyarrow.parquet as pq
     import shapely
 
+    bbox_names = ("xmin", "ymin", "xmax", "ymax")
+    bbox_type = pa.struct([(name, pa.float64()) for name in bbox_names])
     pq.write_table(
         pa.table(
             {
@@ -356,11 +361,18 @@ def write_nabu_parquet(path: Path, ids: list[str], geometries: list) -> None:
                     [None if g is None else shapely.to_wkb(g) for g in geometries],
                     type=pa.binary(),
                 ),
-                "jsonld": pa.array(
-                    [f'{{"@id": "{id}"}}' for id in ids], type=pa.string()
-                ),
-                "url": [f"https://example.com/{id}" for id in ids],
                 "mainstem_uri": pa.array([None] * len(ids), type=pa.string()),
+                "bbox": pa.array(
+                    [
+                        None
+                        if g is None
+                        else dict(
+                            zip(bbox_names, shapely.bounds(g).tolist(), strict=True)
+                        )
+                        for g in geometries
+                    ],
+                    type=bbox_type,
+                ),
             },
             schema=pa.schema(
                 [
@@ -368,9 +380,8 @@ def write_nabu_parquet(path: Path, ids: list[str], geometries: list) -> None:
                     ("feature_name", pa.string()),
                     ("feature_description", pa.string()),
                     ("geometry", pa.binary()),
-                    pa.field("jsonld", pa.string(), nullable=False),
-                    ("url", pa.string()),
                     ("mainstem_uri", pa.string()),
+                    ("bbox", bbox_type),
                 ],
                 metadata={"geo": NABU_GEO_METADATA},
             ),
@@ -380,11 +391,27 @@ def write_nabu_parquet(path: Path, ids: list[str], geometries: list) -> None:
     )
 
 
+def assert_bbox_matches_geometry(rows: dict[str, dict]) -> None:
+    """The bbox covering of every row has to be the bounds of its geometry"""
+    import shapely
+
+    for row in rows.values():
+        if row["geometry"] is None:
+            # gpio writes a struct of nulls where nabu wrote a null struct
+            assert not row["bbox"] or set(row["bbox"].values()) == {None}
+        else:
+            bounds = shapely.bounds(shapely.from_wkb(row["geometry"]))
+            assert list(row["bbox"].values()) == pytest.approx(bounds.tolist())
+
+
 def test_optimize_harvested_parquet_file(tmp_path):
     """
     Optimizing must wrap out of range longitudes (like the usgs:gnis points in the
-    Aleutians), sort the rows spatially, and keep everything else nabu wrote as is
+    Aleutians), sort the rows spatially, and keep everything else nabu wrote as is,
+    including the bbox covering
     """
+    import json
+
     import pyarrow.parquet as pq
     import shapely
     from shapely.geometry import MultiPoint, Point
@@ -407,14 +434,16 @@ def test_optimize_harvested_parquet_file(tmp_path):
 
     optimized = pq.read_table(harvested_parquet)
     assert optimized.schema.remove_metadata().equals(original.schema.remove_metadata())
-    assert pq.read_metadata(harvested_parquet).metadata[b"geo"] == (
-        NABU_GEO_METADATA.encode()
+    geo = json.loads(pq.read_metadata(harvested_parquet).metadata[b"geo"])
+    assert (
+        geo["columns"]["geometry"]["covering"]
+        == (json.loads(NABU_GEO_METADATA)["columns"]["geometry"]["covering"])
     )
     assert sorted(optimized.column("@id").to_pylist()) == sorted(ids)
 
     rows = {row["@id"]: row for row in optimized.to_pylist()}
     for id in ids:
-        assert rows[id]["jsonld"] == f'{{"@id": "{id}"}}'
+        assert rows[id]["feature_name"] == f"name {id}"
     assert rows["no_geometry"]["geometry"] is None
 
     wrapped = shapely.from_wkb(rows["too_far_west"]["geometry"])
@@ -424,6 +453,9 @@ def test_optimize_harvested_parquet_file(tmp_path):
     assert shapely.from_wkb(rows["far_1"]["geometry"]).equals(
         MultiPoint([(-179, 60), (100.1, 60.1)])
     )
+    # the bbox of the wrapped rows was recomputed and the rest still match
+    assert_bbox_matches_geometry(rows)
+    assert rows["far_1"]["bbox"]["xmin"] == -179
 
     # spatially close features end up next to each other
     order = optimized.column("@id").to_pylist()
@@ -434,6 +466,27 @@ def test_optimize_harvested_parquet_file(tmp_path):
     gdf = export.features_from_harvested_parquet(harvested_parquet, "test")
     minx, _, maxx, _ = gdf.total_bounds
     assert -180 <= minx and maxx <= 180
+
+
+def test_optimize_harvested_parquet_file_keeps_the_bbox_column(tmp_path):
+    """Without any wrapped longitudes the bbox column is carried through and sorted with its rows"""
+    import json
+
+    import pyarrow.parquet as pq
+    from shapely.geometry import Point
+
+    harvested_parquet = tmp_path / "test.parquet"
+    ids = ["far", "near", "far_2", "near_2"]
+    geometries = [Point(100, 60), Point(0, 0), Point(100.1, 60.1), Point(0.1, 0.1)]
+    write_nabu_parquet(harvested_parquet, ids, geometries)
+
+    export.optimize_harvested_parquet_file(harvested_parquet, "test")
+
+    optimized = pq.read_table(harvested_parquet)
+    assert optimized.column("@id").to_pylist() != ids
+    assert_bbox_matches_geometry({row["@id"]: row for row in optimized.to_pylist()})
+    geo = json.loads(pq.read_metadata(harvested_parquet).metadata[b"geo"])
+    assert "bbox" in geo["columns"]["geometry"]["covering"]
 
 
 def test_optimize_harvested_parquet_file_without_geometry(tmp_path):
@@ -450,14 +503,29 @@ def test_optimize_harvested_parquet_file_without_geometry(tmp_path):
     assert optimized.equals(original)
 
 
+# DuckDB, which gpio writes with, does not make row groups smaller than its vector
+# size so the row group tests need more rows than that
+DUCKDB_VECTOR_SIZE = 2048
+
+
+def row_group_sizes(path: Path) -> list[int]:
+    import pyarrow.parquet as pq
+
+    metadata = pq.read_metadata(path)
+    return [metadata.row_group(i).num_rows for i in range(metadata.num_row_groups)]
+
+
 def test_optimize_harvested_parquet_file_row_groups(tmp_path, monkeypatch):
     """Row groups are sized to the target number of compressed bytes"""
-    import pyarrow.parquet as pq
     from shapely.geometry import Point
 
     harvested_parquet = tmp_path / "test.parquet"
-    ids = [str(i) for i in range(10)]
-    write_nabu_parquet(harvested_parquet, ids, [Point(i, i) for i in range(10)])
+    num_rows = DUCKDB_VECTOR_SIZE * 3
+    write_nabu_parquet(
+        harvested_parquet,
+        [str(i) for i in range(num_rows)],
+        [Point(i % 360 - 180, i % 180 - 90) for i in range(num_rows)],
+    )
 
     # target a third of the current file per row group
     file_size = harvested_parquet.stat().st_size
@@ -467,30 +535,25 @@ def test_optimize_harvested_parquet_file_row_groups(tmp_path, monkeypatch):
 
     export.optimize_harvested_parquet_file(harvested_parquet, "test")
 
-    metadata = pq.read_metadata(harvested_parquet)
-    assert [metadata.row_group(i).num_rows for i in range(metadata.num_row_groups)] == [
-        4,
-        4,
-        2,
-    ]
+    assert row_group_sizes(harvested_parquet) == [DUCKDB_VECTOR_SIZE] * 3
 
 
 def test_optimize_harvested_parquet_file_row_group_max_rows(tmp_path, monkeypatch):
     """Row groups never go over the row limit even when they are under the size target"""
-    import pyarrow.parquet as pq
     from shapely.geometry import Point
 
     harvested_parquet = tmp_path / "test.parquet"
-    ids = [str(i) for i in range(10)]
-    write_nabu_parquet(harvested_parquet, ids, [Point(i, i) for i in range(10)])
+    num_rows = DUCKDB_VECTOR_SIZE * 3
+    write_nabu_parquet(
+        harvested_parquet,
+        [str(i) for i in range(num_rows)],
+        [Point(i % 360 - 180, i % 180 - 90) for i in range(num_rows)],
+    )
 
-    monkeypatch.setattr(export, "HARVESTED_PARQUET_ROW_GROUP_MAX_ROWS", 4)
+    monkeypatch.setattr(
+        export, "HARVESTED_PARQUET_ROW_GROUP_MAX_ROWS", DUCKDB_VECTOR_SIZE
+    )
 
     export.optimize_harvested_parquet_file(harvested_parquet, "test")
 
-    metadata = pq.read_metadata(harvested_parquet)
-    assert [metadata.row_group(i).num_rows for i in range(metadata.num_row_groups)] == [
-        4,
-        4,
-        2,
-    ]
+    assert row_group_sizes(harvested_parquet) == [DUCKDB_VECTOR_SIZE] * 3

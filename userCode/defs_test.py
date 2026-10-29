@@ -30,6 +30,8 @@ from userCode.lib.classes import S3
 from userCode.lib.env import (
     HARVESTED_PARQUET_DIRECTORY,
     HARVESTED_PARQUET_PREFIX_IN_S3,
+    RDF_PARQUET_PREFIX_IN_S3,
+    STRUCTURED_PARQUET_PREFIX_IN_S3,
 )
 
 
@@ -67,8 +69,11 @@ def test_e2e_harvest_and_generate_nquads():
     ), "Job execution failed for partition 'ref:dams'"
 
     assert S3().object_has_content(
-        f"{HARVESTED_PARQUET_PREFIX_IN_S3}ref:dams.parquet"
-    ), "Harvest should have generated a parquet file in s3"
+        f"{STRUCTURED_PARQUET_PREFIX_IN_S3}ref:dams.parquet"
+    ), "Harvest should have generated a structured parquet file in s3"
+    assert S3().object_has_content(f"{RDF_PARQUET_PREFIX_IN_S3}ref:dams.parquet"), (
+        "Harvest should have generated an rdf parquet file in s3"
+    )
 
     nquads_for_all_sources()
     nquads_file = GEOCONNEX_GRAPH_DIRECTORY.joinpath("ref:dams.nq.gz")

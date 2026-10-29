@@ -32,6 +32,7 @@ import docker
 from docker.errors import NotFound
 import geopandas as gpd
 import geoparquet_io as gpio
+from geoparquet_io.core.hilbert_order import hilbert_order as gpio_hilbert_order
 from geoparquet_io.core.partition.common import sanitize_filename
 from minio.error import S3Error
 import numpy as np
@@ -68,12 +69,13 @@ from userCode.lib.env import (
     GEOCONNEX_INDEX_DIRECTORY,
     GHCR_TOKEN,
     HARVESTED_PARQUET_DIRECTORY,
-    HARVESTED_PARQUET_PREFIX_IN_S3,
     PMTILES_PREFIX_IN_S3,
+    RDF_PARQUET_PREFIX_IN_S3,
     RUNNING_AS_TEST_OR_DEV,
     S3_ADDRESS,
     SITEMAP_INDEX,
     STAC_CATALOG_PREFIX_IN_S3,
+    STRUCTURED_PARQUET_PREFIX_IN_S3,
     ZENODO_ACCESS_TOKEN,
     ZENODO_SANDBOX_ACCESS_TOKEN,
 )
@@ -201,13 +203,13 @@ def harvested_sitemap_ids() -> list[str]:
     s3 = S3()
     sitemap_ids = []
     for obj in s3.client.list_objects(
-        s3.bucket, prefix=HARVESTED_PARQUET_PREFIX_IN_S3, recursive=True
+        s3.bucket, prefix=STRUCTURED_PARQUET_PREFIX_IN_S3, recursive=True
     ):
         assert obj.object_name, "object_name should not be empty"
         if obj.object_name.endswith(".parquet"):
             sitemap_ids.append(Path(obj.object_name).stem)
     assert sitemap_ids, (
-        f"No harvested parquet files were found under {HARVESTED_PARQUET_PREFIX_IN_S3}"
+        f"No harvested parquet files were found under {STRUCTURED_PARQUET_PREFIX_IN_S3}"
     )
     return sorted(sitemap_ids)
 
@@ -316,7 +318,7 @@ def pull_harvested_parquet():
         )
         s3.client.fget_object(
             s3.bucket,
-            f"{HARVESTED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet",
+            f"{STRUCTURED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet",
             str(harvested_parquet),
         )
 
@@ -355,46 +357,83 @@ def wrap_longitudes(geometries: np.ndarray) -> np.ndarray:
     return out_of_range
 
 
-def _large_schema(schema: pa.Schema) -> pa.Schema:
+def _wrap_longitudes_in_file(harvested_parquet: Path, sitemap_id: str) -> bool:
     """
-    The same schema with the 64 bit offset large_ types for strings and binary, since
-    the jsonld of large sitemaps can go over the 2GB a regular string array can hold
+    Wrap out of range longitudes in the geometries of a parquet file, in place and
+    without changing the row order. gpio has no equivalent. Returns whether the file
+    was rewritten. A `bbox` column no longer describes the geometry once it has been
+    wrapped, so it is dropped here for gpio to add back
+
+    Large sitemaps like usgs:national_geologic_map don't fit in memory, so the file
+    is read and written one row group at a time
     """
-    return pa.schema(
-        [
-            field.with_type(pa.large_string())
-            if pa.types.is_string(field.type)
-            else field.with_type(pa.large_binary())
-            if pa.types.is_binary(field.type)
-            else field
-            for field in schema
-        ],
-        metadata=schema.metadata,
+    parquet_file = pq.ParquetFile(harvested_parquet)
+    schema = parquet_file.schema_arrow
+    out_of_range_ids: list[str] = []
+    for batch in parquet_file.iter_batches(columns=["geometry", "@id"]):
+        geometries = shapely.from_wkb(
+            batch.column("geometry").to_numpy(zero_copy_only=False)
+        )
+        out_of_range = wrap_longitudes(geometries)
+        if out_of_range.any():
+            ids = batch.column("@id").to_numpy(zero_copy_only=False)
+            out_of_range_ids.extend(ids[out_of_range].tolist())
+    if not out_of_range_ids:
+        return False
+
+    get_dagster_logger().warning(
+        f"Sitemap '{sitemap_id}' has {len(out_of_range_ids)} features with a "
+        f"longitude outside of [-180, 180]; wrapping them back into range. "
+        f"Affected ids: {out_of_range_ids}"
     )
+
+    # nabu writes the geoparquet metadata to the parquet footer but not to the
+    # arrow schema, so it has to be carried over explicitly
+    file_metadata = parquet_file.metadata.metadata or {}
+    geo_metadata = json.loads(file_metadata.get(b"geo", b"{}"))
+    for column in geo_metadata.get("columns", {}).values():
+        column.pop("covering", None)
+        column.pop("bbox", None)
+    unbboxed_schema = pa.schema(
+        [field for field in schema if field.name != "bbox"],
+        metadata={"geo": json.dumps(geo_metadata)} if geo_metadata else None,
+    )
+
+    wrapped_parquet = harvested_parquet.with_suffix(".parquet.tmp")
+    with pq.ParquetWriter(
+        wrapped_parquet, unbboxed_schema, compression="zstd"
+    ) as writer:
+        for row_group in range(parquet_file.num_row_groups):
+            table = parquet_file.read_row_group(row_group).select(unbboxed_schema.names)
+            wkb = table.column("geometry").to_numpy(zero_copy_only=False)
+            geometries = shapely.from_wkb(wkb)
+            wrapped = wrap_longitudes(geometries)
+            if wrapped.any():
+                wkb[wrapped] = shapely.to_wkb(geometries[wrapped])
+                table = table.set_column(
+                    table.schema.get_field_index("geometry"),
+                    schema.field("geometry"),
+                    pa.array(wkb, type=schema.field("geometry").type),
+                )
+            writer.write_table(table.cast(unbboxed_schema))
+    wrapped_parquet.replace(harvested_parquet)
+    return True
 
 
 def optimize_harvested_parquet_file(harvested_parquet: Path, sitemap_id: str) -> None:
     """
-    Rewrite a harvested parquet file in place following geoparquet best practices:
+    Rewrite a structured parquet file in place following geoparquet best practices:
     wrap out of range longitudes, sort the rows along a hilbert curve so spatially
-    close features are in the same row groups, and use row groups of a reasonable size
-    (nabu writes very small ones). The schema nabu wrote is kept as is so the file
-    can still be read by nabu and everything else downstream.
+    close features are in the same row groups, and use row groups of a reasonable
+    size (nabu writes very small ones). The sort and the row groups are done by gpio,
+    which streams the file through DuckDB. The columns nabu wrote, including the
+    GeoParquet `bbox` covering, are kept.
 
-    Large sitemaps like usgs:national_geologic_map don't fit in memory, so the file
-    is streamed: the sort order is computed from the geometry bounding boxes alone,
-    then the rows are spread into one spill file per output row group, and each spill
-    file is sorted and written as a row group. Only one batch is in memory at a time
+    The row order is not kept, so it no longer matches the rdf parquet file
     """
     parquet_file = pq.ParquetFile(harvested_parquet)
     num_rows = parquet_file.metadata.num_rows
-    # nabu writes the geoparquet metadata to the parquet footer but not to the
-    # arrow schema, so it has to be carried over explicitly
-    file_metadata = parquet_file.metadata.metadata or {}
-    geo_metadata = {b"geo": file_metadata[b"geo"]} if b"geo" in file_metadata else {}
-    schema = parquet_file.schema_arrow.with_metadata(geo_metadata)
-    large_schema = _large_schema(schema)
-    geometry_index = schema.get_field_index("geometry")
+    had_bbox = "bbox" in parquet_file.schema_arrow.names
 
     # nabu also compresses with zstd so the current file size is a good estimate;
     # spread the rows evenly so there isn't a small leftover row group at the end;
@@ -407,126 +446,20 @@ def optimize_harvested_parquet_file(harvested_parquet: Path, sitemap_id: str) ->
         math.ceil(num_rows / HARVESTED_PARQUET_ROW_GROUP_MAX_ROWS),
     )
     rows_per_group = max(1, math.ceil(num_rows / num_groups))
-    num_groups = math.ceil(num_rows / rows_per_group)
+    parquet_file.close()
 
-    # first pass: only read the geometry and keep its envelope, which has the same
-    # bounding box (and so the same position on the hilbert curve) as the full
-    # geometry but is much smaller than a complex polygon
-    envelopes = []
-    out_of_range = []
-    out_of_range_ids = []
-    for batch in parquet_file.iter_batches(
-        batch_size=rows_per_group, columns=["geometry", "@id"]
-    ):
-        geometries = shapely.from_wkb(
-            batch.column("geometry").to_numpy(zero_copy_only=False)
-        )
-        batch_out_of_range = wrap_longitudes(geometries)
-        out_of_range.append(batch_out_of_range)
-        if batch_out_of_range.any():
-            ids = batch.column("@id").to_numpy(zero_copy_only=False)
-            out_of_range_ids.extend(ids[batch_out_of_range].tolist())
-        envelopes.append(shapely.to_wkb(shapely.envelope(geometries)))
-    out_of_range_mask = (
-        np.concatenate(out_of_range) if out_of_range else np.zeros(0, dtype=bool)
-    )
-    envelope_wkb = pa.array(
-        np.concatenate(envelopes) if envelopes else [], type=pa.binary()
-    )
-    del envelopes, out_of_range
-
-    if out_of_range_ids:
-        get_dagster_logger().warning(
-            f"Sitemap '{sitemap_id}' has {len(out_of_range_ids)} features with a "
-            f"longitude outside of [-180, 180]; wrapping them back into range. "
-            f"Affected ids: {out_of_range_ids}"
-        )
-
-    order = np.arange(num_rows)
-    if envelope_wkb.null_count < num_rows:
-        # sort only the envelopes and a row index so the large jsonld column isn't
-        # copied around and the schema nabu wrote (which hilbert_order_table can
-        # change) is kept as is
-        row_index = pa.table(
-            {"geometry": envelope_wkb, "row": order}, metadata=geo_metadata
-        )
-        sorted_index = gpio.ops.hilbert_order_table(
-            row_index, geometry_column="geometry"
-        )
-        order = sorted_index.column("row").to_numpy()
-    del envelope_wkb
-
-    # the position of every input row in the output
-    destination = np.empty(num_rows, dtype=np.int64)
-    destination[order] = np.arange(num_rows)
-    del order
+    wrapped = _wrap_longitudes_in_file(harvested_parquet, sitemap_id)
 
     optimized_parquet = harvested_parquet.with_suffix(".parquet.tmp")
-    # spill to the same disk as the parquet since it has room for a copy of it
-    with tempfile.TemporaryDirectory(dir=harvested_parquet.parent) as spill_dir:
-        spill_files = [
-            Path(spill_dir) / f"{group}.arrow" for group in range(num_groups)
-        ]
-        spill_schema = large_schema.append(pa.field("__destination", pa.int64()))
-
-        # second pass: send every row to the spill file of its output row group
-        # compress the spill files since uncompressed jsonld is many times its
-        # size in the parquet
-        spill_options = pa.ipc.IpcWriteOptions(compression="zstd")
-        spill_writers = [
-            pa.ipc.new_stream(str(spill_file), spill_schema, options=spill_options)
-            for spill_file in spill_files
-        ]
-        try:
-            start = 0
-            for batch in parquet_file.iter_batches(batch_size=rows_per_group):
-                stop = start + batch.num_rows
-                table = pa.Table.from_batches([batch])
-                batch_out_of_range = out_of_range_mask[start:stop]
-                if batch_out_of_range.any():
-                    wkb = table.column("geometry").to_numpy(zero_copy_only=False)
-                    geometries = shapely.from_wkb(wkb[batch_out_of_range])
-                    wrap_longitudes(geometries)
-                    wkb[batch_out_of_range] = shapely.to_wkb(geometries)
-                    table = table.set_column(
-                        geometry_index,
-                        schema.field("geometry"),
-                        pa.array(wkb, type=schema.field("geometry").type),
-                    )
-                batch_destination = destination[start:stop]
-                groups = batch_destination // rows_per_group
-                by_group = np.argsort(groups, kind="stable")
-                table = (
-                    table.cast(large_schema.with_metadata(None))
-                    .append_column("__destination", pa.array(batch_destination))
-                    .take(by_group)
-                )
-                groups = groups[by_group]
-                boundaries = np.flatnonzero(np.diff(groups)) + 1
-                for group_start, group_stop in zip(
-                    np.concatenate([[0], boundaries]),
-                    np.concatenate([boundaries, [len(groups)]]),
-                    strict=True,
-                ):
-                    spill_writers[int(groups[group_start])].write_table(
-                        table.slice(group_start, group_stop - group_start)
-                    )
-                start = stop
-        finally:
-            for spill_writer in spill_writers:
-                spill_writer.close()
-
-        # third pass: sort each spill file and write it as one row group; write to a
-        # temporary file first so a failure doesn't leave a partial file behind
-        with pq.ParquetWriter(optimized_parquet, schema, compression="zstd") as writer:
-            for spill_file in spill_files:
-                with pa.ipc.open_stream(str(spill_file)) as reader:
-                    rows = reader.read_all()
-                spill_file.unlink()
-                rows = rows.take(np.argsort(rows.column("__destination").to_numpy()))
-                # each write is its own row group since it is under the default
-                # row group size
-                writer.write_table(rows.drop_columns("__destination").cast(schema))
+    gpio_hilbert_order(
+        str(harvested_parquet),
+        str(optimized_parquet),
+        # a wrap drops the bbox so it has to be added back; otherwise the
+        # columns are left as they were
+        add_bbox_flag=had_bbox or wrapped,
+        row_group_rows=rows_per_group,
+        overwrite=True,
+    )
     optimized_parquet.replace(harvested_parquet)
 
 
@@ -543,7 +476,7 @@ def optimize_harvested_parquet():
         optimize_harvested_parquet_file(harvested_parquet, sitemap_id)
         s3.client.fput_object(
             s3.bucket,
-            f"{HARVESTED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet",
+            f"{STRUCTURED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet",
             str(harvested_parquet),
         )
 
@@ -682,13 +615,13 @@ def publish_stac_catalog():
 
     parquet_sizes: dict[str, int] = {}
     for obj in s3.client.list_objects(
-        s3.bucket, prefix=HARVESTED_PARQUET_PREFIX_IN_S3, recursive=True
+        s3.bucket, prefix=STRUCTURED_PARQUET_PREFIX_IN_S3, recursive=True
     ):
         if obj.object_name and obj.object_name.endswith(".parquet"):
             parquet_sizes[Path(obj.object_name).stem] = obj.size or 0
 
     assert parquet_sizes, (
-        f"No geoparquet files were found under {HARVESTED_PARQUET_PREFIX_IN_S3}; "
+        f"No geoparquet files were found under {STRUCTURED_PARQUET_PREFIX_IN_S3}; "
         "cannot build a STAC catalog"
     )
 
@@ -729,7 +662,12 @@ def publish_stac_catalog():
             bbox = [round(float(v), 6) for v in gdf.total_bounds.tolist()]
             parquet_url = (
                 f"https://{S3_ADDRESS}/{s3.bucket}/"
-                f"{HARVESTED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet"
+                f"{STRUCTURED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet"
+            )
+
+            rdf_parquet_url = (
+                f"https://{S3_ADDRESS}/{s3.bucket}/"
+                f"{RDF_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet"
             )
 
             metadata = dataset_metadata.get(sitemap_id, SitemapDatasetMetadata())
@@ -774,6 +712,7 @@ def publish_stac_catalog():
                 sitemap_id=sitemap_id,
                 parquet_size=parquet_sizes[sitemap_id],
                 parquet_checksum=multihash_sha256_file(local_parquet),
+                rdf_parquet_url=rdf_parquet_url,
                 pmtiles_url=pmtiles_url,
                 pmtiles_layer=pmtiles_layer,
                 thumbnail_filename=thumbnail_filename,

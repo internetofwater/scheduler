@@ -42,8 +42,12 @@ S3_ACCESS_KEY = strict_env("S3_ACCESS_KEY")
 S3_DEFAULT_BUCKET = strict_env("S3_DEFAULT_BUCKET")
 S3_USE_SSL = strict_env_bool("S3_USE_SSL")
 # all data is stored in the default bucket under these prefixes
-# harvested parquet with one file per sitemap
+# everything nabu harvests; it writes two parquet files per sitemap under this prefix
 HARVESTED_PARQUET_PREFIX_IN_S3 = "summoned/"
+# GeoParquet with the feature columns and geometry; used for exports
+STRUCTURED_PARQUET_PREFIX_IN_S3 = f"{HARVESTED_PARQUET_PREFIX_IN_S3}structured/"
+# only `id` and `jsonld`, with nabu's enrichments; used to generate nquads
+RDF_PARQUET_PREFIX_IN_S3 = f"{HARVESTED_PARQUET_PREFIX_IN_S3}rdf/"
 # public exports like pmtiles
 EXPORTS_PREFIX_IN_S3 = "exports/"
 PMTILES_PREFIX_IN_S3 = f"{EXPORTS_PREFIX_IN_S3}pmtiles/"
