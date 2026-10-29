@@ -620,6 +620,14 @@ def register_sitemap_collection(
     title = sitemap_collection_title(sitemap_id, dataset_name)
     harvest_description = f"All features in this dataset derive from the '{sitemap_id}' sitemap in Geoconnex."
 
+    structured_description = (
+        "This GeoParquet file is structured data extracted from the semistructured "
+        "JSON-LD (RDF) source documents harvested from the sitemap. The original "
+        "JSON-LD, including Geoconnex's enrichments such as the mainstem, is kept in "
+        "a separate parquet file linked from this collection as a related link; it "
+        "is intended for those who want to reconstruct the RDF graph."
+    )
+
     documentation_description = (
         f"More info can be found at {dataset_documentation_link}"
         if dataset_documentation_link
@@ -647,6 +655,7 @@ def register_sitemap_collection(
             dataset_description,
             documentation_description,
             harvest_description,
+            structured_description,
             source_code_description,
             mainstem_description,
         )
@@ -678,6 +687,7 @@ def patch_sitemap_collection(
     sitemap_id: str,
     parquet_size: int,
     parquet_checksum: str,
+    rdf_parquet_url: str | None = None,
     pmtiles_url: str | None = None,
     pmtiles_layer: str | None = None,
     thumbnail_filename: str | None = None,
@@ -688,7 +698,9 @@ def patch_sitemap_collection(
     the metadata the CLI's external-asset path cannot infer on its own: the raw
     sitemap id as the collection id, correct
     providers (it is not a mirror, Geoconnex hosts the data it produces), the
-    GeoParquet table schema and checksum, an optional PMTiles render link, and
+    GeoParquet table schema and checksum, an optional link to the RDF parquet
+    (`rdf_parquet_url`; a link rather than an asset since it is for people
+    working with the RDF graph and not part of the catalog's data), an optional PMTiles render link, and
     optional local thumbnail/style assets (expected to already sit alongside
     collection.json, named `thumbnail_filename`/`style_filename`).
     """
@@ -715,6 +727,16 @@ def patch_sitemap_collection(
     data_asset.extra_fields["table:columns"] = GEOPARQUET_TABLE_COLUMNS
     data_asset.extra_fields["file:size"] = parquet_size
     data_asset.extra_fields["file:checksum"] = parquet_checksum
+
+    if rdf_parquet_url:
+        collection.add_link(
+            pystac.Link(
+                rel="related",
+                target=rdf_parquet_url,
+                media_type="application/vnd.apache.parquet",
+                title="JSON-LD (RDF) parquet",
+            )
+        )
 
     if pmtiles_url and pmtiles_layer:
         collection.add_link(

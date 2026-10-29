@@ -219,6 +219,7 @@ def test_register_sitemap_collection_puts_dataset_description_first(
         dataset_part,
         documentation_part,
         harvest_part,
+        structured_part,
         source_code_part,
         mainstem_part,
     ) = description.split("\n\n")
@@ -229,6 +230,7 @@ def test_register_sitemap_collection_puts_dataset_description_first(
     assert harvest_part == (
         "All features in this dataset derive from the 'usbr:rise' sitemap in Geoconnex."
     )
+    assert "extracted from the semistructured JSON-LD (RDF) source" in structured_part
     assert source_code_part == (
         "The source code that generated the RDF data which was transformed into "
         "this asset can be found at "
@@ -289,11 +291,18 @@ def test_patch_sitemap_collection_adds_pmtiles_as_a_visual_asset(tmp_path):
         sitemap_id="usbr:rise",
         parquet_size=1,
         parquet_checksum="1220abc",
+        rdf_parquet_url="https://example.org/rdf/usbr:rise.parquet",
         pmtiles_url=pmtiles_url,
         pmtiles_layer="usbr_rise",
     )
 
     patched = pystac.Collection.from_file(str(collection_path))
+    # the rdf parquet is only linked to and never a data asset in the catalog
+    assert set(patched.assets) == {"data", "pmtiles"}
+    related = patched.get_links("related")
+    assert [link.target for link in related] == [
+        "https://example.org/rdf/usbr:rise.parquet"
+    ]
     pmtiles_asset = patched.assets["pmtiles"]
     assert pmtiles_asset.href == pmtiles_url
     assert pmtiles_asset.media_type == "application/vnd.pmtiles"

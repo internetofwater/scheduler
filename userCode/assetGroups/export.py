@@ -68,6 +68,7 @@ from userCode.lib.env import (
     GEOCONNEX_INDEX_DIRECTORY,
     GHCR_TOKEN,
     HARVESTED_PARQUET_DIRECTORY,
+    RDF_PARQUET_PREFIX_IN_S3,
     STRUCTURED_PARQUET_PREFIX_IN_S3,
     PMTILES_PREFIX_IN_S3,
     RUNNING_AS_TEST_OR_DEV,
@@ -732,6 +733,11 @@ def publish_stac_catalog():
                 f"{STRUCTURED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet"
             )
 
+            rdf_parquet_url = (
+                f"https://{S3_ADDRESS}/{s3.bucket}/"
+                f"{RDF_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet"
+            )
+
             metadata = dataset_metadata.get(sitemap_id, SitemapDatasetMetadata())
             collection_path = register_sitemap_collection(
                 catalog_root,
@@ -774,6 +780,7 @@ def publish_stac_catalog():
                 sitemap_id=sitemap_id,
                 parquet_size=parquet_sizes[sitemap_id],
                 parquet_checksum=multihash_sha256_file(local_parquet),
+                rdf_parquet_url=rdf_parquet_url,
                 pmtiles_url=pmtiles_url,
                 pmtiles_layer=pmtiles_layer,
                 thumbnail_filename=thumbnail_filename,
