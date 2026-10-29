@@ -433,8 +433,9 @@ def test_optimize_harvested_parquet_file(tmp_path):
     optimized = pq.read_table(harvested_parquet)
     assert optimized.schema.remove_metadata().equals(original.schema.remove_metadata())
     geo = json.loads(pq.read_metadata(harvested_parquet).metadata[b"geo"])
-    assert geo["columns"]["geometry"]["covering"] == (
-        json.loads(NABU_GEO_METADATA)["columns"]["geometry"]["covering"]
+    assert (
+        geo["columns"]["geometry"]["covering"]
+        == (json.loads(NABU_GEO_METADATA)["columns"]["geometry"]["covering"])
     )
     assert sorted(optimized.column("@id").to_pylist()) == sorted(ids)
 
@@ -547,7 +548,9 @@ def test_optimize_harvested_parquet_file_row_group_max_rows(tmp_path, monkeypatc
         [Point(i % 360 - 180, i % 180 - 90) for i in range(num_rows)],
     )
 
-    monkeypatch.setattr(export, "HARVESTED_PARQUET_ROW_GROUP_MAX_ROWS", DUCKDB_VECTOR_SIZE)
+    monkeypatch.setattr(
+        export, "HARVESTED_PARQUET_ROW_GROUP_MAX_ROWS", DUCKDB_VECTOR_SIZE
+    )
 
     export.optimize_harvested_parquet_file(harvested_parquet, "test")
 
