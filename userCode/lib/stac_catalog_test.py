@@ -377,7 +377,8 @@ def test_register_sitemap_collection_skips_missing_dataset_metadata(
     args = portolan_calls[0]
     assert args[args.index("--title") + 1] == "Usgs Gages"
     description = args[args.index("--description") + 1]
-    assert "\n\n" not in description
+    # only the harvest details and the note on the structured parquet
+    assert len(description.split("\n\n")) == 2
     assert "More info" not in description
     assert "Mainstem association" not in description
     assert "source code" not in description
