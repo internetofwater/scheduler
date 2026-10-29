@@ -11,7 +11,7 @@ from userCode.lib.env import (
     GLEANER_LOG_LEVEL,
     GLEANER_SITEMAP_WORKERS,
     GLEANER_USE_SHACL,
-    HARVESTED_PARQUET_PREFIX_IN_S3,
+    RDF_PARQUET_PREFIX_IN_S3,
     NABU_IMAGE,
     NABU_LOG_LEVEL,
     NABU_PROFILING,
@@ -131,7 +131,7 @@ class NquadsContainer:
         """Write the gzipped nquads of the sitemap to output_file"""
         argsAsStr = (
             f"nquads "
-            f"--prefix {HARVESTED_PARQUET_PREFIX_IN_S3}{self.sitemap_id}.parquet "
+            f"--prefix {RDF_PARQUET_PREFIX_IN_S3}{self.sitemap_id}.parquet "
             f"--bucket {config.bucket} "
             f"--address {config.address} "
             f"--port {config.port} "

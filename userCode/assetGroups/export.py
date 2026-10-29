@@ -68,7 +68,7 @@ from userCode.lib.env import (
     GEOCONNEX_INDEX_DIRECTORY,
     GHCR_TOKEN,
     HARVESTED_PARQUET_DIRECTORY,
-    HARVESTED_PARQUET_PREFIX_IN_S3,
+    STRUCTURED_PARQUET_PREFIX_IN_S3,
     PMTILES_PREFIX_IN_S3,
     RUNNING_AS_TEST_OR_DEV,
     S3_ADDRESS,
@@ -201,13 +201,13 @@ def harvested_sitemap_ids() -> list[str]:
     s3 = S3()
     sitemap_ids = []
     for obj in s3.client.list_objects(
-        s3.bucket, prefix=HARVESTED_PARQUET_PREFIX_IN_S3, recursive=True
+        s3.bucket, prefix=STRUCTURED_PARQUET_PREFIX_IN_S3, recursive=True
     ):
         assert obj.object_name, "object_name should not be empty"
         if obj.object_name.endswith(".parquet"):
             sitemap_ids.append(Path(obj.object_name).stem)
     assert sitemap_ids, (
-        f"No harvested parquet files were found under {HARVESTED_PARQUET_PREFIX_IN_S3}"
+        f"No harvested parquet files were found under {STRUCTURED_PARQUET_PREFIX_IN_S3}"
     )
     return sorted(sitemap_ids)
 
@@ -316,7 +316,7 @@ def pull_harvested_parquet():
         )
         s3.client.fget_object(
             s3.bucket,
-            f"{HARVESTED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet",
+            f"{STRUCTURED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet",
             str(harvested_parquet),
         )
 
@@ -543,7 +543,7 @@ def optimize_harvested_parquet():
         optimize_harvested_parquet_file(harvested_parquet, sitemap_id)
         s3.client.fput_object(
             s3.bucket,
-            f"{HARVESTED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet",
+            f"{STRUCTURED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet",
             str(harvested_parquet),
         )
 
@@ -682,13 +682,13 @@ def publish_stac_catalog():
 
     parquet_sizes: dict[str, int] = {}
     for obj in s3.client.list_objects(
-        s3.bucket, prefix=HARVESTED_PARQUET_PREFIX_IN_S3, recursive=True
+        s3.bucket, prefix=STRUCTURED_PARQUET_PREFIX_IN_S3, recursive=True
     ):
         if obj.object_name and obj.object_name.endswith(".parquet"):
             parquet_sizes[Path(obj.object_name).stem] = obj.size or 0
 
     assert parquet_sizes, (
-        f"No geoparquet files were found under {HARVESTED_PARQUET_PREFIX_IN_S3}; "
+        f"No geoparquet files were found under {STRUCTURED_PARQUET_PREFIX_IN_S3}; "
         "cannot build a STAC catalog"
     )
 
@@ -729,7 +729,7 @@ def publish_stac_catalog():
             bbox = [round(float(v), 6) for v in gdf.total_bounds.tolist()]
             parquet_url = (
                 f"https://{S3_ADDRESS}/{s3.bucket}/"
-                f"{HARVESTED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet"
+                f"{STRUCTURED_PARQUET_PREFIX_IN_S3}{sitemap_id}.parquet"
             )
 
             metadata = dataset_metadata.get(sitemap_id, SitemapDatasetMetadata())
