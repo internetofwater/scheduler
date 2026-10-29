@@ -69,13 +69,13 @@ from userCode.lib.env import (
     GEOCONNEX_INDEX_DIRECTORY,
     GHCR_TOKEN,
     HARVESTED_PARQUET_DIRECTORY,
-    RDF_PARQUET_PREFIX_IN_S3,
-    STRUCTURED_PARQUET_PREFIX_IN_S3,
     PMTILES_PREFIX_IN_S3,
+    RDF_PARQUET_PREFIX_IN_S3,
     RUNNING_AS_TEST_OR_DEV,
     S3_ADDRESS,
     SITEMAP_INDEX,
     STAC_CATALOG_PREFIX_IN_S3,
+    STRUCTURED_PARQUET_PREFIX_IN_S3,
     ZENODO_ACCESS_TOKEN,
     ZENODO_SANDBOX_ACCESS_TOKEN,
 )
@@ -404,9 +404,7 @@ def _wrap_longitudes_in_file(harvested_parquet: Path, sitemap_id: str) -> bool:
         wrapped_parquet, unbboxed_schema, compression="zstd"
     ) as writer:
         for row_group in range(parquet_file.num_row_groups):
-            table = parquet_file.read_row_group(row_group).select(
-                unbboxed_schema.names
-            )
+            table = parquet_file.read_row_group(row_group).select(unbboxed_schema.names)
             wkb = table.column("geometry").to_numpy(zero_copy_only=False)
             geometries = shapely.from_wkb(wkb)
             wrapped = wrap_longitudes(geometries)

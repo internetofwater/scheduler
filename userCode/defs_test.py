@@ -71,9 +71,9 @@ def test_e2e_harvest_and_generate_nquads():
     assert S3().object_has_content(
         f"{STRUCTURED_PARQUET_PREFIX_IN_S3}ref:dams.parquet"
     ), "Harvest should have generated a structured parquet file in s3"
-    assert S3().object_has_content(
-        f"{RDF_PARQUET_PREFIX_IN_S3}ref:dams.parquet"
-    ), "Harvest should have generated an rdf parquet file in s3"
+    assert S3().object_has_content(f"{RDF_PARQUET_PREFIX_IN_S3}ref:dams.parquet"), (
+        "Harvest should have generated an rdf parquet file in s3"
+    )
 
     nquads_for_all_sources()
     nquads_file = GEOCONNEX_GRAPH_DIRECTORY.joinpath("ref:dams.nq.gz")
