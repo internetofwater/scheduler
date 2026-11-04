@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from collections import deque
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 import csv
@@ -15,6 +16,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import threading
 import time
 from typing import Literal
 
@@ -132,6 +134,30 @@ DEVELOPMENT_BRANCH_IN_LAKEFS = "develop"
 QLEVER_CONTAINER_NAME = "qlever.server.geoconnex"
 QLEVER_DOCKER_NETWORK = "dagster_network"
 QLEVER_DOCKER_ALIAS = "qlever"
+# how long to wait for the qlever server to load the index and accept requests;
+# loading the full geoconnex index can take a while
+QLEVER_SERVER_READY_TIMEOUT_SECONDS = 300
+# number of trailing qlever server output lines to include in failure descriptions
+QLEVER_SERVER_OUTPUT_TAIL_LINES = 50
+
+
+def remove_qlever_server_container() -> None:
+    """
+    Remove the QLever server container if it exists.
+
+    `qlever start` runs the server in a container with a restart policy, so
+    killing the `qlever` cli process does not stop the server; the container
+    has to be removed explicitly or it will outlive the asset check
+    """
+    client = docker.DockerClient()
+    try:
+        container = client.containers.get(QLEVER_CONTAINER_NAME)
+    except NotFound:
+        return
+    get_dagster_logger().info(
+        f"Removing existing QLever container {QLEVER_CONTAINER_NAME} ({container.status})"
+    )
+    container.remove(force=True)
 
 
 def connect_qlever_to_dagster_network(timeout_seconds: int = 30) -> None:
@@ -163,6 +189,9 @@ def connect_qlever_to_dagster_network(timeout_seconds: int = 30) -> None:
     )
     aliases = network_config.get("Aliases", []) if network_config else []
     if QLEVER_DOCKER_ALIAS in aliases:
+        get_dagster_logger().info(
+            f"{QLEVER_CONTAINER_NAME} is already connected to {QLEVER_DOCKER_NETWORK} as {QLEVER_DOCKER_ALIAS}"
+        )
         return
 
     if network_config:
@@ -808,14 +837,34 @@ def qlever_index():
         os.chdir(original_cwd)
 
 
+def _stream_process_output_to_logs(
+    process: subprocess.Popen, output_tail: deque[str]
+) -> None:
+    """
+    Forward each line of a subprocess's output to the dagster logs and keep
+    the most recent lines so they can be attached to failure descriptions
+    """
+    logger = get_dagster_logger()
+    assert process.stdout
+    for line in process.stdout:
+        line = line.rstrip()
+        if not line:
+            continue
+        output_tail.append(line)
+        if "WARN" in line or "ERROR" in line:
+            logger.warning(f"[qlever server] {line}")
+        else:
+            logger.info(f"[qlever server] {line}")
+
+
 @asset_check(asset=qlever_index, blocking=True)
 def geoconnex_sparql_query_check() -> AssetCheckResult:
     """
     Ensure that all queries pass the Geoconnex SPARQL query check,
     preventing any regressions with new data
     """
-    queries = list((Path(__file__).parent / "queries").iterdir())
-    original_cwd = Path.cwd()
+    logger = get_dagster_logger()
+    queries = sorted((Path(__file__).parent / "queries").iterdir())
 
     start_qlever_cmd = [
         "qlever",
@@ -825,6 +874,14 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
         "--run-in-foreground",
         "--kill-existing-with-same-port",
     ]
+    # a server container left over from a previous run would otherwise be found
+    # (and treated as already networked) before `qlever start` replaces it with
+    # a new container that is not connected to the dagster network
+    remove_qlever_server_container()
+
+    logger.info(
+        f"Starting qlever server in {GEOCONNEX_INDEX_DIRECTORY} with: {' '.join(start_qlever_cmd)}"
+    )
 
     process = subprocess.Popen(
         start_qlever_cmd,
@@ -834,6 +891,29 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
         bufsize=1,
         cwd=GEOCONNEX_INDEX_DIRECTORY,
     )
+    # drain the server output in the background so it shows up in the logs
+    # and so the pipe buffer never fills up and blocks the server
+    output_tail: deque[str] = deque(maxlen=QLEVER_SERVER_OUTPUT_TAIL_LINES)
+    output_thread = threading.Thread(
+        target=_stream_process_output_to_logs,
+        args=(process, output_tail),
+        daemon=True,
+    )
+    output_thread.start()
+
+    def fail(description: str) -> AssetCheckResult:
+        """Log the failure, since dagster does not log check descriptions itself"""
+        if output_tail:
+            description += (
+                f"\n\nLast {len(output_tail)} lines of qlever server output:\n"
+                + "\n".join(output_tail)
+            )
+        logger.error(description)
+        return AssetCheckResult(
+            passed=False,
+            description=description,
+            severity=AssetCheckSeverity.ERROR,
+        )
 
     try:
         if not RUNNING_AS_TEST_OR_DEV():
@@ -844,24 +924,35 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
             if RUNNING_AS_TEST_OR_DEV()
             else "http://qlever:8888"
         )
+        logger.info(f"Waiting for qlever server at {endpoint} to become ready")
+        deadline = time.time() + QLEVER_SERVER_READY_TIMEOUT_SECONDS
         last_error: Exception | None = None
-        for _ in range(30):
+        while True:
+            returncode = process.poll()
+            if returncode is not None:
+                # give the output thread a moment to flush the final lines
+                output_thread.join(timeout=5)
+                return fail(
+                    f"QLever server process exited with code {returncode} before becoming ready"
+                )
             try:
                 requests.get(endpoint, timeout=1)
                 last_error = None
                 break
             except requests.RequestException as error:
                 last_error = error
-                time.sleep(1)
+            if time.time() > deadline:
+                break
+            time.sleep(1)
         if last_error:
-            return AssetCheckResult(
-                passed=False,
-                description=f"QLever server did not become ready: {last_error}",
-                severity=AssetCheckSeverity.ERROR,
+            return fail(
+                f"QLever server at {endpoint} did not become ready within "
+                f"{QLEVER_SERVER_READY_TIMEOUT_SECONDS}s: {last_error}"
             )
+        logger.info("QLever server is ready")
 
         for file in queries:
-            get_dagster_logger().info(f"Checking {file.name}")
+            logger.info(f"Checking {file.name}")
             result = requests.post(
                 endpoint,
                 headers={
@@ -871,38 +962,35 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
                 timeout=30,
             )
             if result.status_code > 300:
-                return AssetCheckResult(
-                    passed=False,
-                    description=f"Query {file.name} failed with status code {result.status_code} and body {result.text}",
-                    severity=AssetCheckSeverity.ERROR,
+                return fail(
+                    f"Query {file.name} failed with status code {result.status_code} and body {result.text}"
                 )
             as_json = result.json()
-            assert "boolean" in as_json, (
-                f"ASK Query {file.name} did not return a boolean"
-            )
+            if "boolean" not in as_json:
+                return fail(
+                    f"ASK Query {file.name} did not return a boolean; got: {result.text[:1000]}"
+                )
 
             if not as_json["boolean"]:
-                return AssetCheckResult(
-                    passed=False,
-                    description=f"Geoconnex SPARQL query '{file.name}' failed",
-                    severity=AssetCheckSeverity.ERROR,
+                return fail(
+                    f"Geoconnex SPARQL query '{file.name}' returned false; "
+                    "the data the query expects is missing from the index"
                 )
+            logger.info(f"{file.name} passed")
 
         return AssetCheckResult(
             passed=True,
             description="Geoconnex SPARQL query check passed",
         )
     finally:
-        # clean up qlever process
+        # clean up qlever process; closing stdout is left to the output
+        # thread finishing once the process is gone
         process.kill()
         process.wait()
-        stdout = process.stdout
-        stderr = process.stderr
-        if stdout:
-            stdout.close()
-        if stderr:
-            stderr.close()
-        os.chdir(original_cwd)
+        remove_qlever_server_container()
+        output_thread.join(timeout=5)
+        if process.stdout:
+            process.stdout.close()
 
 
 @asset(
