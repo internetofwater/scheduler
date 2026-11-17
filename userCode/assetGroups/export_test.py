@@ -95,6 +95,7 @@ def test_qlever_index_and_geoconnex_sparql_query_check(tmp_path, monkeypatch):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,
+            timeout=120,
         )
 
 

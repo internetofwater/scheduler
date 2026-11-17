@@ -983,13 +983,24 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
             description="Geoconnex SPARQL query check passed",
         )
     finally:
-        # clean up qlever process; closing stdout is left to the output
-        # thread finishing once the process is gone
+        # Every step here is bounded so cleanup can never hang the check.
+        # The container is removed first: the `docker run` client spawned by
+        # qlever holds the write end of our pipe, so the output thread only
+        # sees EOF once the container is gone.
+        try:
+            remove_qlever_server_container()
+        except Exception as error:
+            logger.warning(f"Failed to remove qlever container: {error}")
         process.kill()
-        process.wait()
-        remove_qlever_server_container()
+        try:
+            process.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            logger.warning("qlever process did not exit after being killed")
         output_thread.join(timeout=5)
-        if process.stdout:
+        # Never close stdout while the reader thread may still be blocked on
+        # it: close() waits on the same buffer lock and would deadlock. The
+        # thread is a daemon and will exit on its own once the pipe hits EOF.
+        if process.stdout and not output_thread.is_alive():
             process.stdout.close()
 
 
