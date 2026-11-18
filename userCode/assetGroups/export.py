@@ -587,7 +587,8 @@ def pmtiles_from_harvested_parquet():
 def _guess_content_type(file: Path) -> str:
     """Guess the content type of a generated STAC catalog file"""
     if file.suffix == ".md":
-        return "text/markdown"
+        # without an explicit charset browsers decode it as latin-1
+        return "text/markdown; charset=utf-8"
     content_type, _ = mimetypes.guess_type(file.name)
     return content_type or "application/octet-stream"
 
