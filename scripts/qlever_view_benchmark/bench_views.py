@@ -26,6 +26,7 @@ base = f"http://localhost:{port}"
 def run(query: str) -> tuple[float, list[dict]]:
     """Median wall clock over RUNS runs with a cold cache, and the result rows"""
     times = []
+    bodies = []
     for _ in range(RUNS):
         urllib.request.urlopen(f"{base}/?cmd=clear-cache&access-token={token}").read()
         request = urllib.request.Request(
@@ -34,9 +35,9 @@ def run(query: str) -> tuple[float, list[dict]]:
             headers={"Accept": "application/sparql-results+json"},
         )
         start = time.time()
-        body = urllib.request.urlopen(request, timeout=600).read()
+        bodies.append(urllib.request.urlopen(request, timeout=600).read())
         times.append(time.time() - start)
-    return statistics.median(times), json.loads(body)["results"]["bindings"]
+    return statistics.median(times), json.loads(bodies[-1])["results"]["bindings"]
 
 
 def fingerprint(rows: list[dict]) -> str:
