@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 # Pull the SPARQL queries used by the upstream explorer UI
 # (https://github.com/internetofwater/explorer.geoconnex.us) from GHCR, where its
 # main branch publishes them as an OCI artifact tagged with each commit sha. Each

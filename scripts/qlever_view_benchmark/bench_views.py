@@ -1,3 +1,6 @@
+# Copyright 2026 Lincoln Institute of Land Policy
+# SPDX-License-Identifier: Apache-2.0
+
 """
 Run every upstream explorer query (queries/explorer) and its rewrite that reads the
 materialized views (queries/explorer_views) against a running qlever server, check

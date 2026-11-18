@@ -10,13 +10,13 @@ The upstream explorer does not use the views yet. QLever only substitutes a view
 query matches the view's pattern exactly, which none of the explorer queries do, so the explorer has
 to reference the views explicitly the way the rewrites do to get the speedup.
 
-| view | rewrite of | contains |
-|---|---|---|
-| `explorer-datasets` | `getDatasets`, `getDatasetCount` | one row per location/dataset/variable with every column `getDatasets` returns |
-| `explorer-type-counts` | `getTypes` | number of datasets per mainstem and location type |
-| `explorer-variable-counts` | `getVariablesMeasured` | number of datasets per mainstem and variable |
-| `explorer-distribution-counts` | `getDistributionNames` | number of datasets per mainstem and provider name |
-| `explorer-site-counts` | `getTotalSites` | number of locations per mainstem |
+| view                           | rewrite of                       | contains                                                                      |
+| ------------------------------ | -------------------------------- | ----------------------------------------------------------------------------- |
+| `explorer-datasets`            | `getDatasets`, `getDatasetCount` | one row per location/dataset/variable with every column `getDatasets` returns |
+| `explorer-type-counts`         | `getTypes`                       | number of datasets per mainstem and location type                             |
+| `explorer-variable-counts`     | `getVariablesMeasured`           | number of datasets per mainstem and variable                                  |
+| `explorer-distribution-counts` | `getDistributionNames`           | number of datasets per mainstem and provider name                             |
+| `explorer-site-counts`         | `getTotalSites`                  | number of locations per mainstem                                              |
 
 Every view starts with `?mainstem` since a view is stored sorted by its first column and reading it with
 a fixed mainstem is a range scan. The count views are only valid for the explorer's current filters
@@ -42,22 +42,22 @@ Median of 3 runs with the cache cleared (wall clock, includes the HTTP response)
 the same rows as the upstream query, including for a mainstem with no sites (`999999`, not shown). Writing
 all five views took under 2 s on this graph.
 
-| query | mainstem | rows | upstream | view |
-|---|---|---|---|---|
-| getDatasets | 1 | 17338 | 0.77 s | 0.22 s (mostly transferring the rows) |
-| getDatasets | 100 | 281 | 0.51 s | 0.014 s |
-| getDatasets | 5000 | 10 | 0.48 s | 0.008 s |
-| getDatasetCount | 1 | 1 | 0.64 s | 0.029 s |
-| getDatasetCount | 100 | 1 | 0.64 s | 0.009 s |
-| getDatasetCount | 5000 | 1 | 0.56 s | 0.009 s |
-| getVariablesMeasured | 1 | 300 | 0.099 s | 0.002 s |
-| getVariablesMeasured | 100 | 245 | 0.048 s | 0.002 s |
-| getDistributionNames | 1 | 15 | 0.058 s | 0.002 s |
-| getDistributionNames | 100 | 15 | 0.039 s | 0.002 s |
-| getTypes | 1 | 8 | 0.037 s | 0.002 s |
-| getTypes | 100 | 8 | 0.024 s | 0.002 s |
-| getTotalSites | 1 | 1 | 0.014 s | 0.001 s |
-| getTotalSites | 100 | 1 | 0.009 s | 0.001 s |
+| query                | mainstem | rows  | upstream | view                                  |
+| -------------------- | -------- | ----- | -------- | ------------------------------------- |
+| getDatasets          | 1        | 17338 | 0.77 s   | 0.22 s (mostly transferring the rows) |
+| getDatasets          | 100      | 281   | 0.51 s   | 0.014 s                               |
+| getDatasets          | 5000     | 10    | 0.48 s   | 0.008 s                               |
+| getDatasetCount      | 1        | 1     | 0.64 s   | 0.029 s                               |
+| getDatasetCount      | 100      | 1     | 0.64 s   | 0.009 s                               |
+| getDatasetCount      | 5000     | 1     | 0.56 s   | 0.009 s                               |
+| getVariablesMeasured | 1        | 300   | 0.099 s  | 0.002 s                               |
+| getVariablesMeasured | 100      | 245   | 0.048 s  | 0.002 s                               |
+| getDistributionNames | 1        | 15    | 0.058 s  | 0.002 s                               |
+| getDistributionNames | 100      | 15    | 0.039 s  | 0.002 s                               |
+| getTypes             | 1        | 8     | 0.037 s  | 0.002 s                               |
+| getTypes             | 100      | 8     | 0.024 s  | 0.002 s                               |
+| getTotalSites        | 1        | 1     | 0.014 s  | 0.001 s                               |
+| getTotalSites        | 100      | 1     | 0.009 s  | 0.001 s                               |
 
 `getDatasets`/`getDatasetCount` are slow upstream because the `VALUES ?variableMeasured` / `?type` filters make
 the planner join ~480k rows first and filter by mainstem last; the others are already fast but become a single
