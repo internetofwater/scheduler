@@ -1,7 +1,4 @@
-# The explorer's getDatasets query answered from the `explorer-datasets` materialized view
-# (assets/materialized_views.json) instead of joining the graph. QLever does not
-# rewrite the explorer's query to use the view on its own, so the explorer has to
-# reference the view explicitly to get the speedup. Keep the filters in sync with getDatasets.
+# explorer/getDatasets.sparql rewritten to read the `explorer-datasets` materialized view
 PREFIX view: <https://qlever.cs.uni-freiburg.de/materializedView/>
 SELECT DISTINCT ?mainstem ?monitoringLocation ?datasetDescription ?type ?siteName ?variableMeasured ?variableUnit ?temporalCoverage ?distributionName ?wkt
 WHERE {

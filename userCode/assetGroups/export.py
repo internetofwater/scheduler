@@ -135,6 +135,9 @@ DEVELOPMENT_BRANCH_IN_LAKEFS = "develop"
 QUERIES_DIRECTORY = Path(__file__).parent / "queries"
 # queries pulled from the upstream explorer UI with `make pullQueries`; never edited by hand
 EXPLORER_QUERIES_DIRECTORY = QUERIES_DIRECTORY / "explorer"
+# the explorer queries rewritten to read the materialized views; each file must
+# return the same rows as the explorer query with the same file name
+EXPLORER_VIEW_QUERIES_DIRECTORY = QUERIES_DIRECTORY / "explorer_views"
 
 # views that qlever_index materializes after building the index; see assets/materialized_views.json
 MATERIALIZED_VIEWS_FILE = "materialized_views.json"
@@ -909,6 +912,32 @@ class CheckQuery:
         return None
 
 
+def _comparable_rows(response: dict) -> list[str]:
+    """The rows of a SELECT response as sorted strings, ignoring row order and datatypes"""
+    return sorted(
+        json.dumps({var: value["value"] for var, value in row.items()}, sort_keys=True)
+        for row in response.get("results", {}).get("bindings", [])
+    )
+
+
+def mismatched_view_queries(responses: dict[str, dict]) -> list[str]:
+    """
+    Names of the rewritten queries in `explorer_views/` whose rows differ from
+    the explorer query they rewrite, given each query's response by its name
+    """
+    view_prefix = f"{EXPLORER_VIEW_QUERIES_DIRECTORY.name}/"
+    mismatched = []
+    for name, response in responses.items():
+        if not name.startswith(view_prefix):
+            continue
+        upstream = f"{EXPLORER_QUERIES_DIRECTORY.name}/{name.removeprefix(view_prefix)}"
+        if upstream not in responses or _comparable_rows(response) != _comparable_rows(
+            responses[upstream]
+        ):
+            mismatched.append(name)
+    return mismatched
+
+
 def load_check_queries() -> list[CheckQuery]:
     """
     Every `*.sparql` file under the queries directory is one query, named by its
@@ -1018,6 +1047,7 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
             )
         logger.info("QLever server is ready")
 
+        responses: dict[str, dict] = {}
         for query in queries:
             logger.info(f"Checking {query.name}")
             result = requests.post(
@@ -1032,10 +1062,19 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
                 return fail(
                     f"Query {query.name} failed with status code {result.status_code} and body {result.text}"
                 )
-            problem = query.validate(result.json())
+            responses[query.name] = result.json()
+            problem = query.validate(responses[query.name])
             if problem:
                 return fail(f"Geoconnex SPARQL query '{query.name}' {problem}")
             logger.info(f"{query.name} passed")
+
+        mismatched = mismatched_view_queries(responses)
+        if mismatched:
+            return fail(
+                f"Materialized view queries {', '.join(mismatched)} do not return the "
+                "same rows as the explorer queries they rewrite; update "
+                f"assets/{MATERIALIZED_VIEWS_FILE} and queries/{EXPLORER_VIEW_QUERIES_DIRECTORY.name}"
+            )
 
         return AssetCheckResult(
             passed=True,

@@ -1,0 +1,9 @@
+# explorer/getVariablesMeasured.sparql rewritten to read the `explorer-variable-counts` materialized view
+PREFIX view: <https://qlever.cs.uni-freiburg.de/materializedView/>
+SELECT ?variableMeasured ?datasets
+WHERE {
+  SERVICE view:explorer-variable-counts {
+    [ view:column-mainstem <https://geoconnex.us/ref/mainstems/1> ; view:column-variableMeasured ?variableMeasured ; view:column-datasets ?datasets ]
+  }
+}
+ORDER BY DESC(?datasets)

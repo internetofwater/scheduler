@@ -1,0 +1,9 @@
+# explorer/getDistributionNames.sparql rewritten to read the `explorer-distribution-counts` materialized view
+PREFIX view: <https://qlever.cs.uni-freiburg.de/materializedView/>
+SELECT ?distributionName ?datasets
+WHERE {
+  SERVICE view:explorer-distribution-counts {
+    [ view:column-mainstem <https://geoconnex.us/ref/mainstems/1> ; view:column-distributionName ?distributionName ; view:column-datasets ?datasets ]
+  }
+}
+ORDER BY DESC(?datasets)

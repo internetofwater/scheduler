@@ -43,14 +43,20 @@ for i in range(N):
     g = f"_:g{i}"
     p = f"_:p{i}"
     t = random.choices(types, tw)[0]
-    w(f'{L} <{H}HydroLocationType> "{t}" .\n')
+    # a few locations miss a type, geometry or provider, since each explorer
+    # query requires a different subset of them; the rewrites must match that
+    missing = random.choices(["", "type", "geometry", "provider"], [91, 3, 3, 3])[0]
+    if missing != "type":
+        w(f'{L} <{H}HydroLocationType> "{t}" .\n')
     w(
         f"{L} <{H}referencedPosition> {b1} .\n{b1} <{H}HY_IndirectPosition> {b2} .\n{b2} <{H}linearElement> <https://geoconnex.us/ref/mainstems/{m}> .\n"
     )
-    w(
-        f'{L} <{G}hasGeometry> {g} .\n{g} <{G}asWKT> "POINT({random.uniform(-125, -67):.6f} {random.uniform(25, 49):.6f})"{W} .\n'
-    )
-    w(f'{L} <{S}provider> {p} .\n{p} <{S}name> "{random.choice(provs)}" .\n')
+    if missing != "geometry":
+        w(
+            f'{L} <{G}hasGeometry> {g} .\n{g} <{G}asWKT> "POINT({random.uniform(-125, -67):.6f} {random.uniform(25, 49):.6f})"{W} .\n'
+        )
+    if missing != "provider":
+        w(f'{L} <{S}provider> {p} .\n{p} <{S}name> "{random.choice(provs)}" .\n')
     for d in range(random.choice([1, 1, 1, 2, 3])):
         D = f"<https://example.org/ds/{i}_{d}>"
         w(f"{L} <{S}subjectOf> {D} .\n")

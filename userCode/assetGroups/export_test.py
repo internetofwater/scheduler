@@ -111,7 +111,31 @@ def test_explorer_queries_are_loaded_as_checks():
     checks = {query.name: query for query in export.load_check_queries()}
     for path in explorer_queries:
         assert checks[f"explorer/{path.name}"].text == path.read_text()
-    assert "explorer_datasets_materialized_view.sparql" in checks
+
+    # every explorer query has a rewrite that reads the materialized views
+    view_queries = sorted(export.EXPLORER_VIEW_QUERIES_DIRECTORY.glob("*.sparql"))
+    assert [path.name for path in view_queries] == [
+        path.name for path in explorer_queries
+    ]
+    for path in view_queries:
+        assert f"explorer_views/{path.name}" in checks
+
+
+def test_mismatched_view_queries():
+    def rows(*values):
+        return {"results": {"bindings": [{"n": {"value": v}} for v in values]}}
+
+    responses = {
+        "explorer/a.sparql": rows("1", "2"),
+        "explorer_views/a.sparql": rows("2", "1"),
+        "explorer/b.sparql": rows("1"),
+        "explorer_views/b.sparql": rows("3"),
+        "explorer_views/c.sparql": rows("1"),
+    }
+    assert export.mismatched_view_queries(responses) == [
+        "explorer_views/b.sparql",
+        "explorer_views/c.sparql",
+    ]
 
 
 def test_check_query_validation():
