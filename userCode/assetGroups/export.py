@@ -815,14 +815,16 @@ def qlever_index():
     os.chdir(ASSETS_DIRECTORY)
 
     try:
-        # overwrite existing index if it exists and use up to 11GB of memory for building the
-        # index; otherwise qlever will only use the default of 1GB
+        # overwrite existing index if it exists and raise qlever's memory limit from
+        # its default of 1GB. This limit also caps the queries that write the
+        # materialized views at the end of the build; explorer-datasets needs
+        # more than 11GB on the full graph
         qlever_cmd = [
             "qlever",
             "index",
             "--overwrite-existing",
             "--stxxl-memory",
-            "11GB",
+            "40GB",
         ]
         materialized_views = load_materialized_views()
         if materialized_views:
@@ -852,6 +854,19 @@ def qlever_index():
         returncode = process.wait()
         if returncode != 0:
             raise RuntimeError("qlever index generation failed")
+
+        # qlever pipes the index builder through `tee`, so a crash while writing
+        # the materialized views still exits 0; check that every view was written
+        missing_views = [
+            name
+            for name in materialized_views
+            if not (ASSETS_DIRECTORY / f"geoconnex.view.{name}.viewinfo.json").exists()
+        ]
+        if missing_views:
+            raise RuntimeError(
+                f"qlever index generation did not write the materialized views "
+                f"{', '.join(missing_views)}; see geoconnex.index-log.txt for the error"
+            )
 
         get_dagster_logger().info("qlever index generation complete")
 
