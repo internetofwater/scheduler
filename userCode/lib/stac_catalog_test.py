@@ -20,6 +20,7 @@ from userCode.lib.stac_catalog import (
     THUMBNAIL_HEIGHT_PX,
     THUMBNAIL_WIDTH_PX,
     add_catalog_icon,
+    catalog_agents_md,
     geoconnex_providers,
     humanize_sitemap_id,
     init_sub_catalog,
@@ -345,12 +346,23 @@ def test_patch_sitemap_collection_replaces_the_agents_md_template(tmp_path):
 
     agents_md = (tmp_path / "AGENTS.md").read_text()
     assert "<!--" not in agents_md
-    assert agents_md.startswith("# AGENTS.md — USBR RISE Locations")
+    assert agents_md.startswith("# AGENTS.md - USBR RISE Locations")
     assert "https://example.org/data.parquet" in agents_md
     assert "https://example.org/rdf/usbr:rise.parquet" in agents_md
     assert "IRI" in agents_md
     assert "docs.geoconnex.us" in agents_md
     assert "skills/geoconnex-querying/SKILL.md" in agents_md
+
+
+def test_catalog_agents_md_points_agents_at_the_sitemap_index_and_skill():
+    agents_md = catalog_agents_md()
+    assert agents_md.isascii()
+    assert "<!--" not in agents_md
+    assert "https://geoconnex.us/sitemap.xml" in agents_md
+    assert "geoconnex:dataset_documentation_link" in agents_md
+    assert "skills/geoconnex-querying/SKILL.md" in agents_md
+    assert "https://github.com/internetofwater/scheduler" in agents_md
+    assert "https://github.com/internetofwater/nabu" in agents_md
 
 
 def test_sitemap_agents_md_omits_the_jsonld_parquet_when_absent():

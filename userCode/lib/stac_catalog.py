@@ -508,6 +508,86 @@ def init_catalog(catalog_root: Path) -> None:
         ],
         cwd=catalog_root,
     )
+    # portolan scaffolds an empty AGENTS.md template on init and never
+    # overwrites it, so replace it with the real guide
+    (catalog_root / "AGENTS.md").write_text(catalog_agents_md(), encoding="utf-8")
+
+
+GEOCONNEX_SITEMAP_INDEX_URL = "https://geoconnex.us/sitemap.xml"
+GEOCONNEX_QUERYING_SKILL_URL = "https://raw.githubusercontent.com/internetofwater/geoconnex.us/refs/heads/master/skills/geoconnex-querying/SKILL.md"
+GEOCONNEX_DOCS_URL = "https://docs.geoconnex.us/"
+SCHEDULER_REPO_URL = "https://github.com/internetofwater/scheduler"
+NABU_REPO_URL = "https://github.com/internetofwater/nabu"
+
+
+def catalog_agents_md() -> str:
+    """
+    The AGENTS.md guide for the root of the catalog. Kept to ASCII so it
+    renders correctly even when a client ignores the charset it is served with.
+    """
+    return "\n".join(
+        [
+            "# AGENTS.md - Geoconnex Spatial Data Catalog",
+            "",
+            "Guidance for AI agents and LLMs working with this catalog.",
+            "",
+            "## Overview",
+            "",
+            "This is a Portolan STAC catalog of the vector features harvested by Geoconnex.",
+            "Each collection holds a GeoParquet export (and, where available, PMTiles) of",
+            "every feature in one Geoconnex dataset. The catalog is intended for",
+            "geospatial exploration: browsing datasets, inspecting their extents, and",
+            "loading features for spatial analysis.",
+            "",
+            "## Collection ids and the Geoconnex sitemap index",
+            "",
+            "The id of each collection in the top level of this catalog is the",
+            "`geoconnex:sitemap_id` of a dataset in the Geoconnex sitemap index:",
+            "",
+            f"- {GEOCONNEX_SITEMAP_INDEX_URL}",
+            "",
+            "Collection titles and descriptions are derived from that index. To learn",
+            "more about any dataset, find the `<sitemap>` entry whose `geoconnex:sitemap_id`",
+            "matches the collection id and introspect its metadata, such as:",
+            "",
+            "- `geoconnex:dataset_name` and `geoconnex:dataset_description`",
+            "- `geoconnex:dataset_documentation_link` - follow this link for the",
+            "  upstream documentation on what the dataset contains and how it is produced",
+            "- `geoconnex:source_code_link` - the code that publishes the dataset",
+            "- `geoconnex:add_associated_mainstems` - whether features are associated",
+            "  with a Geoconnex reference mainstem",
+            "",
+            "Each collection also has its own AGENTS.md with the URLs of its data files.",
+            "The `processed_usgs` sub-catalog is the exception: it holds USGS-derived",
+            "datasets the pipeline itself uses, not datasets from the sitemap index.",
+            "",
+            "## Linked relationships, search, and other ways to query",
+            "",
+            "This catalog is primarily intended for spatial exploration, bulk downloads, and visualization. To determine more",
+            "sophisticated linked relationships between features (for example which",
+            "monitoring locations are on a mainstem or within a HUC), to run fuzzy",
+            "text search, or to join this data with other Geoconnex data, use the",
+            "Geoconnex RDF graph or the OGC API Features endpoint instead. Consult the",
+            "Geoconnex querying agent skill to determine how:",
+            "",
+            f"- {GEOCONNEX_QUERYING_SKILL_URL}",
+            "",
+            f"General Geoconnex documentation: {GEOCONNEX_DOCS_URL}",
+            "",
+            "## How this catalog is produced",
+            "",
+            f"- {NABU_REPO_URL} performs the actual harvesting of the features",
+            "  listed in the sitemap index.",
+            f"- {SCHEDULER_REPO_URL} runs the data pipeline that orchestrates the",
+            "  harvest, uploads the exported data to object storage, and generates",
+            "  this STAC / Portolan catalog.",
+            "",
+            "## License",
+            "",
+            f"The catalog's data is published under {CATALOG_LICENSE}.",
+            "",
+        ]
+    )
 
 
 def add_catalog_icon(catalog_root: Path) -> None:
@@ -681,10 +761,6 @@ def register_sitemap_collection(
     return Path(result["data"]["collection_path"])
 
 
-GEOCONNEX_QUERYING_SKILL_URL = "https://raw.githubusercontent.com/internetofwater/geoconnex.us/refs/heads/master/skills/geoconnex-querying/SKILL.md"
-GEOCONNEX_DOCS_URL = "https://docs.geoconnex.us/"
-
-
 def sitemap_agents_md(
     *, title: str, sitemap_id: str, parquet_url: str, rdf_parquet_url: str | None
 ) -> str:
@@ -694,7 +770,7 @@ def sitemap_agents_md(
     replaces that template with the basics an agent needs to use the data.
     """
     lines = [
-        f"# AGENTS.md — {title}",
+        f"# AGENTS.md - {title}",
         "",
         f"Features harvested by Geoconnex from the `{sitemap_id}` sitemap.",
         "",
