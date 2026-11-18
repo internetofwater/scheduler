@@ -1,0 +1,14 @@
+# explorer/getDatasets.sparql rewritten to read the `explorer-datasets` materialized view
+PREFIX view: <https://qlever.cs.uni-freiburg.de/materializedView/>
+SELECT DISTINCT ?mainstem ?monitoringLocation ?datasetDescription ?type ?siteName ?variableMeasured ?variableUnit ?temporalCoverage ?distributionName ?wkt
+WHERE {
+  VALUES ?mainstem { <https://geoconnex.us/ref/mainstems/1> }
+  VALUES ?variableMeasured { "Temperature, water" "pH" }
+  VALUES ?type { "Well" "Stream" }
+  SERVICE view:explorer-datasets {
+    [ view:column-mainstem ?mainstem ; view:column-type ?type ; view:column-variableMeasured ?variableMeasured ;
+      view:column-monitoringLocation ?monitoringLocation ; view:column-datasetDescription ?datasetDescription ;
+      view:column-siteName ?siteName ; view:column-variableUnit ?variableUnit ; view:column-temporalCoverage ?temporalCoverage ;
+      view:column-distributionName ?distributionName ; view:column-wkt ?wkt ]
+  }
+}

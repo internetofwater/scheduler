@@ -1,0 +1,16 @@
+PREFIX hyf: <https://www.opengis.net/def/schema/hy_features/hyf/>
+    PREFIX schema: <https://schema.org/>
+
+SELECT ?variableMeasured (COUNT(DISTINCT ?dataset) AS ?datasets)
+WHERE {
+    VALUES ?mainstem { <https://geoconnex.us/ref/mainstems/1> }
+
+    ?monitoringLocation
+        hyf:referencedPosition/hyf:HY_IndirectPosition/hyf:linearElement ?mainstem ;
+        schema:subjectOf ?dataset .
+
+    ?dataset schema:variableMeasured ?variableMeasuredURI .
+    ?variableMeasuredURI schema:name ?variableMeasured .
+}
+GROUP BY ?variableMeasured
+ORDER BY DESC(?datasets)

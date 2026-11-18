@@ -1,0 +1,61 @@
+PREFIX hyf: <https://www.opengis.net/def/schema/hy_features/hyf/>
+            PREFIX schema: <https://schema.org/>
+            PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+      
+        SELECT (COUNT(*) AS ?count)
+        WHERE {
+            {
+                SELECT DISTINCT 
+?mainstem 
+?monitoringLocation 
+?datasetDescription 
+?type 
+?siteName
+?variableMeasured
+?variableUnit
+?temporalCoverage 
+?distributionName 
+?wkt
+WHERE {
+{
+    SELECT
+        ?mainstem
+        ?monitoringLocation
+        ?type
+        ?dataset
+        ?var
+        ?variableMeasured
+        ?distributionName
+    WHERE {
+        VALUES ?mainstem { <https://geoconnex.us/ref/mainstems/1> }
+        ?monitoringLocation hyf:referencedPosition/hyf:HY_IndirectPosition/hyf:linearElement ?mainstem .
+        ?monitoringLocation hyf:HydroLocationType ?type .
+        ?monitoringLocation schema:subjectOf ?dataset .
+        ?dataset schema:variableMeasured ?var .
+        ?var schema:name ?variableMeasured .
+        ?monitoringLocation schema:provider/schema:name ?distributionName .
+
+        
+
+VALUES ?variableMeasured { 
+    "Temperature, water"
+"pH"
+
+}
+
+VALUES ?type { 
+    "Well"
+"Stream" 
+}
+
+
+    }
+}
+?monitoringLocation geo:hasGeometry/geo:asWKT ?wkt .
+?dataset schema:description ?datasetDescription .
+?dataset schema:temporalCoverage ?temporalCoverage .
+?dataset schema:name ?siteName .
+?var schema:unitText ?variableUnit .
+}
+            }
+        }

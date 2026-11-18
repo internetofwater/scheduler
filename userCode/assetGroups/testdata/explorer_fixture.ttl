@@ -1,0 +1,30 @@
+# A minimal graph with the shape the explorer UI queries (queries/explorer/*.sparql) expect:
+# monitoring locations on a mainstem that have datasets measuring variables.
+# If the explorer changes the filters in its queries (e.g. the allowed
+# location types or variables) after `make pullQueries`, update this to match.
+@prefix hyf: <https://www.opengis.net/def/schema/hy_features/hyf/> .
+@prefix schema: <https://schema.org/> .
+@prefix geo: <http://www.opengis.net/ont/geosparql#> .
+@prefix ex: <https://example.com/> .
+
+ex:stream1 hyf:HydroLocationType "Stream" ;
+    hyf:referencedPosition [ hyf:HY_IndirectPosition [ hyf:linearElement <https://geoconnex.us/ref/mainstems/1> ] ] ;
+    schema:subjectOf ex:stream1_dataset ;
+    schema:provider [ schema:name "Provider A" ] ;
+    geo:hasGeometry [ geo:asWKT "POINT(-100 40)"^^geo:wktLiteral ] .
+
+ex:stream1_dataset schema:name "Stream site 1" ;
+    schema:description "pH measurements" ;
+    schema:temporalCoverage "2000-01-01/2020-01-01" ;
+    schema:variableMeasured [ schema:name "pH" ; schema:unitText "pH" ] .
+
+ex:well1 hyf:HydroLocationType "Well" ;
+    hyf:referencedPosition [ hyf:HY_IndirectPosition [ hyf:linearElement <https://geoconnex.us/ref/mainstems/1> ] ] ;
+    schema:subjectOf ex:well1_dataset ;
+    schema:provider [ schema:name "Provider B" ] ;
+    geo:hasGeometry [ geo:asWKT "POINT(-101 41)"^^geo:wktLiteral ] .
+
+ex:well1_dataset schema:name "Well site 1" ;
+    schema:description "water temperature" ;
+    schema:temporalCoverage "2010-01-01/2021-01-01" ;
+    schema:variableMeasured [ schema:name "Temperature, water" ; schema:unitText "degC" ] .

@@ -1,0 +1,9 @@
+# explorer/getTypes.sparql rewritten to read the `explorer-type-counts` materialized view
+PREFIX view: <https://qlever.cs.uni-freiburg.de/materializedView/>
+SELECT ?type ?datasets
+WHERE {
+  SERVICE view:explorer-type-counts {
+    [ view:column-mainstem <https://geoconnex.us/ref/mainstems/1> ; view:column-type ?type ; view:column-datasets ?datasets ]
+  }
+}
+ORDER BY DESC(?datasets)

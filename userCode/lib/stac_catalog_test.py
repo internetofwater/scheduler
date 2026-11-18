@@ -32,6 +32,7 @@ from userCode.lib.stac_catalog import (
     register_processed_usgs_collection,
     register_sitemap_collection,
     render_thumbnail,
+    sitemap_agents_md,
     sitemap_collection_title,
     sitemap_dataset_metadata,
     stac_collection_id,
@@ -311,6 +312,55 @@ def test_patch_sitemap_collection_adds_pmtiles_as_a_visual_asset(tmp_path):
     # apply the style to this asset
     style = maplibre_style_for_pmtiles(pmtiles_url, "usbr_rise")
     assert style["sources"]["data"]["url"] == f"pmtiles://{pmtiles_asset.href}"
+
+
+def test_patch_sitemap_collection_replaces_the_agents_md_template(tmp_path):
+    collection = pystac.Collection(
+        id="usbr_rise",
+        title="USBR RISE Locations",
+        description="test",
+        extent=pystac.Extent(
+            pystac.SpatialExtent([[-180, -90, 180, 90]]),
+            pystac.TemporalExtent([[None, None]]),
+        ),
+    )
+    collection.add_asset(
+        "data", pystac.Asset(href="https://example.org/data.parquet", roles=["data"])
+    )
+    collection_path = tmp_path / "collection.json"
+    collection.set_self_href(str(collection_path))
+    collection.save_object(include_self_link=False)
+    # the empty template portolan scaffolds
+    (tmp_path / "AGENTS.md").write_text(
+        "## Overview\n\n<!-- What this collection contains -->\n"
+    )
+
+    patch_sitemap_collection(
+        collection_path,
+        sitemap_id="usbr:rise",
+        parquet_size=1,
+        parquet_checksum="1220abc",
+        rdf_parquet_url="https://example.org/rdf/usbr:rise.parquet",
+    )
+
+    agents_md = (tmp_path / "AGENTS.md").read_text()
+    assert "<!--" not in agents_md
+    assert agents_md.startswith("# AGENTS.md — USBR RISE Locations")
+    assert "https://example.org/data.parquet" in agents_md
+    assert "https://example.org/rdf/usbr:rise.parquet" in agents_md
+    assert "IRI" in agents_md
+    assert "docs.geoconnex.us" in agents_md
+    assert "skills/geoconnex-querying/SKILL.md" in agents_md
+
+
+def test_sitemap_agents_md_omits_the_jsonld_parquet_when_absent():
+    agents_md = sitemap_agents_md(
+        title="t",
+        sitemap_id="s",
+        parquet_url="https://example.org/s.parquet",
+        rdf_parquet_url=None,
+    )
+    assert "JSON-LD" not in agents_md
 
 
 def test_render_thumbnail_writes_a_png(tmp_path):

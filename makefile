@@ -69,6 +69,10 @@ cloudUpdate:
 redeploy:
 	./scripts/redeploy.sh
 
+# Pull the explorer UI's sparql queries into userCode/assetGroups/queries/explorer at the pinned upstream main commit; bump manually, e.g. `make pullQueries` or `make pullQueries TAG=latest`
+pullQueries:
+	./scripts/pull_explorer_queries.sh $(TAG)
+
 # Stop all docker services
 down: 
 	$(ALL_SERVICES) down
@@ -83,4 +87,4 @@ init-env:
 	@test -f .env || cp .env.example .env
 
 # All targets are cli commands 
-.PHONY: deps test cov clean up dev prod cloudProd cloudPull cloudUpdate redeploy down pull init-env
+.PHONY: deps test cov clean up dev prod cloudProd cloudPull cloudUpdate redeploy pullQueries down pull init-env

@@ -6,6 +6,7 @@ from collections import deque
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 import csv
+from dataclasses import dataclass
 from datetime import datetime
 import io
 import json
@@ -130,6 +131,16 @@ HARVESTED_PARQUET_ROW_GROUP_MAX_ROWS = 150_000
 HARVESTED_PARQUET_DOWNLOAD_WORKERS = 16
 
 DEVELOPMENT_BRANCH_IN_LAKEFS = "develop"
+
+QUERIES_DIRECTORY = Path(__file__).parent / "queries"
+# queries pulled from the upstream explorer UI with `make pullQueries`; never edited by hand
+EXPLORER_QUERIES_DIRECTORY = QUERIES_DIRECTORY / "explorer"
+# the explorer queries rewritten to read the materialized views; each file must
+# return the same rows as the explorer query with the same file name
+EXPLORER_VIEW_QUERIES_DIRECTORY = QUERIES_DIRECTORY / "explorer_views"
+
+# views that qlever_index materializes after building the index; see assets/materialized_views.json
+MATERIALIZED_VIEWS_FILE = "materialized_views.json"
 
 QLEVER_CONTAINER_NAME = "qlever.server.geoconnex"
 QLEVER_DOCKER_NETWORK = "dagster_network"
@@ -777,6 +788,16 @@ def publish_stac_catalog():
                 )
 
 
+def load_materialized_views() -> dict[str, str]:
+    """
+    Map of view name to the SELECT query that materializes it, as stored in
+    assets/materialized_views.json. Views are written at the end of the index
+    build and must be preloaded when the server starts
+    """
+    path = ASSETS_DIRECTORY / MATERIALIZED_VIEWS_FILE
+    return json.loads(path.read_text()) if path.exists() else {}
+
+
 @asset(
     deps=[nquads_for_all_sources],
     # this is put in a separate group since it is potentially expensive
@@ -802,6 +823,12 @@ def qlever_index():
             "--stxxl-memory",
             "11GB",
         ]
+        materialized_views = load_materialized_views()
+        if materialized_views:
+            logger.info(
+                f"Materializing views after indexing: {', '.join(materialized_views)}"
+            )
+            qlever_cmd += ["--materialized-views", json.dumps(materialized_views)]
 
         process = subprocess.Popen(
             qlever_cmd,
@@ -857,6 +884,72 @@ def _stream_process_output_to_logs(
             logger.info(f"[qlever server] {line}")
 
 
+@dataclass(frozen=True)
+class CheckQuery:
+    """A SPARQL query that must succeed against the qlever index"""
+
+    name: str
+    text: str
+
+    def validate(self, response: dict) -> str | None:
+        """Return a description of what is wrong with the response, or None if it is fine"""
+        # ASK queries respond with a boolean and SELECT queries with bindings
+        if "boolean" in response:
+            if not response["boolean"]:
+                return "returned false; the data the query expects is missing from the index"
+            return None
+
+        bindings = response.get("results", {}).get("bindings")
+        if not bindings:
+            return (
+                "returned no rows; the data the query expects is missing from the index"
+            )
+        # aggregate queries like COUNT always return a row, so also require a non-zero count
+        for row in bindings:
+            count = row.get("count")
+            if count is not None and int(count["value"]) == 0:
+                return "returned a count of 0; the data the query expects is missing from the index"
+        return None
+
+
+def _comparable_rows(response: dict) -> list[str]:
+    """The rows of a SELECT response as sorted strings, ignoring row order and datatypes"""
+    return sorted(
+        json.dumps({var: value["value"] for var, value in row.items()}, sort_keys=True)
+        for row in response.get("results", {}).get("bindings", [])
+    )
+
+
+def mismatched_view_queries(responses: dict[str, dict]) -> list[str]:
+    """
+    Names of the rewritten queries in `explorer_views/` whose rows differ from
+    the explorer query they rewrite, given each query's response by its name
+    """
+    view_prefix = f"{EXPLORER_VIEW_QUERIES_DIRECTORY.name}/"
+    mismatched = []
+    for name, response in responses.items():
+        if not name.startswith(view_prefix):
+            continue
+        upstream = f"{EXPLORER_QUERIES_DIRECTORY.name}/{name.removeprefix(view_prefix)}"
+        if upstream not in responses or _comparable_rows(response) != _comparable_rows(
+            responses[upstream]
+        ):
+            mismatched.append(name)
+    return mismatched
+
+
+def load_check_queries() -> list[CheckQuery]:
+    """
+    Every `*.sparql` file under the queries directory is one query, named by its
+    path relative to that directory. Queries in `explorer/` are pulled from the
+    upstream explorer UI with `make pullQueries`; the rest are maintained here
+    """
+    return [
+        CheckQuery(path.relative_to(QUERIES_DIRECTORY).as_posix(), path.read_text())
+        for path in sorted(QUERIES_DIRECTORY.rglob("*.sparql"))
+    ]
+
+
 @asset_check(asset=qlever_index, blocking=True)
 def geoconnex_sparql_query_check() -> AssetCheckResult:
     """
@@ -864,7 +957,7 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
     preventing any regressions with new data
     """
     logger = get_dagster_logger()
-    queries = sorted((Path(__file__).parent / "queries").iterdir())
+    queries = load_check_queries()
 
     start_qlever_cmd = [
         "qlever",
@@ -874,6 +967,9 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
         "--run-in-foreground",
         "--kill-existing-with-same-port",
     ]
+    materialized_views = list(load_materialized_views())
+    if materialized_views:
+        start_qlever_cmd += ["--preload-materialized-views", *materialized_views]
     # a server container left over from a previous run would otherwise be found
     # (and treated as already networked) before `qlever start` replaces it with
     # a new container that is not connected to the dagster network
@@ -951,32 +1047,34 @@ def geoconnex_sparql_query_check() -> AssetCheckResult:
             )
         logger.info("QLever server is ready")
 
-        for file in queries:
-            logger.info(f"Checking {file.name}")
+        responses: dict[str, dict] = {}
+        for query in queries:
+            logger.info(f"Checking {query.name}")
             result = requests.post(
                 endpoint,
                 headers={
                     "Accept": "application/sparql-results+json",
                 },
-                data={"query": file.read_text()},
-                timeout=30,
+                data={"query": query.text},
+                timeout=60,
             )
             if result.status_code > 300:
                 return fail(
-                    f"Query {file.name} failed with status code {result.status_code} and body {result.text}"
+                    f"Query {query.name} failed with status code {result.status_code} and body {result.text}"
                 )
-            as_json = result.json()
-            if "boolean" not in as_json:
-                return fail(
-                    f"ASK Query {file.name} did not return a boolean; got: {result.text[:1000]}"
-                )
+            responses[query.name] = result.json()
+            problem = query.validate(responses[query.name])
+            if problem:
+                return fail(f"Geoconnex SPARQL query '{query.name}' {problem}")
+            logger.info(f"{query.name} passed")
 
-            if not as_json["boolean"]:
-                return fail(
-                    f"Geoconnex SPARQL query '{file.name}' returned false; "
-                    "the data the query expects is missing from the index"
-                )
-            logger.info(f"{file.name} passed")
+        mismatched = mismatched_view_queries(responses)
+        if mismatched:
+            return fail(
+                f"Materialized view queries {', '.join(mismatched)} do not return the "
+                "same rows as the explorer queries they rewrite; update "
+                f"assets/{MATERIALIZED_VIEWS_FILE} and queries/{EXPLORER_VIEW_QUERIES_DIRECTORY.name}"
+            )
 
         return AssetCheckResult(
             passed=True,

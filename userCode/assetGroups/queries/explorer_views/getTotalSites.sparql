@@ -1,0 +1,9 @@
+# explorer/getTotalSites.sparql rewritten to read the `explorer-site-counts` materialized view.
+# SUM over the (at most one) row so a mainstem without sites still returns a count of 0
+PREFIX view: <https://qlever.cs.uni-freiburg.de/materializedView/>
+SELECT (SUM(?sites) AS ?count)
+WHERE {
+  SERVICE view:explorer-site-counts {
+    [ view:column-mainstem <https://geoconnex.us/ref/mainstems/1> ; view:column-count ?sites ]
+  }
+}

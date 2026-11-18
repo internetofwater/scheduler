@@ -1,0 +1,14 @@
+PREFIX hyf: <https://www.opengis.net/def/schema/hy_features/hyf/>
+    PREFIX schema: <https://schema.org/>
+
+SELECT ?type (COUNT(DISTINCT ?dataset) AS ?datasets)
+WHERE {
+    VALUES ?mainstem { <https://geoconnex.us/ref/mainstems/1> }
+
+    ?monitoringLocation
+        hyf:referencedPosition/hyf:HY_IndirectPosition/hyf:linearElement ?mainstem ;
+        hyf:HydroLocationType ?type ;
+        schema:subjectOf ?dataset .
+}
+GROUP BY ?type
+ORDER BY DESC(?datasets)

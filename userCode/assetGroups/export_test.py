@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import configparser
+import json
 from pathlib import Path
+import shutil
 import subprocess
 from typing import cast
 
@@ -37,11 +39,13 @@ def test_qlever_index_and_geoconnex_sparql_query_check(tmp_path, monkeypatch):
 
     test_ttl = assets_directory / "test.ttl"
     test_ttl.write_text(
-        """
-        @prefix ex: <http://example.com/> .
-
-        ex:subject ex:predicate ex:object .
-        """.strip()
+        # the fixture goes first since qlever's parallel parser needs every @prefix at the top
+        (Path(__file__).parent / "testdata" / "explorer_fixture.ttl").read_text()
+        + "\n<http://example.com/subject> <http://example.com/predicate> <http://example.com/object> .\n"
+    )
+    shutil.copy(
+        Path(__file__).parents[2] / "assets" / export.MATERIALIZED_VIEWS_FILE,
+        assets_directory,
     )
     qleverfile = assets_directory / "Qleverfile"
     qlever_image = _qlever_image_from_real_qleverfile()
@@ -97,6 +101,56 @@ def test_qlever_index_and_geoconnex_sparql_query_check(tmp_path, monkeypatch):
             check=False,
             timeout=120,
         )
+
+
+def test_explorer_queries_are_loaded_as_checks():
+    """Every query pulled from the explorer UI must be run by the sparql check"""
+    explorer_queries = sorted(export.EXPLORER_QUERIES_DIRECTORY.glob("*.sparql"))
+    assert explorer_queries, "Run `make pullQueries` to fetch the explorer queries"
+
+    checks = {query.name: query for query in export.load_check_queries()}
+    for path in explorer_queries:
+        assert checks[f"explorer/{path.name}"].text == path.read_text()
+
+    # every explorer query has a rewrite that reads the materialized views
+    view_queries = sorted(export.EXPLORER_VIEW_QUERIES_DIRECTORY.glob("*.sparql"))
+    assert [path.name for path in view_queries] == [
+        path.name for path in explorer_queries
+    ]
+    for path in view_queries:
+        assert f"explorer_views/{path.name}" in checks
+
+
+def test_mismatched_view_queries():
+    def rows(*values):
+        return {"results": {"bindings": [{"n": {"value": v}} for v in values]}}
+
+    responses = {
+        "explorer/a.sparql": rows("1", "2"),
+        "explorer_views/a.sparql": rows("2", "1"),
+        "explorer/b.sparql": rows("1"),
+        "explorer_views/b.sparql": rows("3"),
+        "explorer_views/c.sparql": rows("1"),
+    }
+    assert export.mismatched_view_queries(responses) == [
+        "explorer_views/b.sparql",
+        "explorer_views/c.sparql",
+    ]
+
+
+def test_check_query_validation():
+    ask = export.CheckQuery("ask", "ASK { ?s ?p ?o }")
+    assert ask.validate({"boolean": True}) is None
+    assert ask.validate({"boolean": False})
+    assert ask.validate({"head": {}})
+
+    select = export.CheckQuery("select", "SELECT ?s WHERE { ?s ?p ?o }")
+    assert select.validate({"results": {"bindings": [{"s": {"value": "a"}}]}}) is None
+    assert select.validate({"results": {"bindings": []}})
+    count = {"results": {"bindings": [{"count": {"value": "0"}}]}}
+    assert select.validate(count)
+    count["results"]["bindings"][0]["count"]["value"] = "3"
+    assert select.validate(count) is None
 
 
 def test_move_geoparquet_to_postgis(tmp_path):
@@ -411,7 +465,6 @@ def test_optimize_harvested_parquet_file(tmp_path):
     Aleutians), sort the rows spatially, and keep everything else nabu wrote as is,
     including the bbox covering
     """
-    import json
 
     import pyarrow.parquet as pq
     import shapely
@@ -471,7 +524,6 @@ def test_optimize_harvested_parquet_file(tmp_path):
 
 def test_optimize_harvested_parquet_file_keeps_the_bbox_column(tmp_path):
     """Without any wrapped longitudes the bbox column is carried through and sorted with its rows"""
-    import json
 
     import pyarrow.parquet as pq
     from shapely.geometry import Point
