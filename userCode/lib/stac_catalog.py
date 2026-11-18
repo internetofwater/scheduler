@@ -681,6 +681,48 @@ def register_sitemap_collection(
     return Path(result["data"]["collection_path"])
 
 
+GEOCONNEX_QUERYING_SKILL_URL = "https://raw.githubusercontent.com/internetofwater/geoconnex.us/refs/heads/master/skills/geoconnex-querying/SKILL.md"
+GEOCONNEX_DOCS_URL = "https://docs.geoconnex.us/"
+
+
+def sitemap_agents_md(
+    *, title: str, sitemap_id: str, parquet_url: str, rdf_parquet_url: str | None
+) -> str:
+    """
+    The AGENTS.md guide for a sitemap collection. Portolan only scaffolds an
+    empty template when the file is missing and never overwrites it, so this
+    replaces that template with the basics an agent needs to use the data.
+    """
+    lines = [
+        f"# AGENTS.md — {title}",
+        "",
+        f"Features harvested by Geoconnex from the `{sitemap_id}` sitemap.",
+        "",
+        "## Data",
+        "",
+        f"- GeoParquet: {parquet_url}",
+        "  - `id` is the IRI of the feature in Geoconnex; resolve it or use it as a join key.",
+    ]
+    if rdf_parquet_url:
+        lines += [
+            f"- JSON-LD parquet: {rdf_parquet_url}",
+            "  - Each row's `id` matches the GeoParquet `id` and its `jsonld` column holds the",
+            "    full semi-structured JSON-LD for that feature. Join on `id` to introspect any",
+            "    properties not in the GeoParquet.",
+        ]
+    lines += [
+        "",
+        "## Querying and joining with other Geoconnex data",
+        "",
+        "For how to query this collection or join it to other Geoconnex data, see:",
+        "",
+        f"- {GEOCONNEX_QUERYING_SKILL_URL}",
+        f"- {GEOCONNEX_DOCS_URL}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def patch_sitemap_collection(
     collection_path: Path,
     *,
@@ -702,7 +744,8 @@ def patch_sitemap_collection(
     (`rdf_parquet_url`; a link rather than an asset since it is for people
     working with the RDF graph and not part of the catalog's data), an optional PMTiles render link, and
     optional local thumbnail/style assets (expected to already sit alongside
-    collection.json, named `thumbnail_filename`/`style_filename`).
+    collection.json, named `thumbnail_filename`/`style_filename`). Also replaces
+    Portolan's empty AGENTS.md template with `sitemap_agents_md`.
     """
     collection = pystac.Collection.from_file(str(collection_path))
 
@@ -727,6 +770,15 @@ def patch_sitemap_collection(
     data_asset.extra_fields["table:columns"] = GEOPARQUET_TABLE_COLUMNS
     data_asset.extra_fields["file:size"] = parquet_size
     data_asset.extra_fields["file:checksum"] = parquet_checksum
+
+    (collection_path.parent / "AGENTS.md").write_text(
+        sitemap_agents_md(
+            title=collection.title or sitemap_id,
+            sitemap_id=sitemap_id,
+            parquet_url=data_asset.href,
+            rdf_parquet_url=rdf_parquet_url,
+        )
+    )
 
     if rdf_parquet_url:
         collection.add_link(

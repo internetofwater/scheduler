@@ -1,0 +1,8 @@
+PREFIX hyf: <https://www.opengis.net/def/schema/hy_features/hyf/>
+            PREFIX schema: <https://schema.org/>
+
+SELECT (COUNT(DISTINCT ?monitoringLocation) AS ?count)
+WHERE {
+    ?monitoringLocation
+        hyf:referencedPosition/hyf:HY_IndirectPosition/hyf:linearElement <https://geoconnex.us/ref/mainstems/1> .
+}

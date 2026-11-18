@@ -5,7 +5,7 @@ index:
 	qlever index --overwrite-existing && mkdir -p index && mv geoconnex.* index/
 
 startLocal:
-	cd index && qlever start --image docker.io/adfreiburg/qlever:commit-55c05d4 --name geoconnex --description graph --port 8888
+	cd index && qlever start --image docker.io/adfreiburg/qlever:0.6.0 --name geoconnex --description graph --port 8888
 
 stopLocal:
 	qlever stop
