@@ -14,13 +14,13 @@ variable "instance_os" {
 variable "disk_size" {
   description = "Boot disk size for each VM instance (in GB)"
   type        = number
-  default     = 128
+  default     = 180
 }
 
 variable "qlever_disk_size" {
   description = "Boot disk size for each VM instance (in GB)"
   type        = number
-  default     = 80
+  default     = 110
 }
 
 variable "enable_public_url" {
