@@ -68,7 +68,7 @@ resource "google_compute_instance" "qlever_vm" {
     # Step 5: Configure Caddy to reverse proxy to Qlever
 
     cat <<CADDYFILE | sudo tee /etc/caddy/Caddyfile > /dev/null
-    ${var.qlever_url} {
+    ${join(", ", var.qlever_domains)} {
             reverse_proxy :8888
     }
     CADDYFILE
