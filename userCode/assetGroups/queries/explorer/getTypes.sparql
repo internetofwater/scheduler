@@ -9,6 +9,8 @@ WHERE {
         hyf:referencedPosition/hyf:HY_IndirectPosition/hyf:linearElement ?mainstem ;
         hyf:HydroLocationType ?type ;
         schema:subjectOf ?dataset .
+
+    ?dataset schema:variableMeasured ?variableMeasured .
 }
 GROUP BY ?type
 ORDER BY DESC(?datasets)

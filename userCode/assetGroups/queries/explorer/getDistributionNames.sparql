@@ -12,6 +12,8 @@ WHERE {
                 hyf:HydroLocationType ?type ;
                 schema:subjectOf ?dataset ;
                 schema:provider ?provider .
+
+            ?dataset schema:variableMeasured ?variableMeasured .
         }
     }
     ?provider schema:name ?distributionName .
