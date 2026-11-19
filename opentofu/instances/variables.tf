@@ -103,10 +103,10 @@ variable "graph_url" {
   default     = "http://graphdb:7200"
 }
 
-variable "qlever_url" {
-  description = "Graph URL"
-  type        = string
-  default     = "qlever.internetofwater.app"
+variable "qlever_domains" {
+  description = "Domains served by the canonical Qlever graph endpoint; Caddy obtains TLS certs for each, so their DNS must point at the static IP"
+  type        = list(string)
+  default     = ["qlever.internetofwater.app", "graph.geoconnex.us"]
 }
 
 variable "ghcr_token" {
