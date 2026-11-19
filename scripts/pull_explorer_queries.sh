@@ -17,7 +17,7 @@
 set -euo pipefail
 
 # explorer.geoconnex.us main commit the queries are pinned to
-PINNED_COMMIT="2bef5ed65c102ea793807f4e384f472f0e437f22"
+PINNED_COMMIT="95015096b5048603ebc30880bddb613085d4aba3"
 
 REF="${1:-$PINNED_COMMIT}"
 REPOSITORY="ghcr.io/internetofwater/explorer-sparql-statements"
