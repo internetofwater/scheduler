@@ -21,7 +21,7 @@ variable "network_name" {
 variable "service_account_email" {
   description = "Service account the GKE nodes run as"
   type        = string
-}`
+}
 
 variable "qlever_url" {
   description = "Public hostnames qlever is served on; one Google-managed certificate covers all of them"
