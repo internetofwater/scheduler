@@ -21,3 +21,8 @@ output "vm_zone" {
   description = "Zone of the scheduler VM"
   value       = var.zone
 }
+
+output "qlever_ip" {
+  description = "Global IP of the qlever load balancer; point the DNS A record of each qlever_url here"
+  value       = module.qlever.ip_address
+}

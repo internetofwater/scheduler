@@ -22,6 +22,7 @@ terraform {
 resource "google_project_service" "required_apis" {
   for_each = toset([
     "compute.googleapis.com",
+    "container.googleapis.com",
     "run.googleapis.com",
     "iam.googleapis.com",
     "cloudbuild.googleapis.com",
@@ -106,9 +107,7 @@ module "instances" {
   dagster_slack_token = var.dagster_slack_token
   ghcr_token = var.ghcr_token
 
-  # network configurations
   network_name  = module.network.network_name
-  static_ip     = module.network.static_ip
 
   s3_bucket     = module.storage.s3_bucket
   s3_region     = module.storage.s3_region
@@ -119,6 +118,25 @@ module "instances" {
   database_user = module.database.database_user
   database_name = module.database.database_name
   database_password = var.database_password
+}
+
+module "qlever" {
+  source                = "./qlever"
+  name                  = var.vm_name
+  zone                  = var.zone
+  network_name          = module.network.network_name
+  service_account_email = var.service_account_email
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# manages the qlever workload on the cluster created by module.qlever
+data "google_client_config" "default" {}
+
+provider "kubernetes" {
+  host                   = "https://${module.qlever.cluster_endpoint}"
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(module.qlever.cluster_ca_certificate)
 }
 
 module "shacl_validator" {

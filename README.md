@@ -38,7 +38,7 @@ make cloudProd
 
 ## Cloud deployment
 
-All GCP infrastructure as code lives in [`opentofu/`](./opentofu) (previously the [harvest.geoconnex.us](https://github.com/internetofwater/harvest.geoconnex.us) repo). It provisions the network, storage buckets, Cloud SQL database, pygeoapi, graphdb, qlever, and the VM that clones this repo and runs `make cloudProd`.
+All GCP infrastructure as code lives in [`opentofu/`](./opentofu) (previously the [harvest.geoconnex.us](https://github.com/internetofwater/harvest.geoconnex.us) repo). It provisions the network, storage buckets, Cloud SQL database, pygeoapi, graphdb, qlever (on GKE, see [`opentofu/qlever`](./opentofu/qlever)), and the VM that clones this repo and runs `make cloudProd`.
 
 You must use [OpenTofu](https://opentofu.org/) rather than Terraform since the `gcs` backend is configured with variables.
 
