@@ -1,8 +1,8 @@
 # QLever on GKE
 
-QLever runs as a single pod on a two-node zonal GKE cluster.
+QLever runs as a single pod on an autoscaled zonal GKE cluster (1–2 nodes).
 
-- **Nodes:** each node fits one qlever pod. One node serves, and the other is the spare that a new pod starts on during a rollout.
+- **Nodes:** a qlever pod reserves most of a node's memory, so each node runs only one. Normally one node serves. During a rollout the new pod doesn't fit on it, so the cluster autoscaler adds a second node for it and removes the empty node about 10 minutes after the rollout. The pod is annotated `safe-to-evict: "false"` so the autoscaler never moves the serving pod.
 - **Storage:** each pod gets its own new `pd-ssd` from the `qlever-ssd` StorageClass, as a generic ephemeral volume. Kubernetes creates the disk with the pod and deletes it with the pod.
 - **Server:** `qlever-server` serves the index from that disk and preloads every materialized view in it.
 - **Ingress:** a GKE Ingress on a global static IP serves every hostname in `qlever_url` over HTTPS with one Google-managed certificate.
@@ -30,14 +30,14 @@ The new index loads whatever views it contains, so adding a view to `assets/mate
 
 A restart is a rolling update with no downtime:
 
-1. The new pod starts on the spare node with its own disk, then syncs and loads the index.
+1. The autoscaler adds a second node (a few minutes), and the new pod starts there with its own disk, then syncs and loads the index.
 2. Once the new pod is ready and healthy behind the load balancer, the old pod is taken out of the load balancer.
 3. The old pod keeps serving for `drain_seconds` (30 s) and then gets up to the 300 s query timeout to finish running queries.
-4. The old pod and its disk are deleted.
+4. The old pod and its disk are deleted, and the autoscaler later removes the now empty node.
 
 These restarts still cause downtime:
 
-- **Restarts GKE triggers itself:** a node auto-upgrade or auto-repair evicts the pod before its replacement is ready. qlever is down until the new pod has synced and loaded.
+- **Restarts GKE triggers itself:** a node auto-upgrade or auto-repair evicts the pod before its replacement is ready. qlever is down until the new pod has synced and loaded. The cluster's maintenance window limits automatic upgrades to 07:00–11:00 UTC (2–6am US Eastern in winter, 3–7am in summer); auto-repair can still happen at any time.
 - **A restart during an upload:** the new pod syncs whatever is in the bucket at the time, which may be a partial index. `restart_qlever_on_gke` only runs after the upload finishes.
 
 ## First apply

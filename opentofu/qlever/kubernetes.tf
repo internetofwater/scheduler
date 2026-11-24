@@ -4,7 +4,7 @@
 # The qlever workload on the GKE cluster from cluster.tf:
 #   - every qlever pod gets its own new pd-ssd, which is deleted with the pod
 #   - the sync-index init container pulls the index from GCS onto that SSD
-#   - a rollout starts the new pod on the spare node and only removes the old one once the new one serves
+#   - a rollout starts the new pod on a second node (added by the autoscaler) and only removes the old one once the new one serves
 #   - qlever-server serves the index from the SSD and preloads the materialized views
 #   - a GKE Ingress with a Google-managed certificate serves each qlever_url over HTTPS
 
@@ -63,7 +63,7 @@ resource "kubernetes_deployment_v1" "qlever" {
     # syncing and loading a new index may take longer than the default 10 minutes
     progress_deadline_seconds = 3600
 
-    # start the new pod (on the spare node) and wait until it serves before
+    # start the new pod (on a second node the autoscaler adds) and wait until it serves before
     # removing the old one, so a new index rolls out without downtime
     strategy {
       type = "RollingUpdate"
@@ -80,6 +80,23 @@ resource "kubernetes_deployment_v1" "qlever" {
     template {
       metadata {
         labels = local.labels
+        annotations = {
+          # In a normal rollout, the deployment removes the old pod once the new
+          # one is ready (see strategy above). That leaves the old node empty,
+          # and the cluster autoscaler deletes it about 10 minutes later.
+          #
+          # Without this annotation, the autoscaler could also remove a node that
+          # is still running qlever: if it sees the qlever pod would fit on
+          # another node, it evicts the pod to consolidate and deletes the node.
+          # The pod then starts over on an empty disk, so qlever is down until it
+          # has synced and loaded the whole index again. Today a second qlever
+          # pod never fits on a node, but a larger machine_type or a smaller
+          # pod_memory_gib would change that. With the annotation, the
+          # autoscaler only ever removes an empty node. Node upgrades,
+          # auto-repair and node failures ignore this annotation and still
+          # evict the pod though so that could cause downtime.
+          "cluster-autoscaler.kubernetes.io/safe-to-evict" = "false"
+        }
       }
 
       spec {

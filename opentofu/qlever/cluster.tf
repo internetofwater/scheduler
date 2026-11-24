@@ -1,8 +1,9 @@
 # Copyright 2026 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-# A zonal GKE cluster that serves the qlever index. It has two nodes so a new
-# qlever pod can sync and load on one while the old pod keeps serving on the other.
+# A zonal GKE cluster that serves the qlever index. It normally runs one node;
+# during a rollout the autoscaler adds a second so the new qlever pod can sync
+# and load there while the old pod keeps serving, then removes the empty node.
 # The workload itself is defined in kubernetes.tf
 
 resource "google_container_cluster" "qlever" {
@@ -24,6 +25,20 @@ resource "google_container_cluster" "qlever" {
     channel = "REGULAR"
   }
 
+  # A node upgrade evicts the qlever pod, and qlever is down until the
+  # replacement has synced and loaded the index. Only start automatic upgrades
+  # overnight: 07:00-11:00 UTC is 2-6am US Eastern in winter (EST) and 3-7am in
+  # summer (EDT), since the window is fixed in UTC. GKE requires each window
+  # to be at least 4 hours and at least 48 hours of windows in any 32 days,
+  # hence a daily window.
+  maintenance_policy {
+    recurring_window {
+      start_time = "2026-01-01T07:00:00Z"
+      end_time   = "2026-01-01T11:00:00Z"
+      recurrence = "FREQ=DAILY"
+    }
+  }
+
   addons_config {
     gce_persistent_disk_csi_driver_config {
       enabled = true
@@ -32,10 +47,16 @@ resource "google_container_cluster" "qlever" {
 }
 
 resource "google_container_node_pool" "qlever" {
-  name       = "qlever"
-  cluster    = google_container_cluster.qlever.id
-  location   = var.zone
-  node_count = var.node_count
+  name     = "qlever"
+  cluster  = google_container_cluster.qlever.id
+  location = var.zone
+
+  # a node only fits one qlever pod; the second node exists only while a
+  # rollout's new pod runs alongside the old one
+  autoscaling {
+    min_node_count = var.min_node_count
+    max_node_count = var.max_node_count
+  }
 
   management {
     auto_repair  = true
