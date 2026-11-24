@@ -78,6 +78,10 @@ LAKEFS_SECRET_ACCESS_KEY = strict_env("LAKEFS_SECRET_ACCESS_KEY")
 ZENODO_ACCESS_TOKEN = strict_env("ZENODO_ACCESS_TOKEN")
 ZENODO_SANDBOX_ACCESS_TOKEN = strict_env("ZENODO_SANDBOX_ACCESS_TOKEN")
 GHCR_TOKEN = strict_env("GHCR_TOKEN")
+# the GKE cluster that serves the qlever index; "unset" skips restarting it
+QLEVER_GKE_PROJECT = strict_env("QLEVER_GKE_PROJECT")
+QLEVER_GKE_ZONE = strict_env("QLEVER_GKE_ZONE")
+QLEVER_GKE_CLUSTER = strict_env("QLEVER_GKE_CLUSTER")
 
 ### Dagster Options
 repositoryRoot = Path(__file__).parent.parent.parent.absolute()

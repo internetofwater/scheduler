@@ -73,6 +73,9 @@ from userCode.lib.env import (
     GHCR_TOKEN,
     HARVESTED_PARQUET_DIRECTORY,
     PMTILES_PREFIX_IN_S3,
+    QLEVER_GKE_CLUSTER,
+    QLEVER_GKE_PROJECT,
+    QLEVER_GKE_ZONE,
     RDF_PARQUET_PREFIX_IN_S3,
     RUNNING_AS_TEST_OR_DEV,
     S3_ADDRESS,
@@ -82,6 +85,7 @@ from userCode.lib.env import (
     ZENODO_ACCESS_TOKEN,
     ZENODO_SANDBOX_ACCESS_TOKEN,
 )
+from userCode.lib.gke import GKEDeployment
 from userCode.lib.lakefs import LakeFSClient
 from userCode.lib.stac_catalog import (
     PROCESSED_USGS_CATALOG_DESCRIPTION,
@@ -1218,6 +1222,37 @@ def stream_qlever_index_to_gcs(context: AssetExecutionContext):
                 content_type="octet-stream",
                 headers={},
             )
+
+
+@asset(
+    group_name=EXPORT_GROUP,
+    deps=[stream_qlever_index_to_gcs],
+)
+def restart_qlever_on_gke():
+    """
+    Restart qlever on GKE so its sync-index init container pulls the index
+    that was just uploaded to GCS; see opentofu/qlever/README.md
+    """
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning(
+            "Skipping qlever restart as we are running in test mode"
+        )
+        return
+    if "unset" in (QLEVER_GKE_PROJECT, QLEVER_GKE_ZONE, QLEVER_GKE_CLUSTER):
+        get_dagster_logger().warning(
+            "Skipping qlever restart since the QLEVER_GKE_* env vars are unset"
+        )
+        raise Exception(
+            "QLEVER_GKE_PROJECT, QLEVER_GKE_ZONE, and QLEVER_GKE_CLUSTER must be set"
+        )
+
+    GKEDeployment(
+        project=QLEVER_GKE_PROJECT,
+        zone=QLEVER_GKE_ZONE,
+        cluster=QLEVER_GKE_CLUSTER,
+        namespace="qlever",
+        name="qlever",
+    ).restart()
 
 
 @asset(

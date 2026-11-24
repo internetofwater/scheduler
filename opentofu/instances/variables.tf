@@ -178,3 +178,12 @@ variable "database_name" {
   description = "Database Name"
   type        = string
 }
+
+variable "qlever_cluster" {
+  description = "The GKE cluster that serves qlever; dagster restarts it after uploading a new index"
+  type = object({
+    project  = string
+    location = string
+    name     = string
+  })
+}

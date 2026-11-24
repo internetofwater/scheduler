@@ -6,6 +6,16 @@ output "cluster_name" {
   value       = google_container_cluster.qlever.name
 }
 
+output "cluster_project" {
+  description = "Project of the qlever GKE cluster"
+  value       = google_container_cluster.qlever.project
+}
+
+output "cluster_location" {
+  description = "Zone of the qlever GKE cluster"
+  value       = google_container_cluster.qlever.location
+}
+
 output "cluster_endpoint" {
   description = "Endpoint of the qlever GKE control plane"
   value       = google_container_cluster.qlever.endpoint
