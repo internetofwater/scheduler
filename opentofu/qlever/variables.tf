@@ -52,3 +52,14 @@ variable "qlever_image" {
   type        = string
   default     = "docker.io/adfreiburg/qlever:0.6.0"
 }
+
+variable "s3_bucket" {
+  description = "GCS bucket the qlever_index export uploads the index to"
+  type        = string
+}
+
+variable "sync_index_on_start" {
+  description = "Pull the index from GCS onto the persistent disk every time the qlever pod starts"
+  type        = bool
+  default     = true
+}

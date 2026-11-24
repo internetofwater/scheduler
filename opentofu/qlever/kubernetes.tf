@@ -2,13 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # The qlever workload on the GKE cluster from cluster.tf:
+#   - the sync-index init container pulls the index from GCS onto the SSD on every pod start
 #   - qlever-server serves the index from the SSD and preloads the materialized views
 #   - a GKE Ingress with a Google-managed certificate serves each qlever_url over HTTPS
 
 locals {
   labels = { app = "qlever" }
+  # qlever user group
+  qlever_uid = 999
+  qlever_gid = 999
   # timeout passed to qlever-server
   query_timeout_seconds = 300
+  index_source          = "gs://${var.s3_bucket}/geoconnex_index"
 }
 
 resource "kubernetes_namespace_v1" "qlever" {
@@ -90,8 +95,50 @@ resource "kubernetes_deployment_v1" "qlever" {
 
         # give the qlever user access to the persistent disk
         security_context {
-          fs_group               = 999
+          fs_group               = local.qlever_gid
           fs_group_change_policy = "OnRootMismatch"
+        }
+
+        # pull the latest index from GCS before qlever opens it.
+        # restarting the deployment serves a new index.
+        dynamic "init_container" {
+          for_each = var.sync_index_on_start ? [1] : []
+          content {
+            name    = "sync-index"
+            image   = "gcr.io/google.com/cloudsdktool/google-cloud-cli:stable"
+            command = ["bash", "-c"]
+            args = [<<-EOF
+              set -euo pipefail
+              src="${local.index_source}"
+              mkdir -p /data/index
+              echo "Syncing $src to /data/index"
+              gcloud storage rsync --recursive --delete-unmatched-destination-objects "$src" /data/index
+              chown -R ${local.qlever_uid}:${local.qlever_gid} /data/index
+              echo "Index synced"
+            EOF
+            ]
+
+            env {
+              # the image's default config dir is not writable everywhere
+              name  = "CLOUDSDK_CONFIG"
+              value = "/tmp/gcloud"
+            }
+
+            volume_mount {
+              name       = "data"
+              mount_path = "/data"
+            }
+
+            resources {
+              requests = {
+                cpu    = "2"
+                memory = "2Gi"
+              }
+              limits = {
+                memory = "4Gi"
+              }
+            }
+          }
         }
 
         container {
@@ -121,8 +168,8 @@ resource "kubernetes_deployment_v1" "qlever" {
 
           security_context {
             # uid/gid of the `qlever` user in the qlever image
-            run_as_user  = 999
-            run_as_group = 999
+            run_as_user  = local.qlever_uid
+            run_as_group = local.qlever_gid
           }
 
           port {

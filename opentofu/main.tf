@@ -126,6 +126,7 @@ module "qlever" {
   zone                  = var.zone
   network_name          = module.network.network_name
   service_account_email = var.service_account_email
+  s3_bucket             = module.storage.s3_bucket
 
   depends_on = [google_project_service.required_apis]
 }
