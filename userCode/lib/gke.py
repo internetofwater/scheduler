@@ -85,6 +85,56 @@ class GKEDeployment:
             f"{server}/apis/apps/v1/namespaces/{self.namespace}/deployments/{self.name}"
         )
 
+    def check_access(self) -> dict:
+        """
+        Connect to the cluster, read the deployment, and confirm we are allowed
+        to restart it, without changing anything. Returns the deployment's status
+        """
+        logger = get_dagster_logger()
+        token = access_token()
+        server, ca_file = self._cluster_connection(token)
+        logger.info(f"Connected to the {self.cluster} API server at {server}")
+
+        response = requests.get(
+            self._deployment_url(server),
+            headers={"Authorization": f"Bearer {token}"},
+            verify=ca_file,
+            timeout=30,
+        )
+        response.raise_for_status()
+        status = response.json().get("status", {})
+        logger.info(f"Read deployment {self.namespace}/{self.name}: {status}")
+
+        # ask the API server whether a restart (a patch) would be allowed
+        response = requests.post(
+            f"{server}/apis/authorization.k8s.io/v1/selfsubjectaccessreviews",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "apiVersion": "authorization.k8s.io/v1",
+                "kind": "SelfSubjectAccessReview",
+                "spec": {
+                    "resourceAttributes": {
+                        "group": "apps",
+                        "resource": "deployments",
+                        "verb": "patch",
+                        "namespace": self.namespace,
+                        "name": self.name,
+                    }
+                },
+            },
+            verify=ca_file,
+            timeout=30,
+        )
+        response.raise_for_status()
+        review = response.json().get("status", {})
+        if not review.get("allowed"):
+            raise PermissionError(
+                f"Not allowed to patch deployment {self.namespace}/{self.name}: "
+                f"{review.get('reason') or review.get('evaluationError') or 'no reason given'}"
+            )
+        logger.info(f"Allowed to restart deployment {self.namespace}/{self.name}")
+        return status
+
     def restart(
         self, timeout_seconds: int = 3600, poll_interval_seconds: int = 30
     ) -> None:

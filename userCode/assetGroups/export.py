@@ -1224,9 +1224,42 @@ def stream_qlever_index_to_gcs(context: AssetExecutionContext):
             )
 
 
+def qlever_gke_deployment() -> GKEDeployment:
+    """The qlever deployment on GKE, built from the QLEVER_GKE_* env vars"""
+    if "unset" in (QLEVER_GKE_PROJECT, QLEVER_GKE_ZONE, QLEVER_GKE_CLUSTER):
+        raise Exception(
+            "QLEVER_GKE_PROJECT, QLEVER_GKE_ZONE, and QLEVER_GKE_CLUSTER must be set"
+        )
+    return GKEDeployment(
+        project=QLEVER_GKE_PROJECT,
+        zone=QLEVER_GKE_ZONE,
+        cluster=QLEVER_GKE_CLUSTER,
+        namespace="qlever",
+        name="qlever",
+    )
+
+
+@asset(group_name=EXPORT_GROUP)
+def check_gke_connection() -> None:
+    """
+    Connect to the qlever GKE cluster and check that dagster's credentials
+    may restart the qlever deployment, without restarting it.
+
+    restart_qlever_on_gke depends on this, so materialize it by hand to
+    confirm the GKE connection works before the first restart
+    """
+    if RUNNING_AS_TEST_OR_DEV():
+        get_dagster_logger().warning(
+            "Skipping the GKE connection check as we are running in test mode"
+        )
+        return
+
+    qlever_gke_deployment().check_access()
+
+
 @asset(
     group_name=EXPORT_GROUP,
-    deps=[stream_qlever_index_to_gcs],
+    deps=[stream_qlever_index_to_gcs, check_gke_connection],
 )
 def restart_qlever_on_gke():
     """
@@ -1238,21 +1271,8 @@ def restart_qlever_on_gke():
             "Skipping qlever restart as we are running in test mode"
         )
         return
-    if "unset" in (QLEVER_GKE_PROJECT, QLEVER_GKE_ZONE, QLEVER_GKE_CLUSTER):
-        get_dagster_logger().warning(
-            "Skipping qlever restart since the QLEVER_GKE_* env vars are unset"
-        )
-        raise Exception(
-            "QLEVER_GKE_PROJECT, QLEVER_GKE_ZONE, and QLEVER_GKE_CLUSTER must be set"
-        )
 
-    GKEDeployment(
-        project=QLEVER_GKE_PROJECT,
-        zone=QLEVER_GKE_ZONE,
-        cluster=QLEVER_GKE_CLUSTER,
-        namespace="qlever",
-        name="qlever",
-    ).restart()
+    qlever_gke_deployment().restart()
 
 
 @asset(
