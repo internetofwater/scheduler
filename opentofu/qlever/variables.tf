@@ -35,8 +35,14 @@ variable "machine_type" {
   default     = "e2-highmem-8"
 }
 
-variable "node_count" {
-  description = "Number of qlever GKE nodes. A node only fits one qlever pod, so keep at least 2 for zero downtime rollouts"
+variable "min_node_count" {
+  description = "Minimum number of qlever GKE nodes. A node only fits one qlever pod, so 1 serves the index"
+  type        = number
+  default     = 1
+}
+
+variable "max_node_count" {
+  description = "Maximum number of qlever GKE nodes. Keep at least 2 so a rollout can start the new pod on a second node for zero downtime"
   type        = number
   default     = 2
 }
