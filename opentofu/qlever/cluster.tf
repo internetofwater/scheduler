@@ -1,7 +1,8 @@
 # Copyright 2026 Lincoln Institute of Land Policy
 # SPDX-License-Identifier: Apache-2.0
 
-# A single node zonal GKE cluster that serves the qlever index.
+# A zonal GKE cluster that serves the qlever index. It has two nodes so a new
+# qlever pod can sync and load on one while the old pod keeps serving on the other.
 # The workload itself is defined in kubernetes.tf
 
 resource "google_container_cluster" "qlever" {
@@ -11,6 +12,9 @@ resource "google_container_cluster" "qlever" {
 
   deletion_protection = false
 
+  # the qlever node pool below holds the nodes; drop the default pool GKE
+  # creates with the cluster
+  remove_default_node_pool = true
   initial_node_count       = 1
 
   # VPC native networking with auto created secondary ranges
@@ -31,7 +35,7 @@ resource "google_container_node_pool" "qlever" {
   name       = "qlever"
   cluster    = google_container_cluster.qlever.id
   location   = var.zone
-  node_count = 1
+  node_count = var.node_count
 
   management {
     auto_repair  = true
@@ -46,14 +50,6 @@ resource "google_container_node_pool" "qlever" {
     service_account = var.service_account_email
     oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
   }
-}
-
-# Holds the qlever index under index/. It is managed outside of Kubernetes
-resource "google_compute_disk" "qlever_data" {
-  name = "${var.name}-qlever-data"
-  type = "pd-ssd"
-  zone = var.zone
-  size = var.disk_size
 }
 
 # The Ingress load balancer is global, so it needs a global address;

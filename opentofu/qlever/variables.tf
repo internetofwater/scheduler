@@ -35,6 +35,12 @@ variable "machine_type" {
   default     = "e2-highmem-8"
 }
 
+variable "node_count" {
+  description = "Number of qlever GKE nodes. A node only fits one qlever pod, so keep at least 2 for zero downtime rollouts"
+  type        = number
+  default     = 2
+}
+
 variable "pod_memory_gib" {
   description = "Memory reserved for and limited to the qlever pod (in GiB). Keep it below the node's allocatable memory."
   type        = number
@@ -42,7 +48,7 @@ variable "pod_memory_gib" {
 }
 
 variable "disk_size" {
-  description = "Size of the persistent SSD that holds the qlever index (in GB)"
+  description = "Size of the SSD each qlever pod gets for its copy of the index (in GB)"
   type        = number
   default     = 110
 }
@@ -56,10 +62,4 @@ variable "qlever_image" {
 variable "s3_bucket" {
   description = "GCS bucket the qlever_index export uploads the index to"
   type        = string
-}
-
-variable "sync_index_on_start" {
-  description = "Pull the index from GCS onto the persistent disk every time the qlever pod starts"
-  type        = bool
-  default     = true
 }

@@ -1,34 +1,52 @@
 # QLever on GKE
 
-QLever runs as a single pod on a one-node zonal GKE cluster:
+QLever runs as a single pod on a two-node zonal GKE cluster.
 
-- a `pd-ssd` persistent disk (`google_compute_disk.qlever_data`) holds the index under `index/`.
-- `qlever-server` serves the index from the disk and always preloads every materialized view in it.
-- a GKE Ingress on a global static IP serves every hostname in `qlever_url` over HTTPS with one Google-managed certificate.
+- **Nodes:** each node fits one qlever pod. One node serves, and the other is the spare that a new pod starts on during a rollout.
+- **Storage:** each pod gets its own new `pd-ssd` from the `qlever-ssd` StorageClass, as a generic ephemeral volume. Kubernetes creates the disk with the pod and deletes it with the pod.
+- **Server:** `qlever-server` serves the index from that disk and preloads every materialized view in it.
+- **Ingress:** a GKE Ingress on a global static IP serves every hostname in `qlever_url` over HTTPS with one Google-managed certificate.
 
 ## Serving a new index
 
-Every time the qlever pod starts, its `sync-index` init container runs `gcloud storage rsync` to copy `gs://<index_bucket>/geoconnex_index` onto the persistent disk. QLever starts after the sync finishes. To serve a new index once the `stream_qlever_index_to_gcs` export has finished, restart the deployment:
+Every pod starts on an empty disk. Its `sync-index` init container copies `gs://<index_bucket>/geoconnex_index` onto the disk, and qlever starts once the copy finishes.
+
+After `stream_qlever_index_to_gcs` uploads a new index, the `restart_qlever_on_gke` Dagster asset restarts the deployment and waits up to an hour for the rollout to finish. Materialize `check_qlever_gke_connection` first to confirm that Dagster can reach the cluster; `restart_qlever_on_gke` depends on it.
+
+Dagster authenticates as the Dagster VM's service account. That account needs permission to update deployments in the cluster, for example `roles/container.developer`.
+
+To restart by hand:
 
 ```sh
 gcloud container clusters get-credentials <vm_name>-qlever --zone <zone>
 kubectl -n qlever rollout restart deployment/qlever
-kubectl -n qlever logs -f deployment/qlever -c sync-index   # then: -c qlever
+kubectl -n qlever rollout status deployment/qlever
+kubectl -n qlever logs -f -l app=qlever -c sync-index   # then: -c qlever
 ```
 
-QLever is down from the restart until the new index has synced and loaded. After `stream_qlever_index_to_gcs` finishes, the `restart_qlever_on_gke` asset restarts the deployment and waits up to an hour for the new pod to become available. It authenticates as the Dagster VM's service account, which needs permission to update deployments in the cluster (e.g. `roles/container.developer`).
+The new index loads whatever views it contains, so adding a view to `assets/materialized_views.json` doesn't need a `tofu apply`.
 
-A restart during an upload syncs the partial index and deletes files from the disk that aren't in the bucket yet. GKE can also restart the pod on its own, for example during a node auto-upgrade or auto-repair, and that restart syncs whatever is in the bucket at the time. Set `sync_index_on_start = false` to turn off the sync and serve only what is already on the disk.
+### Downtime
 
-The restarted pod loads whatever views are in the new index, so adding a view to `assets/materialized_views.json` doesn't need a `tofu apply`.
+A restart is a rolling update with no downtime:
 
-## First apply / migrating from the VM
+1. The new pod starts on the spare node with its own disk, then syncs and loads the index.
+2. Once the new pod is ready and healthy behind the load balancer, the old pod is taken out of the load balancer.
+3. The old pod keeps serving for `drain_seconds` (30 s) and then gets up to the 300 s query timeout to finish running queries.
+4. The old pod and its disk are deleted.
 
-The kubernetes provider needs the cluster to exist before it can plan the workload, so the first apply takes two steps:
+These restarts still cause downtime:
+
+- **Restarts GKE triggers itself:** a node auto-upgrade or auto-repair evicts the pod before its replacement is ready. qlever is down until the new pod has synced and loaded.
+- **A restart during an upload:** the new pod syncs whatever is in the bucket at the time, which may be a partial index. `restart_qlever_on_gke` only runs after the upload finishes.
+
+## First apply
+
+The kubernetes provider can't plan the workload until the cluster exists, so the first apply happens in steps:
 
 ```sh
-# 1. destroy the old qlever VM and create the cluster, disk and global IP
-tofu apply -target=module.instances -target=module.qlever.google_container_node_pool.qlever -target=module.qlever.google_compute_disk.qlever_data -target=module.qlever.google_compute_global_address.qlever
+# 1. destroy the old qlever VM and create the cluster and global IP
+tofu apply -target=module.instances -target=module.qlever.google_container_node_pool.qlever -target=module.qlever.google_compute_global_address.qlever
 
 # 2. point the DNS A record of every hostname in qlever_url at the new IP
 tofu output qlever_ip
@@ -37,6 +55,6 @@ tofu output qlever_ip
 tofu apply
 ```
 
-The managed certificate is only issued after DNS resolves to the new IP, which can take 15–60 minutes. Check on it with `kubectl -n qlever describe managedcertificate qlever`.
+Google issues the managed certificate only after DNS resolves to the new IP, which can take 15–60 minutes. Check on it with `kubectl -n qlever describe managedcertificate qlever`.
 
-After that, a normal `tofu apply` works.
+After the first apply, a normal `tofu apply` works.

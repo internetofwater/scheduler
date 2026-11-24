@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # The qlever workload on the GKE cluster from cluster.tf:
-#   - the sync-index init container pulls the index from GCS onto the SSD on every pod start
+#   - every qlever pod gets its own new pd-ssd, which is deleted with the pod
+#   - the sync-index init container pulls the index from GCS onto that SSD
+#   - a rollout starts the new pod on the spare node and only removes the old one once the new one serves
 #   - qlever-server serves the index from the SSD and preloads the materialized views
 #   - a GKE Ingress with a Google-managed certificate serves each qlever_url over HTTPS
 
@@ -13,7 +15,9 @@ locals {
   qlever_gid = 999
   # timeout passed to qlever-server
   query_timeout_seconds = 300
-  index_source          = "gs://${var.s3_bucket}/geoconnex_index"
+  # how long the old pod keeps serving after it is taken out of the load balancer
+  drain_seconds = 30
+  index_source  = "gs://${var.s3_bucket}/geoconnex_index"
 }
 
 resource "kubernetes_namespace_v1" "qlever" {
@@ -24,49 +28,30 @@ resource "kubernetes_namespace_v1" "qlever" {
   depends_on = [google_container_node_pool.qlever]
 }
 
-resource "kubernetes_persistent_volume_v1" "qlever_data" {
+# Dynamically provisions an SSD for each qlever pod. Binding waits for the pod
+# to be scheduled so the disk is created in the pod's zone
+resource "kubernetes_storage_class_v1" "qlever_ssd" {
   metadata {
-    name = "qlever-data"
+    name = "qlever-ssd"
   }
-  spec {
-    capacity = {
-      storage = "${var.disk_size}Gi"
-    }
-    access_modes                     = ["ReadWriteOnce"]
-    persistent_volume_reclaim_policy = "Retain"
-    # not a real StorageClass; it only pairs this volume with the claim below
-    # and keeps GKE from dynamically provisioning a different disk
-    storage_class_name = "qlever-static"
-    persistent_volume_source {
-      csi {
-        driver        = "pd.csi.storage.gke.io"
-        volume_handle = google_compute_disk.qlever_data.id
-        fs_type       = "ext4"
-      }
-    }
+  storage_provisioner    = "pd.csi.storage.gke.io"
+  reclaim_policy         = "Delete"
+  volume_binding_mode    = "WaitForFirstConsumer"
+  allow_volume_expansion = true
+  parameters = {
+    type = "pd-ssd"
   }
 
   depends_on = [google_container_node_pool.qlever]
 }
 
-resource "kubernetes_persistent_volume_claim_v1" "qlever_data" {
-  metadata {
-    name      = "qlever-data"
-    namespace = kubernetes_namespace_v1.qlever.metadata[0].name
-  }
-  spec {
-    access_modes       = ["ReadWriteOnce"]
-    storage_class_name = "qlever-static"
-    volume_name        = kubernetes_persistent_volume_v1.qlever_data.metadata[0].name
-    resources {
-      requests = {
-        storage = "${var.disk_size}Gi"
-      }
-    }
-  }
-}
-
 resource "kubernetes_deployment_v1" "qlever" {
+  # a rollout syncs and loads a whole index before it finishes
+  timeouts {
+    create = "60m"
+    update = "60m"
+  }
+
   metadata {
     name      = "qlever"
     namespace = kubernetes_namespace_v1.qlever.metadata[0].name
@@ -78,9 +63,14 @@ resource "kubernetes_deployment_v1" "qlever" {
     # syncing and loading a new index may take longer than the default 10 minutes
     progress_deadline_seconds = 3600
 
-    # the persistent disk can only be attached to one node at a time
+    # start the new pod (on the spare node) and wait until it serves before
+    # removing the old one, so a new index rolls out without downtime
     strategy {
-      type = "Recreate"
+      type = "RollingUpdate"
+      rolling_update {
+        max_surge       = "1"
+        max_unavailable = "0"
+      }
     }
 
     selector {
@@ -93,7 +83,8 @@ resource "kubernetes_deployment_v1" "qlever" {
       }
 
       spec {
-        termination_grace_period_seconds = 30
+        # let queries that are still running on the old pod finish
+        termination_grace_period_seconds = local.drain_seconds + local.query_timeout_seconds
 
         # give the qlever user access to the persistent disk
         security_context {
@@ -101,44 +92,41 @@ resource "kubernetes_deployment_v1" "qlever" {
           fs_group_change_policy = "OnRootMismatch"
         }
 
-        # pull the latest index from GCS before qlever opens it.
-        # restarting the deployment serves a new index.
-        dynamic "init_container" {
-          for_each = var.sync_index_on_start ? [1] : []
-          content {
-            name    = "sync-index"
-            image   = "gcr.io/google.com/cloudsdktool/google-cloud-cli:stable"
-            command = ["bash", "-c"]
-            args = [<<-EOF
-              set -euo pipefail
-              src="${local.index_source}"
-              mkdir -p /data/index
-              echo "Syncing $src to /data/index"
-              gcloud storage rsync --recursive --delete-unmatched-destination-objects "$src" /data/index
-              chown -R ${local.qlever_uid}:${local.qlever_gid} /data/index
-              echo "Index synced"
-            EOF
-            ]
+        # pull the latest index from GCS onto the pod's new disk before qlever
+        # opens it. restarting the deployment serves a new index.
+        init_container {
+          name    = "sync-index"
+          image   = "gcr.io/google.com/cloudsdktool/google-cloud-cli:stable"
+          command = ["bash", "-c"]
+          args = [<<-EOF
+            set -euo pipefail
+            src="${local.index_source}"
+            mkdir -p /data/index
+            echo "Syncing $src to /data/index"
+            gcloud storage rsync --recursive --delete-unmatched-destination-objects "$src" /data/index
+            chown -R ${local.qlever_uid}:${local.qlever_gid} /data/index
+            echo "Index synced"
+          EOF
+          ]
 
-            env {
-              # the image's default config dir is not writable everywhere
-              name  = "CLOUDSDK_CONFIG"
-              value = "/tmp/gcloud"
+          env {
+            # the image's default config dir is not writable everywhere
+            name  = "CLOUDSDK_CONFIG"
+            value = "/tmp/gcloud"
+          }
+
+          volume_mount {
+            name       = "data"
+            mount_path = "/data"
+          }
+
+          resources {
+            requests = {
+              cpu    = "2"
+              memory = "2Gi"
             }
-
-            volume_mount {
-              name       = "data"
-              mount_path = "/data"
-            }
-
-            resources {
-              requests = {
-                cpu    = "2"
-                memory = "2Gi"
-              }
-              limits = {
-                memory = "4Gi"
-              }
+            limits = {
+              memory = "4Gi"
             }
           }
         }
@@ -177,6 +165,15 @@ resource "kubernetes_deployment_v1" "qlever" {
           port {
             name           = "sparql"
             container_port = 8888
+          }
+
+          # keep serving while the load balancer stops sending this pod new queries
+          lifecycle {
+            pre_stop {
+              exec {
+                command = ["sleep", "${local.drain_seconds}"]
+              }
+            }
           }
 
           volume_mount {
@@ -225,10 +222,24 @@ resource "kubernetes_deployment_v1" "qlever" {
           }
         }
 
+        # a new SSD for each pod, deleted along with the pod
         volume {
           name = "data"
-          persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim_v1.qlever_data.metadata[0].name
+          ephemeral {
+            volume_claim_template {
+              metadata {
+                labels = local.labels
+              }
+              spec {
+                access_modes       = ["ReadWriteOnce"]
+                storage_class_name = kubernetes_storage_class_v1.qlever_ssd.metadata[0].name
+                resources {
+                  requests = {
+                    storage = "${var.disk_size}Gi"
+                  }
+                }
+              }
+            }
           }
         }
       }
