@@ -17,12 +17,6 @@ variable "disk_size" {
   default     = 180
 }
 
-variable "qlever_disk_size" {
-  description = "Boot disk size for each VM instance (in GB)"
-  type        = number
-  default     = 110
-}
-
 variable "enable_public_url" {
   description = "Boolean if running Caddy for HTTPS"
   type        = bool
@@ -31,12 +25,6 @@ variable "enable_public_url" {
 
 # GCP-Specific Configurations
 variable "machine_type" {
-  description = "Machine type for GCP instances (overrides instance_type in production)"
-  type        = string
-  default     = "e2-highmem-8"
-}
-
-variable "qlever_machine_type" {
   description = "Machine type for GCP instances (overrides instance_type in production)"
   type        = string
   default     = "e2-highmem-8"
@@ -64,11 +52,6 @@ variable "network_name" {
 
 variable "project" {
   description = "GCP project ID"
-  type        = string
-}
-
-variable "static_ip" {
-  description = "Static IP address"
   type        = string
 }
 
@@ -101,12 +84,6 @@ variable "graph_url" {
   description = "Graph URL"
   type        = string
   default     = "http://graphdb:7200"
-}
-
-variable "qlever_url" {
-  description = "Graph URL"
-  type        = string
-  default     = "qlever.internetofwater.app"
 }
 
 variable "ghcr_token" {
