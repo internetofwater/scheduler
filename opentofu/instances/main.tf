@@ -86,6 +86,9 @@ resource "google_compute_instance" "harvest_vm" {
 
     # Integrations / Notifications
     GHCR_TOKEN=${var.ghcr_token}
+    QLEVER_GKE_PROJECT=${var.qlever_cluster.project}
+    QLEVER_GKE_ZONE=${var.qlever_cluster.location}
+    QLEVER_GKE_CLUSTER=${var.qlever_cluster.name}
     DAGSTER_SLACK_TOKEN=${var.dagster_slack_token}
     LAKEFS_ENDPOINT_URL=${var.lakefs_endpoint}
     LAKEFS_ACCESS_KEY_ID=${var.lakefs_access_key}

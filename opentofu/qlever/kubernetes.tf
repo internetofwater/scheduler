@@ -75,6 +75,8 @@ resource "kubernetes_deployment_v1" "qlever" {
 
   spec {
     replicas = 1
+    # syncing and loading a new index may take longer than the default 10 minutes
+    progress_deadline_seconds = 3600
 
     # the persistent disk can only be attached to one node at a time
     strategy {

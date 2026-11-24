@@ -16,7 +16,7 @@ kubectl -n qlever rollout restart deployment/qlever
 kubectl -n qlever logs -f deployment/qlever -c sync-index   # then: -c qlever
 ```
 
-QLever is down from the restart until the new index has synced and loaded.
+QLever is down from the restart until the new index has synced and loaded. After `stream_qlever_index_to_gcs` finishes, the `restart_qlever_on_gke` asset restarts the deployment and waits up to an hour for the new pod to become available. It authenticates as the Dagster VM's service account, which needs permission to update deployments in the cluster (e.g. `roles/container.developer`).
 
 A restart during an upload syncs the partial index and deletes files from the disk that aren't in the bucket yet. GKE can also restart the pod on its own, for example during a node auto-upgrade or auto-repair, and that restart syncs whatever is in the bucket at the time. Set `sync_index_on_start = false` to turn off the sync and serve only what is already on the disk.
 

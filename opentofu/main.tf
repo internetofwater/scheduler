@@ -97,6 +97,11 @@ module "instances" {
   zone          = var.zone
   sitemap_url   = var.sitemap_url
   service_account_email = var.service_account_email
+  qlever_cluster = {
+    project  = module.qlever.cluster_project
+    location = module.qlever.cluster_location
+    name     = module.qlever.cluster_name
+  }
   graph_url     = "http://${data.google_compute_instance.graphdb.network_interface[0].network_ip}:7200"
 
   # tokens
